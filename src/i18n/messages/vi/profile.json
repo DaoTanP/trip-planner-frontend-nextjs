@@ -1,0 +1,8 @@
+{
+  "title": "Hồ sơ",
+  "description": "Quản lý thông tin cá nhân, ngôn ngữ và thiết lập chuyến đi.",
+  "menu": {
+    "label": "Menu hồ sơ",
+    "settings": "Cài đặt"
+  }
+}

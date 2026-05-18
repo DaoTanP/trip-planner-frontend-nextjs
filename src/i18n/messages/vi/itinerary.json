@@ -1,0 +1,17 @@
+{
+  "title": "Lịch trình",
+  "description": "Sắp xếp ngày, điểm dừng, tuyến đường và thời gian di chuyển.",
+  "empty": {
+    "title": "Chưa có điểm dừng",
+    "description": "Thêm địa điểm để bắt đầu xây dựng chuyến đi."
+  },
+  "map": {
+    "label": "Bản đồ chuyến đi",
+    "placeholder": "Khu vực tích hợp bản đồ"
+  },
+  "stop": {
+    "arrival": "Đến",
+    "departure": "Rời đi",
+    "notes": "Ghi chú"
+  }
+}

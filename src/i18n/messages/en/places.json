@@ -1,0 +1,12 @@
+{
+  "search": {
+    "label": "Search places",
+    "placeholder": "Search cities, hotels, restaurants, or landmarks",
+    "empty": "No places found"
+  },
+  "mapProvider": {
+    "google": "Google Maps",
+    "mapbox": "Mapbox",
+    "openStreetMap": "OpenStreetMap"
+  }
+}

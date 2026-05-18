@@ -1,0 +1,7 @@
+{
+  "required": "Trường này là bắt buộc.",
+  "email": "Vui lòng nhập email hợp lệ.",
+  "minLength": "Sử dụng ít nhất {min} ký tự.",
+  "maxLength": "Sử dụng tối đa {max} ký tự.",
+  "dateOrder": "Ngày kết thúc phải sau ngày bắt đầu."
+}

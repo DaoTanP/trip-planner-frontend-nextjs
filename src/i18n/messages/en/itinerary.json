@@ -1,0 +1,17 @@
+{
+  "title": "Itinerary",
+  "description": "Arrange days, stops, routes, and travel time.",
+  "empty": {
+    "title": "No itinerary stops",
+    "description": "Add places to start shaping this trip."
+  },
+  "map": {
+    "label": "Trip map",
+    "placeholder": "Map integration placeholder"
+  },
+  "stop": {
+    "arrival": "Arrival",
+    "departure": "Departure",
+    "notes": "Notes"
+  }
+}

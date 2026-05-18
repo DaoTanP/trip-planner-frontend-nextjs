@@ -1,0 +1,8 @@
+{
+  "title": "Profile",
+  "description": "Manage personal details, locale preferences, and trip settings.",
+  "menu": {
+    "label": "Profile menu",
+    "settings": "Settings"
+  }
+}

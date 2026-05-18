@@ -1,0 +1,76 @@
+{
+  "app": {
+    "name": "Trip Planner",
+    "shortName": "Trips"
+  },
+  "metadata": {
+    "title": "Trip Planner",
+    "description": "Lập kế hoạch du lịch cộng tác với địa điểm, tuyến đường, bản đồ và lịch trình bản địa hóa."
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "trips": "Chuyến đi",
+    "profile": "Hồ sơ",
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất"
+  },
+  "actions": {
+    "continue": "Tiếp tục",
+    "cancel": "Hủy",
+    "save": "Lưu",
+    "retry": "Thử lại",
+    "create": "Tạo",
+    "delete": "Xóa",
+    "view": "Xem",
+    "open": "Mở"
+  },
+  "theme": {
+    "toggle": "Đổi giao diện",
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ thống"
+  },
+  "locale": {
+    "label": "Ngôn ngữ",
+    "en": "Tiếng Anh",
+    "vi": "Tiếng Việt"
+  },
+  "states": {
+    "loading": "Đang tải",
+    "empty": "Chưa có dữ liệu",
+    "error": "Đã xảy ra lỗi"
+  },
+  "errors": {
+    "unknown": "Đã xảy ra lỗi. Vui lòng thử lại.",
+    "network": "Không thể kết nối mạng.",
+    "unauthorized": "Vui lòng đăng nhập để tiếp tục.",
+    "forbidden": "Bạn không có quyền thực hiện thao tác này.",
+    "notFound": {
+      "title": "Không tìm thấy trang",
+      "description": "Trang có thể đã được di chuyển hoặc địa chỉ không chính xác."
+    },
+    "page": {
+      "title": "Không thể tải trang này",
+      "description": "Hãy làm mới trang hoặc thử lại sau."
+    }
+  },
+  "home": {
+    "eyebrow": "Không gian lập kế hoạch ưu tiên bản đồ",
+    "title": "Xây dựng chuyến đi quanh địa điểm, ngày và di chuyển thực tế.",
+    "description": "Nền tảng frontend sẵn sàng cho production để lập tuyến đường, lưu địa điểm, tạo lịch trình và mở rộng cộng tác khi sản phẩm sẵn sàng.",
+    "primaryAction": "Mở chuyến đi",
+    "secondaryAction": "Đăng nhập",
+    "mapTitle": "Hà Nội đến Đà Nẵng",
+    "mapSubtitle": "3 thành phố · 7 ngày · 840 km",
+    "dayLabel": "Ngày {day}",
+    "stats": {
+      "stops": "Điểm dừng",
+      "days": "Ngày",
+      "distance": "km"
+    },
+    "workspace": {
+      "title": "Không gian lập kế hoạch",
+      "description": "Các module tính năng tách biệt bản đồ, trạng thái lịch trình, API và UI nhưng vẫn dùng chung hệ thống thiết kế."
+    }
+  }
+}

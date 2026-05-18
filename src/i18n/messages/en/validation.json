@@ -1,0 +1,7 @@
+{
+  "required": "This field is required.",
+  "email": "Enter a valid email address.",
+  "minLength": "Use at least {min, plural, one {# character} other {# characters}}.",
+  "maxLength": "Use no more than {max, plural, one {# character} other {# characters}}.",
+  "dateOrder": "End date must be after the start date."
+}

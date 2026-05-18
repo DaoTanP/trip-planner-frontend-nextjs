@@ -1,0 +1,12 @@
+{
+  "search": {
+    "label": "Tìm địa điểm",
+    "placeholder": "Tìm thành phố, khách sạn, nhà hàng hoặc địa danh",
+    "empty": "Không tìm thấy địa điểm"
+  },
+  "mapProvider": {
+    "google": "Google Maps",
+    "mapbox": "Mapbox",
+    "openStreetMap": "OpenStreetMap"
+  }
+}

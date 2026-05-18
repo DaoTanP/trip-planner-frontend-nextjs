@@ -1,0 +1,76 @@
+{
+  "app": {
+    "name": "Trip Planner",
+    "shortName": "Trips"
+  },
+  "metadata": {
+    "title": "Trip Planner",
+    "description": "Plan collaborative trips with places, routes, maps, and localized itineraries."
+  },
+  "nav": {
+    "home": "Home",
+    "trips": "Trips",
+    "profile": "Profile",
+    "login": "Log in",
+    "logout": "Log out"
+  },
+  "actions": {
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "save": "Save",
+    "retry": "Try again",
+    "create": "Create",
+    "delete": "Delete",
+    "view": "View",
+    "open": "Open"
+  },
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "locale": {
+    "label": "Language",
+    "en": "English",
+    "vi": "Vietnamese"
+  },
+  "states": {
+    "loading": "Loading",
+    "empty": "Nothing here yet",
+    "error": "Something went wrong"
+  },
+  "errors": {
+    "unknown": "Something went wrong. Please try again.",
+    "network": "Network connection failed.",
+    "unauthorized": "Please log in to continue.",
+    "forbidden": "You do not have access to this action.",
+    "notFound": {
+      "title": "Page not found",
+      "description": "The page may have moved or the address may be incorrect."
+    },
+    "page": {
+      "title": "We could not load this page",
+      "description": "Refresh the page or try again in a moment."
+    }
+  },
+  "home": {
+    "eyebrow": "Map-first planning workspace",
+    "title": "Build trips around places, days, and real movement.",
+    "description": "A production-ready frontend foundation for planning routes, saving places, shaping itineraries, and adding collaboration when the product is ready.",
+    "primaryAction": "Open trips",
+    "secondaryAction": "Log in",
+    "mapTitle": "Hanoi to Da Nang",
+    "mapSubtitle": "3 cities · 7 days · 840 km",
+    "dayLabel": "Day {day}",
+    "stats": {
+      "stops": "Stops",
+      "days": "Days",
+      "distance": "km"
+    },
+    "workspace": {
+      "title": "Planner workspace",
+      "description": "Feature modules keep maps, itinerary state, API calls, and UI isolated while sharing the same design system."
+    }
+  }
+}

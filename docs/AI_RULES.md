@@ -55,6 +55,9 @@ Make small, coherent changes that preserve the architecture. Do not invent new g
 - Use query cancellation signals.
 - Keep auth transport in `src/services/api`; do not reimplement token, cookie, CSRF, or refresh handling in components.
 - New auth providers must preserve the frontend/backend contract and add i18n keys for loading, success, and failure states.
+- Import backend DTO aliases from `src/services/api/contracts`; do not duplicate DTO interfaces inside feature modules.
+- Add new endpoints to `src/services/api/endpoints.ts` before using them in feature services.
+- Localize error UX from stable backend error codes, not backend message text.
 
 ## UI Rules
 

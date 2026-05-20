@@ -1,12 +1,10 @@
 import { authCookies } from "@/constants/cookies";
+import type { AuthTokensDto } from "@/services/api/contracts";
 
 const memoryTokens: Partial<AuthTokenSnapshot> = {};
 
-export interface AuthTokenSnapshot {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn?: string;
-}
+export type AuthTokenSnapshot = Partial<AuthTokensDto> &
+  Pick<AuthTokensDto, "accessToken" | "refreshToken">;
 
 function canUseDocumentCookies() {
   return typeof document !== "undefined";

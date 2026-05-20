@@ -1,17 +1,10 @@
-export interface ApiResponse<T> {
-  success?: boolean;
-  data: T;
-  meta?: Record<string, unknown>;
-  message?: string;
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
-
-export interface ApiFieldErrors {
-  [field: string]: string[];
-}
+export type {
+  ApiErrorCode,
+  ApiErrorPayload,
+  ApiErrorResponse,
+  ApiMeta,
+  ApiResponse,
+  ApiSuccessResponse,
+  ApiValidationIssue,
+  PaginationMeta
+} from "@/services/api/contracts";

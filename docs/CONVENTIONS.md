@@ -53,6 +53,10 @@ These conventions keep the codebase predictable as it grows.
 - Use `queryOptions` so query definitions are reusable.
 - Use optimistic updates only when rollback is straightforward.
 - Pass `AbortSignal` from queries into API functions.
+- Use `src/services/api/endpoints.ts` for API paths.
+- Use DTO aliases from `src/services/api/contracts` instead of hand-writing backend request/response types.
+- Services return feature-ready data, not raw Axios responses.
+- List queries should preserve pagination metadata from `meta.pagination` when the UI may need it later.
 
 ## Forms
 
@@ -68,6 +72,7 @@ These conventions keep the codebase predictable as it grows.
 - Do not toast raw API error text unless it is explicitly safe and localized.
 - Prefer localized fallback messages.
 - Keep page-level errors in route `error.tsx`.
+- Map backend error codes to translation keys in `services/errors/error-translation.ts`.
 
 ## Auth
 

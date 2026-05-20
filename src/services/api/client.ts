@@ -3,6 +3,7 @@ import axios, { AxiosHeaders, type InternalAxiosRequestConfig } from "axios";
 import { apiConfig } from "@/config/api";
 
 import { refreshAccessToken } from "./auth-refresh";
+import { apiEndpoints } from "./endpoints";
 import { normalizeApiError } from "./errors";
 import { authTokenStore } from "./token-storage";
 
@@ -72,7 +73,7 @@ apiClient.interceptors.response.use(
       normalizedError.status === 401 &&
       originalRequest &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes(apiConfig.auth.refreshPath);
+      !originalRequest.url?.includes(apiEndpoints.auth.refresh);
 
     if (!canRefresh || !originalRequest) {
       return Promise.reject(normalizedError);

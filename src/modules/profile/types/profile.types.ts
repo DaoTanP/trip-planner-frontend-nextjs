@@ -1,16 +1,4 @@
-import type { Locale } from "@/i18n/routing";
+import type { PublicUserDto, UpdateProfileRequestDto } from "@/services/api/contracts";
 
-export interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  locale: Locale;
-  timeZone: string;
-  avatarUrl?: string;
-}
-
-export interface UpdateProfilePayload {
-  name?: string;
-  locale?: Locale;
-  timeZone?: string;
-}
+export type UserProfile = PublicUserDto;
+export type UpdateProfilePayload = UpdateProfileRequestDto;

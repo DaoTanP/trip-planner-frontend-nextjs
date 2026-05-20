@@ -11,24 +11,27 @@
     "description": "Tạo chuyến đi đầu tiên để lưu địa điểm và xây dựng lịch trình."
   },
   "form": {
-    "nameLabel": "Tên chuyến đi",
-    "namePlaceholder": "Kỳ nghỉ miền Bắc Việt Nam",
-    "destinationLabel": "Điểm đến chính",
-    "destinationPlaceholder": "Hà Nội",
+    "titleLabel": "Tên chuyến đi",
+    "titlePlaceholder": "Kỳ nghỉ miền Bắc Việt Nam",
+    "descriptionLabel": "Mô tả",
+    "descriptionPlaceholder": "Ghi chú lập kế hoạch tùy chọn",
     "startDateLabel": "Ngày bắt đầu",
     "endDateLabel": "Ngày kết thúc",
     "submit": "Tạo chuyến đi"
   },
   "card": {
     "dateRange": "{startDate} - {endDate}",
+    "noDates": "Chưa đặt ngày",
+    "noDestinations": "Chưa có điểm đến",
     "collaborators": "{count, plural, =0 {Chưa có cộng tác viên} other {# cộng tác viên}}",
-    "stops": "{count, plural, =0 {Chưa có điểm dừng} other {# điểm dừng}}"
+    "days": "{count, plural, =0 {Chưa có ngày lịch trình} other {# ngày lịch trình}}"
   },
   "status": {
-    "draft": "Bản nháp",
-    "planning": "Đang lên kế hoạch",
-    "booked": "Đã đặt",
-    "completed": "Hoàn tất"
+    "DRAFT": "Bản nháp",
+    "PLANNED": "Đã lên kế hoạch",
+    "ACTIVE": "Đang diễn ra",
+    "COMPLETED": "Hoàn tất",
+    "ARCHIVED": "Đã lưu trữ"
   },
   "toast": {
     "created": "Đã tạo chuyến đi.",

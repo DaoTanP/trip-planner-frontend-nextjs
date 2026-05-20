@@ -5,7 +5,8 @@ import { apiConfig } from "@/config/api";
 import { authCookies } from "@/constants/cookies";
 import { routes } from "@/constants/routes";
 import type { Locale } from "@/i18n/routing";
-import type { ApiResponse } from "@/types/api";
+import { apiEndpoints } from "@/services/api/endpoints";
+import type { ApiSuccessResponse } from "@/types/api";
 
 import type { AuthSession } from "../types/auth.types";
 
@@ -28,7 +29,7 @@ export async function getServerSession(locale: Locale) {
     .map((cookie) => `${cookie.name}=${encodeURIComponent(cookie.value)}`)
     .join("; ");
 
-  const response = await fetch(`${apiConfig.serverBaseUrl}${apiConfig.auth.mePath}`, {
+  const response = await fetch(`${apiConfig.serverBaseUrl}${apiEndpoints.auth.me}`, {
     headers: {
       cookie: cookieHeader,
       "x-locale": locale
@@ -40,7 +41,7 @@ export async function getServerSession(locale: Locale) {
     return null;
   }
 
-  const body = (await response.json()) as ApiResponse<AuthSession>;
+  const body = (await response.json()) as ApiSuccessResponse<AuthSession>;
 
   return body.data;
 }

@@ -23,8 +23,8 @@ export function CreateTripForm() {
   const form = useForm<CreateTripFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      name: "",
-      destination: "",
+      title: "",
+      description: "",
       startDate: "",
       endDate: ""
     }
@@ -36,29 +36,29 @@ export function CreateTripForm() {
       onSubmit={form.handleSubmit((values) => createMutation.mutate(values))}
     >
       <div className="grid gap-2">
-        <Label htmlFor="trip-name">{tTrip("form.nameLabel")}</Label>
+        <Label htmlFor="trip-title">{tTrip("form.titleLabel")}</Label>
         <Input
-          id="trip-name"
-          placeholder={tTrip("form.namePlaceholder")}
-          aria-invalid={Boolean(form.formState.errors.name)}
-          aria-describedby="trip-name-error"
-          {...form.register("name")}
+          id="trip-title"
+          placeholder={tTrip("form.titlePlaceholder")}
+          aria-invalid={Boolean(form.formState.errors.title)}
+          aria-describedby="trip-title-error"
+          {...form.register("title")}
         />
-        <FieldError id="trip-name-error" message={form.formState.errors.name?.message} />
+        <FieldError id="trip-title-error" message={form.formState.errors.title?.message} />
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="trip-destination">{tTrip("form.destinationLabel")}</Label>
+        <Label htmlFor="trip-description">{tTrip("form.descriptionLabel")}</Label>
         <Input
-          id="trip-destination"
-          placeholder={tTrip("form.destinationPlaceholder")}
-          aria-invalid={Boolean(form.formState.errors.destination)}
-          aria-describedby="trip-destination-error"
-          {...form.register("destination")}
+          id="trip-description"
+          placeholder={tTrip("form.descriptionPlaceholder")}
+          aria-invalid={Boolean(form.formState.errors.description)}
+          aria-describedby="trip-description-error"
+          {...form.register("description")}
         />
         <FieldError
-          id="trip-destination-error"
-          message={form.formState.errors.destination?.message}
+          id="trip-description-error"
+          message={form.formState.errors.description?.message}
         />
       </div>
 

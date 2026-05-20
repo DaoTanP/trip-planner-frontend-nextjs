@@ -1,8 +1,10 @@
 import axios from "axios";
 
 import { apiConfig } from "@/config/api";
-import type { ApiResponse } from "@/types/api";
+import type { ApiSuccessResponse } from "@/types/api";
+import type { RefreshSessionResponseDto } from "@/services/api/contracts";
 
+import { apiEndpoints } from "./endpoints";
 import { authTokenStore, type AuthTokenSnapshot } from "./token-storage";
 
 const refreshClient = axios.create({
@@ -27,14 +29,14 @@ export async function refreshAccessToken() {
   const refreshToken = authTokenStore.getRefreshToken();
 
   refreshPromise = refreshClient
-    .post<ApiResponse<{ tokens?: AuthTokenSnapshot }> | { tokens?: AuthTokenSnapshot }>(
-      apiConfig.auth.refreshPath,
+    .post<ApiSuccessResponse<RefreshSessionResponseDto> | RefreshSessionResponseDto>(
+      apiEndpoints.auth.refresh,
       refreshToken ? { refreshToken } : {},
       { headers: getCsrfHeaders() }
     )
     .then((response) => {
       const payload = "data" in response.data ? response.data.data : response.data;
-      const tokens = payload.tokens;
+      const tokens = payload.tokens as AuthTokenSnapshot | undefined;
 
       if (tokens) {
         authTokenStore.set(tokens);

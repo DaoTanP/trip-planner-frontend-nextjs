@@ -45,6 +45,16 @@
     "network": "Không thể kết nối mạng.",
     "unauthorized": "Vui lòng đăng nhập để tiếp tục.",
     "forbidden": "Bạn không có quyền thực hiện thao tác này.",
+    "validation": "Vui lòng kiểm tra các trường được đánh dấu.",
+    "conflict": "Thao tác này xung đột với dữ liệu hiện có.",
+    "rateLimited": "Quá nhiều yêu cầu. Vui lòng chờ rồi thử lại.",
+    "auth": {
+      "invalidCredentials": "Email hoặc mật khẩu không hợp lệ.",
+      "sessionExpired": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      "oauthFailed": "Không thể hoàn tất đăng nhập OAuth.",
+      "oauthProviderNotConfigured": "Nhà cung cấp đăng nhập này chưa được cấu hình.",
+      "csrfInvalid": "Mã bảo mật đã hết hạn. Vui lòng thử lại."
+    },
     "notFound": {
       "title": "Không tìm thấy trang",
       "description": "Trang có thể đã được di chuyển hoặc địa chỉ không chính xác."

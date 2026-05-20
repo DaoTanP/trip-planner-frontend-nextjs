@@ -1,7 +1,7 @@
-import { apiConfig } from "@/config/api";
+import { apiEndpoints } from "@/services/api/endpoints";
 import { apiGet, apiPost } from "@/services/api/request";
 import { authTokenStore } from "@/services/api/token-storage";
-import type { ApiResponse } from "@/types/api";
+import type { ApiSuccessResponse } from "@/types/api";
 
 import type {
   AuthLoginResponse,
@@ -13,8 +13,8 @@ import type {
 } from "../types/auth.types";
 
 export async function login(payload: LoginPayload) {
-  const response = await apiPost<ApiResponse<AuthLoginResponse>, LoginPayload>(
-    apiConfig.auth.loginPath,
+  const response = await apiPost<ApiSuccessResponse<AuthLoginResponse>, LoginPayload>(
+    apiEndpoints.auth.login,
     payload
   );
 
@@ -26,8 +26,8 @@ export async function login(payload: LoginPayload) {
 }
 
 export async function register(payload: RegisterPayload) {
-  const response = await apiPost<ApiResponse<AuthLoginResponse>, RegisterPayload>(
-    apiConfig.auth.registerPath,
+  const response = await apiPost<ApiSuccessResponse<AuthLoginResponse>, RegisterPayload>(
+    apiEndpoints.auth.register,
     payload
   );
 
@@ -39,8 +39,8 @@ export async function register(payload: RegisterPayload) {
 }
 
 export async function loginWithOAuth(provider: OAuthProvider, payload: OAuthLoginPayload) {
-  const response = await apiPost<ApiResponse<AuthLoginResponse>, OAuthLoginPayload>(
-    apiConfig.auth.oauthPath(provider),
+  const response = await apiPost<ApiSuccessResponse<AuthLoginResponse>, OAuthLoginPayload>(
+    apiEndpoints.auth.oauth(provider),
     payload
   );
 
@@ -53,14 +53,14 @@ export async function loginWithOAuth(provider: OAuthProvider, payload: OAuthLogi
 
 export async function logout() {
   try {
-    await apiPost(apiConfig.auth.logoutPath);
+    await apiPost(apiEndpoints.auth.logout);
   } finally {
     authTokenStore.clear();
   }
 }
 
 export async function getSession(signal?: AbortSignal) {
-  const response = await apiGet<ApiResponse<AuthSession>>(apiConfig.auth.mePath, signal);
+  const response = await apiGet<ApiSuccessResponse<AuthSession>>(apiEndpoints.auth.me, signal);
 
   return response.data;
 }

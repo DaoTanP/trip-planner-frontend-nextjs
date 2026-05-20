@@ -1,5 +1,5 @@
 import { apiGet } from "@/services/api/request";
-import type { ApiResponse } from "@/types/api";
+import type { ApiSuccessResponse } from "@/types/api";
 
 import type { PlaceSearchParams, PlaceSearchResult } from "../types/place.types";
 
@@ -13,7 +13,7 @@ export async function searchPlaces(params: PlaceSearchParams, signal?: AbortSign
     searchParams.set("lng", String(params.near.longitude));
   }
 
-  const response = await apiGet<ApiResponse<PlaceSearchResult[]>>(
+  const response = await apiGet<ApiSuccessResponse<PlaceSearchResult[]>>(
     `/places/search?${searchParams.toString()}`,
     signal
   );

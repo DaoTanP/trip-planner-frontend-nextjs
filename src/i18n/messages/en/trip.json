@@ -11,24 +11,27 @@
     "description": "Create your first trip to start collecting places and building an itinerary."
   },
   "form": {
-    "nameLabel": "Trip name",
-    "namePlaceholder": "Northern Vietnam getaway",
-    "destinationLabel": "Primary destination",
-    "destinationPlaceholder": "Hanoi",
+    "titleLabel": "Trip title",
+    "titlePlaceholder": "Northern Vietnam getaway",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Optional planning notes",
     "startDateLabel": "Start date",
     "endDateLabel": "End date",
     "submit": "Create trip"
   },
   "card": {
     "dateRange": "{startDate} - {endDate}",
+    "noDates": "Dates not set",
+    "noDestinations": "No destinations yet",
     "collaborators": "{count, plural, =0 {No collaborators} =1 {# collaborator} other {# collaborators}}",
-    "stops": "{count, plural, =0 {No stops} =1 {# stop} other {# stops}}"
+    "days": "{count, plural, =0 {No itinerary days} =1 {# itinerary day} other {# itinerary days}}"
   },
   "status": {
-    "draft": "Draft",
-    "planning": "Planning",
-    "booked": "Booked",
-    "completed": "Completed"
+    "DRAFT": "Draft",
+    "PLANNED": "Planned",
+    "ACTIVE": "Active",
+    "COMPLETED": "Completed",
+    "ARCHIVED": "Archived"
   },
   "toast": {
     "created": "Trip created.",

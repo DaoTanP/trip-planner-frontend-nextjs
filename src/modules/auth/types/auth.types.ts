@@ -1,44 +1,18 @@
-export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
-  role: "USER" | "ADMIN";
-  avatarUrl: string | null;
-  locale: string;
-  timezone: string;
-  emailVerifiedAt: string | null;
-  createdAt: string;
-}
+import type {
+  AuthLoginResponseDto,
+  AuthSessionResponseDto,
+  AuthTokensDto,
+  LoginRequestDto,
+  OAuthLoginRequestDto,
+  PublicUserDto,
+  RegisterRequestDto
+} from "@/services/api/contracts";
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn?: string;
-}
-
-export interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-export interface RegisterPayload extends LoginPayload {
-  name: string;
-}
-
+export type AuthUser = PublicUserDto;
+export type AuthTokens = AuthTokensDto;
+export type LoginPayload = LoginRequestDto;
+export type RegisterPayload = RegisterRequestDto;
 export type OAuthProvider = "google";
-
-export interface OAuthLoginPayload {
-  credential: string;
-  deviceId?: string;
-  locale?: string;
-  timezone?: string;
-}
-
-export interface AuthLoginResponse {
-  user: AuthUser;
-  tokens?: AuthTokens;
-}
-
-export interface AuthSession {
-  user: AuthUser;
-}
+export type OAuthLoginPayload = OAuthLoginRequestDto;
+export type AuthLoginResponse = AuthLoginResponseDto;
+export type AuthSession = AuthSessionResponseDto;

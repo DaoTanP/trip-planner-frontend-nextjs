@@ -45,6 +45,16 @@
     "network": "Network connection failed.",
     "unauthorized": "Please log in to continue.",
     "forbidden": "You do not have access to this action.",
+    "validation": "Please check the highlighted fields.",
+    "conflict": "This action conflicts with existing data.",
+    "rateLimited": "Too many requests. Please wait and try again.",
+    "auth": {
+      "invalidCredentials": "Invalid email or password.",
+      "sessionExpired": "Your session expired. Please log in again.",
+      "oauthFailed": "We could not complete OAuth login.",
+      "oauthProviderNotConfigured": "This login provider is not configured.",
+      "csrfInvalid": "Your security token expired. Please try again."
+    },
     "notFound": {
       "title": "Page not found",
       "description": "The page may have moved or the address may be incorrect."

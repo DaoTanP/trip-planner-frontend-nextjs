@@ -17,20 +17,22 @@ export function TripCard({ trip }: TripCardProps) {
   const t = useTranslations("trip");
   const format = useFormatter();
   const deleteMutation = useDeleteTripMutation();
-  const startDate = format.dateTime(new Date(trip.startDate), "tripDate");
-  const endDate = format.dateTime(new Date(trip.endDate), "tripDate");
+  const startDate = trip.startDate ? format.dateTime(new Date(trip.startDate), "tripDate") : null;
+  const endDate = trip.endDate ? format.dateTime(new Date(trip.endDate), "tripDate") : null;
+  const destinations =
+    trip.destinationNames.length > 0 ? trip.destinationNames.join(", ") : t("card.noDestinations");
 
   return (
     <article className="grid gap-4 rounded-md border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
-          <h2 className="truncate text-base font-semibold">{trip.name}</h2>
+          <h2 className="truncate text-base font-semibold">{trip.title}</h2>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <MapPin className="size-4" aria-hidden="true" />
-            {trip.destination}
+            {destinations}
           </p>
         </div>
-        <Badge variant={trip.status === "completed" ? "success" : "secondary"}>
+        <Badge variant={trip.status === "COMPLETED" ? "success" : "secondary"}>
           {t(`status.${trip.status}`)}
         </Badge>
       </div>
@@ -38,13 +40,13 @@ export function TripCard({ trip }: TripCardProps) {
       <div className="grid gap-2 text-sm text-muted-foreground">
         <p className="flex items-center gap-2">
           <CalendarDays className="size-4" aria-hidden="true" />
-          {t("card.dateRange", { startDate, endDate })}
+          {startDate && endDate ? t("card.dateRange", { startDate, endDate }) : t("card.noDates")}
         </p>
         <p className="flex items-center gap-2">
           <Users className="size-4" aria-hidden="true" />
           {t("card.collaborators", { count: trip.collaboratorCount })}
         </p>
-        <p>{t("card.stops", { count: trip.stopCount })}</p>
+        <p>{t("card.days", { count: trip.itineraryDayCount })}</p>
       </div>
 
       <Button

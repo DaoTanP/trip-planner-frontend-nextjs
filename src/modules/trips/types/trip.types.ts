@@ -1,21 +1,13 @@
-export type TripStatus = "draft" | "planning" | "booked" | "completed";
+import type {
+  CreateTripRequestDto,
+  ListTripsQueryDto,
+  PaginationMeta,
+  TripSummaryDto
+} from "@/services/api/contracts";
 
-export interface Trip {
-  id: string;
-  name: string;
-  destination: string;
-  startDate: string;
-  endDate: string;
-  status: TripStatus;
-  collaboratorCount: number;
-  stopCount: number;
-  coverImageUrl?: string;
-  updatedAt: string;
-}
-
-export interface CreateTripPayload {
-  name: string;
-  destination: string;
-  startDate: string;
-  endDate: string;
-}
+export type Trip = TripSummaryDto;
+export type CreateTripPayload = CreateTripRequestDto;
+export type ListTripsQuery = ListTripsQueryDto;
+export type TripsListMeta = {
+  pagination: PaginationMeta;
+};

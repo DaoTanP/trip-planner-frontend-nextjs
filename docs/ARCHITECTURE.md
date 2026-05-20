@@ -128,8 +128,34 @@ The API layer is centralized under `src/services/api`:
 - `token-storage.ts`: replaceable browser token adapter.
 - `errors.ts`: normalized `ApiError`.
 - `request.ts`: typed `get/post/patch/delete` helpers.
+- `contracts/`: synced API v1 contract from the backend.
+- `endpoints.ts`: centralized path builders.
 
 UI components never call Axios directly. Modules expose typed service functions, and queries/mutations call those services.
+
+API contract ownership is backend-first. The canonical contract lives in `trip-planner-backend-expressjs/src/api/contracts/v1.ts`, and this repo consumes the generated-style copy under `src/services/api/contracts`. Feature modules should alias DTOs from that contract instead of hand-writing request and response shapes.
+
+Success shape:
+
+```json
+{ "success": true, "data": {}, "meta": {} }
+```
+
+Error shape:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": [],
+    "requestId": "req_..."
+  }
+}
+```
+
+Frontend code should use stable `error.code` values for localized UX and treat backend `message` as a fallback/debug value.
 
 ## Auth Flow
 

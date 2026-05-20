@@ -41,7 +41,7 @@ export function TripList() {
     );
   }
 
-  if (tripsQuery.data.length === 0) {
+  if (tripsQuery.data.items.length === 0) {
     return (
       <EmptyState
         title={tTrip("empty.title")}
@@ -58,7 +58,7 @@ export function TripList() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {tripsQuery.data.map((trip) => (
+      {tripsQuery.data.items.map((trip) => (
         <TripCard key={trip.id} trip={trip} />
       ))}
     </div>

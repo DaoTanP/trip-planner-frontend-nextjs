@@ -4,31 +4,49 @@ import { authTokenStore } from "@/services/api/token-storage";
 import type { ApiResponse } from "@/types/api";
 
 import type {
+  AuthLoginResponse,
   AuthSession,
-  AuthTokens,
-  AuthUser,
   LoginPayload,
+  OAuthLoginPayload,
+  OAuthProvider,
   RegisterPayload
 } from "../types/auth.types";
 
 export async function login(payload: LoginPayload) {
-  const response = await apiPost<ApiResponse<{ user: AuthUser; tokens: AuthTokens }>, LoginPayload>(
+  const response = await apiPost<ApiResponse<AuthLoginResponse>, LoginPayload>(
     apiConfig.auth.loginPath,
     payload
   );
 
-  authTokenStore.set(response.data.tokens);
+  if (response.data.tokens) {
+    authTokenStore.set(response.data.tokens);
+  }
 
   return response.data;
 }
 
 export async function register(payload: RegisterPayload) {
-  const response = await apiPost<
-    ApiResponse<{ user: AuthUser; tokens: AuthTokens }>,
-    RegisterPayload
-  >(apiConfig.auth.registerPath, payload);
+  const response = await apiPost<ApiResponse<AuthLoginResponse>, RegisterPayload>(
+    apiConfig.auth.registerPath,
+    payload
+  );
 
-  authTokenStore.set(response.data.tokens);
+  if (response.data.tokens) {
+    authTokenStore.set(response.data.tokens);
+  }
+
+  return response.data;
+}
+
+export async function loginWithOAuth(provider: OAuthProvider, payload: OAuthLoginPayload) {
+  const response = await apiPost<ApiResponse<AuthLoginResponse>, OAuthLoginPayload>(
+    apiConfig.auth.oauthPath(provider),
+    payload
+  );
+
+  if (response.data.tokens) {
+    authTokenStore.set(response.data.tokens);
+  }
 
   return response.data;
 }

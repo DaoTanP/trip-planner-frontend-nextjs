@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { GoogleLoginButton } from "./google-login-button";
 import { useLoginMutation } from "../mutations/use-login-mutation";
 import { createLoginSchema, type LoginFormValues } from "../schemas/auth.schemas";
 
@@ -65,6 +66,14 @@ export function LoginForm() {
         <LogIn aria-hidden="true" />
         {tAuth("login.submit")}
       </Button>
+
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-border" />
+        <span className="text-xs text-muted-foreground">{tAuth("login.or")}</span>
+        <div className="h-px flex-1 bg-border" />
+      </div>
+
+      <GoogleLoginButton />
     </form>
   );
 }

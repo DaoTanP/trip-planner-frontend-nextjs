@@ -53,6 +53,8 @@ Make small, coherent changes that preserve the architecture. Do not invent new g
 - Keep API response contracts typed.
 - Normalize errors at the API boundary.
 - Use query cancellation signals.
+- Keep auth transport in `src/services/api`; do not reimplement token, cookie, CSRF, or refresh handling in components.
+- New auth providers must preserve the frontend/backend contract and add i18n keys for loading, success, and failure states.
 
 ## UI Rules
 

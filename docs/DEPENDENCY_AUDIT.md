@@ -50,6 +50,8 @@ The following packages are already on appropriate modern stable lines and should
 - `sonner` `^2.0.7`
 - shadcn/ui supporting packages: Radix primitives, `class-variance-authority`, `clsx`, and `tailwind-merge`
 
+Google login currently uses the browser Google Identity Services script directly instead of adding a React OAuth wrapper. This keeps the dependency surface smaller while preserving a provider boundary in `modules/auth`. Revisit this only if multiple OAuth providers need shared browser SDK lifecycle behavior.
+
 These dependencies are core to the frontend architecture and should be upgraded deliberately, with build, SSR, i18n, hydration, and form behavior verified after each framework-level change.
 
 ## Pinned or Constrained Packages

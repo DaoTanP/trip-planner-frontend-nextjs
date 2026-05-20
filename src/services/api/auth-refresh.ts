@@ -7,10 +7,17 @@ import { authTokenStore, type AuthTokenSnapshot } from "./token-storage";
 
 const refreshClient = axios.create({
   baseURL: apiConfig.baseUrl,
-  timeout: apiConfig.timeoutMs
+  timeout: apiConfig.timeoutMs,
+  withCredentials: true
 });
 
-let refreshPromise: Promise<string> | null = null;
+let refreshPromise: Promise<string | null> | null = null;
+
+function getCsrfHeaders() {
+  const csrfToken = authTokenStore.getCsrfToken();
+
+  return csrfToken ? { "X-CSRF-Token": csrfToken } : undefined;
+}
 
 export async function refreshAccessToken() {
   if (refreshPromise) {
@@ -19,19 +26,21 @@ export async function refreshAccessToken() {
 
   const refreshToken = authTokenStore.getRefreshToken();
 
-  if (!refreshToken) {
-    throw new Error("Missing refresh token");
-  }
-
   refreshPromise = refreshClient
-    .post<ApiResponse<AuthTokenSnapshot> | AuthTokenSnapshot>(apiConfig.auth.refreshPath, {
-      refreshToken
-    })
+    .post<ApiResponse<{ tokens?: AuthTokenSnapshot }> | { tokens?: AuthTokenSnapshot }>(
+      apiConfig.auth.refreshPath,
+      refreshToken ? { refreshToken } : {},
+      { headers: getCsrfHeaders() }
+    )
     .then((response) => {
-      const tokens = "data" in response.data ? response.data.data : response.data;
-      authTokenStore.set(tokens);
+      const payload = "data" in response.data ? response.data.data : response.data;
+      const tokens = payload.tokens;
 
-      return tokens.accessToken;
+      if (tokens) {
+        authTokenStore.set(tokens);
+      }
+
+      return tokens?.accessToken ?? null;
     })
     .finally(() => {
       refreshPromise = null;

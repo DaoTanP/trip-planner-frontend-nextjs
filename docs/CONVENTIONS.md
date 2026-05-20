@@ -73,8 +73,12 @@ These conventions keep the codebase predictable as it grows.
 
 - UI components should not read or write tokens directly.
 - Auth services own login/register/logout behavior.
-- Protected route layouts own route guards.
-- Migrate to httpOnly cookies when the API supports it.
+- OAuth UI components should only collect provider credentials and call auth mutations.
+- Protected route layouts own backend-backed session validation.
+- `src/proxy.ts` may perform cookie-presence redirects to reduce flicker, but it must not become the source of truth.
+- Do not persist access or refresh tokens in `localStorage`.
+- Cookie-backed unsafe API requests must include the CSRF token header through the centralized Axios layer.
+- Add new providers under `modules/auth` services, mutations, components, and translations; do not put provider logic inside route files.
 
 ## Testing
 

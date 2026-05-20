@@ -135,15 +135,26 @@ UI components never call Axios directly. Modules expose typed service functions,
 
 Auth is prepared for:
 
-- login/register payloads and schemas.
-- token persistence adapter.
+- email login/register payloads and schemas.
+- Google OAuth through Google Identity Services.
+- future OAuth providers through provider-specific service contracts.
+- backend-issued httpOnly session cookies.
+- CSRF headers for cookie-backed unsafe requests.
 - refresh-token retry in Axios.
 - server route protection through `requireAuth`.
-- future OAuth and httpOnly cookie migration.
 
 Current protected routes live in `src/app/[locale]/(app)`. The layout checks for a session cookie and redirects unauthenticated users to `/{locale}/login`.
 
-For production, prefer API-managed httpOnly cookies. The current token adapter exists so frontend work can proceed against APIs that return tokens directly.
+The backend remains the authentication source of truth. The frontend receives the Google credential, sends it to `POST /auth/oauth/google`, and then fetches `GET /auth/me`. It does not trust Google profile data locally and does not persist refresh tokens in `localStorage`.
+
+Session transport is cookie-first:
+
+- Backend sets `tp_access_token`, `tp_refresh_token`, and readable `tp_csrf_token`.
+- Axios sends `withCredentials`, `X-CSRF-Token`, `X-Locale`, and `X-Timezone`.
+- The in-memory token adapter only supports non-browser or transitional body-token responses.
+- `src/proxy.ts` handles fast cookie-presence redirects; server layouts validate with `/auth/me`.
+
+Use `API_INTERNAL_URL` for server-side App Router calls when Docker networking differs from the browser-facing `NEXT_PUBLIC_API_URL`.
 
 ## State Management
 

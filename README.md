@@ -9,7 +9,7 @@ This repository is strictly frontend-only. The API is owned by a separate reposi
 - Planning trips around places, dates, routes, and itinerary stops.
 - Map-heavy interactions with future support for Google Maps, Mapbox, or OpenStreetMap.
 - Internationalized UX from day one.
-- Authenticated product areas with future OAuth and httpOnly cookie support.
+- Authenticated product areas with Google OAuth and httpOnly cookie support.
 - Server-state caching, optimistic updates, and background refetching.
 - Lightweight local interaction state for planner UI, filters, modals, and map viewport.
 - Future realtime collaboration, offline mode, notifications, and drag-and-drop itinerary editing.
@@ -76,6 +76,7 @@ docs/
 - [ADR template](docs/adr/TEMPLATE.md)
 - [Frontend foundation ADR](docs/adr/0001-feature-based-nextjs-frontend-foundation.md)
 - [Repository boundary ADR](docs/adr/0002-keep-frontend-and-api-repositories-separate.md)
+- [Cookie-backed Google OAuth ADR](docs/adr/0003-cookie-backed-google-oauth.md)
 
 Read these before making architectural changes.
 
@@ -96,7 +97,8 @@ http://localhost:3000/en
 The app expects the separate API service to be available at `NEXT_PUBLIC_API_URL`. By default Docker uses:
 
 ```txt
-NEXT_PUBLIC_API_URL=http://localhost:4000/api
+NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+API_INTERNAL_URL=http://host.docker.internal:4000/api/v1
 ```
 
 Run the API repository separately when you need live API behavior.
@@ -143,8 +145,13 @@ http://localhost:3000/en
 
 ```txt
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_API_URL=http://localhost:4000/api
+NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+API_INTERNAL_URL=http://localhost:4000/api/v1
 NEXT_PUBLIC_DEFAULT_TIME_ZONE=Asia/Bangkok
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=replace-with-google-oauth-web-client-id
+NEXT_PUBLIC_AUTH_ACCESS_COOKIE_NAME=tp_access_token
+NEXT_PUBLIC_AUTH_REFRESH_COOKIE_NAME=tp_refresh_token
+NEXT_PUBLIC_AUTH_CSRF_COOKIE_NAME=tp_csrf_token
 ```
 
 Docker-specific frontend defaults live in `.env.docker`.

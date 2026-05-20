@@ -13,19 +13,49 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 export const apiClient = axios.create({
   baseURL: apiConfig.baseUrl,
   timeout: apiConfig.timeoutMs,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json"
   }
 });
 
+function getBrowserLocale() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.location.pathname.split("/").filter(Boolean)[0] ?? null;
+}
+
+function getBrowserTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return null;
+  }
+}
+
 apiClient.interceptors.request.use((config) => {
   const accessToken = authTokenStore.getAccessToken();
+  const csrfToken = authTokenStore.getCsrfToken();
+  const locale = getBrowserLocale();
+  const timeZone = getBrowserTimeZone();
+  const headers = AxiosHeaders.from(config.headers);
 
   if (accessToken) {
-    const headers = AxiosHeaders.from(config.headers);
     headers.set("Authorization", `Bearer ${accessToken}`);
-    config.headers = headers;
   }
+  if (csrfToken) {
+    headers.set("X-CSRF-Token", csrfToken);
+  }
+  if (locale) {
+    headers.set("X-Locale", locale);
+  }
+  if (timeZone) {
+    headers.set("X-Timezone", timeZone);
+  }
+
+  config.headers = headers;
 
   return config;
 });
@@ -52,9 +82,12 @@ apiClient.interceptors.response.use(
 
     try {
       const accessToken = await refreshAccessToken();
-      const headers = AxiosHeaders.from(originalRequest.headers);
-      headers.set("Authorization", `Bearer ${accessToken}`);
-      originalRequest.headers = headers;
+
+      if (accessToken) {
+        const headers = AxiosHeaders.from(originalRequest.headers);
+        headers.set("Authorization", `Bearer ${accessToken}`);
+        originalRequest.headers = headers;
+      }
 
       return apiClient(originalRequest);
     } catch (refreshError) {

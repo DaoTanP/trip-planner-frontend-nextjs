@@ -6,11 +6,19 @@ import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { authKeys } from "../queries/auth.queries";
-import { login } from "../services/auth.service";
-import type { LoginPayload } from "../types/auth.types";
+import { loginWithOAuth } from "../services/auth.service";
+import type { OAuthLoginPayload, OAuthProvider } from "../types/auth.types";
 import { getSafeAuthRedirectTarget } from "../utils/auth-redirects";
 
-export function useLoginMutation() {
+function getTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
+}
+
+export function useOAuthLoginMutation(provider: OAuthProvider) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -18,14 +26,19 @@ export function useLoginMutation() {
   const t = useTranslations("auth");
 
   return useMutation({
-    mutationFn: (payload: LoginPayload) => login(payload),
+    mutationFn: (payload: Pick<OAuthLoginPayload, "credential">) =>
+      loginWithOAuth(provider, {
+        ...payload,
+        locale,
+        timezone: getTimeZone()
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: authKeys.all });
       toast.success(t("login.success"));
       router.replace(getSafeAuthRedirectTarget(searchParams.get("redirectTo"), locale));
     },
     onError: () => {
-      toast.error(t("login.error"));
+      toast.error(t("errors.oauth_failed"));
     }
   });
 }

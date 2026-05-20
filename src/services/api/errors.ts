@@ -11,6 +11,11 @@ export interface ApiError {
 }
 
 interface ErrorResponseBody {
+  error?: {
+    code?: string;
+    message?: string;
+    details?: ApiFieldErrors | Array<Record<string, unknown>>;
+  };
   code?: string;
   message?: string;
   errors?: ApiFieldErrors;
@@ -38,8 +43,8 @@ export function normalizeApiError(error: unknown): ApiError {
   }
 
   const apiError: ApiError = {
-    code: body?.code ?? statusToCode(status),
-    message: body?.message ?? axiosError.message,
+    code: body?.error?.code ?? body?.code ?? statusToCode(status),
+    message: body?.error?.message ?? body?.message ?? axiosError.message,
     cause: error
   };
 
@@ -47,8 +52,11 @@ export function normalizeApiError(error: unknown): ApiError {
     apiError.status = status;
   }
 
-  if (body?.errors) {
-    apiError.fieldErrors = body.errors;
+  const fieldErrors = Array.isArray(body?.error?.details)
+    ? undefined
+    : (body?.error?.details ?? body?.errors);
+  if (fieldErrors) {
+    apiError.fieldErrors = fieldErrors;
   }
 
   return apiError;

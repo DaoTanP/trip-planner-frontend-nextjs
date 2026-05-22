@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 
 import { useCreateTripMutation } from "../mutations/use-create-trip-mutation";
 import { createTripSchema, type CreateTripFormValues } from "../schemas/trip.schemas";
+import type { CreateTripPayload } from "../types/trip.types";
 
 export function CreateTripForm() {
   const tTrip = useTranslations("trip");
@@ -33,7 +34,17 @@ export function CreateTripForm() {
   return (
     <form
       className="grid gap-4 rounded-md border bg-card p-4"
-      onSubmit={form.handleSubmit((values) => createMutation.mutate(values))}
+      onSubmit={form.handleSubmit((values) => {
+        const payload: CreateTripPayload = {
+          title: values.title.trim()
+        };
+
+        if (values.description?.trim()) payload.description = values.description.trim();
+        if (values.startDate) payload.startDate = values.startDate;
+        if (values.endDate) payload.endDate = values.endDate;
+
+        createMutation.mutate(payload);
+      })}
     >
       <div className="grid gap-2">
         <Label htmlFor="trip-title">{tTrip("form.titleLabel")}</Label>

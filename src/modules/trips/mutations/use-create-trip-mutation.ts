@@ -35,6 +35,7 @@ export function useCreateTripMutation() {
         destinationNames: [],
         collaboratorCount: 0,
         itineraryDayCount: 0,
+        version: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };

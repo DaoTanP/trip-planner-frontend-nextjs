@@ -5,7 +5,65 @@
   "title": "Trips",
   "description": "Create, compare, and refine planned journeys.",
   "create": "Create trip",
+  "edit": "Edit",
   "delete": "Delete trip",
+  "editor": {
+    "metadataTitle": "Trip editor",
+    "titleLabel": "Trip title",
+    "titlePlaceholder": "Da Nang guide",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Add overview notes, planning context, booking reminders, or collaborator guidance.",
+    "startDateLabel": "Start date",
+    "endDateLabel": "End date",
+    "save": "Save",
+    "saving": "Saving",
+    "retry": "Retry",
+    "errorTitle": "Trip editor could not load",
+    "errorDescription": "Refresh the trip data or try again after checking your connection.",
+    "notes": {
+      "title": "Notes",
+      "placeholder": "Write a planning note",
+      "add": "Add note"
+    },
+    "placeSearch": {
+      "title": "Place search",
+      "placeholder": "Search places to add",
+      "loading": "Searching places...",
+      "empty": "No places found",
+      "noAddress": "Address not available",
+      "dayFallback": "Day {number}",
+      "addPlace": "Add {name}"
+    },
+    "itinerary": {
+      "title": "Itinerary",
+      "days": "{count, plural, =0 {No days} =1 {# day} other {# days}}",
+      "empty": "Create trip days from the API or seed data to start planning."
+    },
+    "day": {
+      "drag": "Reorder day",
+      "fallbackTitle": "Day {number}",
+      "itemCount": "{count, plural, =0 {No stops} =1 {# stop} other {# stops}}",
+      "empty": "No stops planned for this day.",
+      "addPlaceholder": "Add a stop, activity, or reminder",
+      "add": "Add"
+    },
+    "item": {
+      "drag": "Reorder itinerary item",
+      "delete": "Remove itinerary item",
+      "titleLabel": "Item title",
+      "descriptionLabel": "Item description",
+      "descriptionPlaceholder": "Notes, booking details, or timing ideas",
+      "travelTime": "{minutes} min travel"
+    },
+    "map": {
+      "label": "Trip map",
+      "marker": "Select {name}",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fit": "Focus first place",
+      "attribution": "OpenStreetMap"
+    }
+  },
   "empty": {
     "title": "No trips yet",
     "description": "Create your first trip to start collecting places and building an itinerary."

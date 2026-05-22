@@ -12,6 +12,6 @@ export function placeSearchQueryOptions(params: PlaceSearchParams) {
   return queryOptions({
     queryKey: placeKeys.search(params),
     queryFn: ({ signal }) => searchPlaces(params, signal),
-    enabled: params.query.trim().length > 0
+    enabled: Boolean(params.q?.trim())
   });
 }

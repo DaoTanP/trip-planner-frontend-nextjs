@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getTrips } from "../services/trips.service";
+import { getTrip, getTrips } from "../services/trips.service";
 
 export const tripKeys = {
   all: ["trips"] as const,
@@ -13,5 +13,13 @@ export function tripsQueryOptions() {
   return queryOptions({
     queryKey: tripKeys.list(),
     queryFn: ({ signal }) => getTrips(signal)
+  });
+}
+
+export function tripDetailQueryOptions(tripId: string) {
+  return queryOptions({
+    queryKey: tripKeys.detail(tripId),
+    queryFn: ({ signal }) => getTrip(tripId, signal),
+    staleTime: 30_000
   });
 }

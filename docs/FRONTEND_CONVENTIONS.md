@@ -10,6 +10,13 @@ These conventions keep the codebase predictable as it grows.
 - Add shared components only when at least two features need the same pattern.
 - Keep server state in TanStack Query and local UI state in Zustand.
 - Do not add API server code, database migrations, queues, or server Docker services to this repository.
+- Trip detail and editor composition belong in `src/modules/trips`.
+- Itinerary item services and mutations belong in `src/modules/itinerary`.
+- Place search belongs in `src/modules/places`.
+- Map rendering and provider math belong in `src/modules/map`.
+- UI-only trip editor state belongs in `src/stores/use-planner-store.ts`.
+
+Do not place itinerary reorder logic inside map components. Do not place map projection logic inside itinerary cards.
 
 ## Imports
 
@@ -26,6 +33,10 @@ These conventions keep the codebase predictable as it grows.
 - Use ICU messages for interpolation and pluralization.
 - Add Vietnamese keys when adding English keys.
 - Validation schemas must be factories that receive localized validation functions.
+- Editor strings use `trip.editor.*`.
+- Place search strings use `trip.editor.placeSearch.*`.
+- Map labels use `trip.editor.map.*`.
+- Avoid hardcoded visible text in editor components.
 
 ## Components
 
@@ -45,6 +56,11 @@ These conventions keep the codebase predictable as it grows.
 - Avoid decorative gradients and single-hue palettes.
 - Ensure text fits at mobile and desktop sizes.
 - Use skeletons for loading states that affect layout.
+- Keep editor controls compact and task-focused.
+- Use icon buttons for map controls, drag handles, delete, and add actions where possible.
+- Keep cards at `rounded-md`.
+- Do not nest decorative cards inside cards.
+- Use stable button and handle sizes to avoid drag/layout jumps.
 
 ## Data Fetching
 
@@ -57,6 +73,16 @@ These conventions keep the codebase predictable as it grows.
 - Use DTO aliases from `src/services/api/contracts` instead of hand-writing backend request/response types.
 - Services return feature-ready data, not raw Axios responses.
 - List queries should preserve pagination metadata from `meta.pagination` when the UI may need it later.
+- Use TanStack Query for server records and optimistic cache writes.
+- Query keys must come from module query files.
+- Mutations that affect trip detail should patch or invalidate `tripKeys.detail(tripId)`.
+
+## Query And State
+
+- Use Zustand only for selected item, selected marker, hover state, viewport, panel state, and draft-only interaction state.
+- Do not duplicate server records inside Zustand.
+- Keep optimistic cache updates centralized inside mutation hooks.
+- Use query invalidation or targeted cache patching after successful itinerary mutations.
 
 ## Forms
 
@@ -84,6 +110,38 @@ These conventions keep the codebase predictable as it grows.
 - Do not persist access or refresh tokens in `localStorage`.
 - Cookie-backed unsafe API requests must include the CSRF token header through the centralized Axios layer.
 - Add new providers under `modules/auth` services, mutations, components, and translations; do not put provider logic inside route files.
+
+## Drag And Drop
+
+- Use dnd-kit sensors and sortable contexts.
+- Keep drag handles explicit and keyboard accessible.
+- Use stable order values with `orderStride`.
+- Send full server reorder payloads from the final optimistic order.
+- Roll back optimistic cache updates on mutation error.
+
+## Map
+
+- Map providers receive `MapMarker[]`, route points, viewport, selected marker id, and callbacks.
+- Provider components must not fetch trip data.
+- Provider components must not mutate itinerary data directly.
+- New providers should implement the same data contract before adding provider-specific options.
+
+## Responsive UI
+
+- Keep editor controls compact and task-focused.
+- Use icon buttons for map controls, drag handles, delete, and add actions where possible.
+- Keep cards at `rounded-md`.
+- Do not nest decorative cards inside cards.
+- Use stable button and handle sizes to avoid drag/layout jumps.
+
+## Environment
+
+Map provider variables belong in `.env.example`, `.env.docker`, and Docker compose:
+
+- `NEXT_PUBLIC_MAP_PROVIDER`
+- `NEXT_PUBLIC_OSM_TILE_URL`
+
+Never put private map provider secrets in `NEXT_PUBLIC_*` variables.
 
 ## Testing
 

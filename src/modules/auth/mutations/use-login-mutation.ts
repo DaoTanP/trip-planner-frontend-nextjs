@@ -22,7 +22,11 @@ export function useLoginMutation() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: authKeys.all });
       toast.success(t("login.success"));
-      router.replace(getSafeAuthRedirectTarget(searchParams.get("redirectTo"), locale));
+      router.replace(
+        getSafeAuthRedirectTarget(searchParams.get("redirectTo"), locale) as Parameters<
+          typeof router.replace
+        >[0]
+      );
     },
     onError: () => {
       toast.error(t("login.error"));

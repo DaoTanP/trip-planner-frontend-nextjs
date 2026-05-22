@@ -1,10 +1,12 @@
 "use client";
 
-import { CalendarDays, MapPin, Trash2, Users } from "lucide-react";
+import { CalendarDays, MapPin, Pencil, Trash2, Users } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { routes } from "@/constants/routes";
+import { Link } from "@/i18n/routing";
 
 import { useDeleteTripMutation } from "../mutations/use-delete-trip-mutation";
 import type { Trip } from "../types/trip.types";
@@ -49,17 +51,24 @@ export function TripCard({ trip }: TripCardProps) {
         <p>{t("card.days", { count: trip.itineraryDayCount })}</p>
       </div>
 
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="justify-self-end"
-        disabled={deleteMutation.isPending}
-        onClick={() => deleteMutation.mutate(trip.id)}
-      >
-        <Trash2 aria-hidden="true" />
-        {t("delete")}
-      </Button>
+      <div className="flex justify-end gap-2">
+        <Button asChild variant="secondary" size="sm">
+          <Link href={routes.tripEdit(trip.id)}>
+            <Pencil aria-hidden="true" />
+            {t("edit")}
+          </Link>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={deleteMutation.isPending}
+          onClick={() => deleteMutation.mutate(trip.id)}
+        >
+          <Trash2 aria-hidden="true" />
+          {t("delete")}
+        </Button>
+      </div>
     </article>
   );
 }

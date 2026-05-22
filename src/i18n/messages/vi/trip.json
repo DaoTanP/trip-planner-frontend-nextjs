@@ -1,40 +1,98 @@
 {
   "metadata": {
-    "title": "Chuyến đi"
+    "title": "Chuyen di"
   },
-  "title": "Chuyến đi",
-  "description": "Tạo, so sánh và tinh chỉnh các hành trình đã lên kế hoạch.",
-  "create": "Tạo chuyến đi",
-  "delete": "Xóa chuyến đi",
+  "title": "Chuyen di",
+  "description": "Tao, so sanh va tinh chinh cac hanh trinh da len ke hoach.",
+  "create": "Tao chuyen di",
+  "edit": "Sua",
+  "delete": "Xoa chuyen di",
+  "editor": {
+    "metadataTitle": "Trinh sua chuyen di",
+    "titleLabel": "Ten chuyen di",
+    "titlePlaceholder": "Huong dan Da Nang",
+    "descriptionLabel": "Mo ta",
+    "descriptionPlaceholder": "Them ghi chu tong quan, thong tin dat cho, hoac huong dan cho nguoi cung lap ke hoach.",
+    "startDateLabel": "Ngay bat dau",
+    "endDateLabel": "Ngay ket thuc",
+    "save": "Luu",
+    "saving": "Dang luu",
+    "retry": "Thu lai",
+    "errorTitle": "Khong tai duoc trinh sua chuyen di",
+    "errorDescription": "Lam moi du lieu chuyen di hoac thu lai sau khi kiem tra ket noi.",
+    "notes": {
+      "title": "Ghi chu",
+      "placeholder": "Viet ghi chu lap ke hoach",
+      "add": "Them ghi chu"
+    },
+    "placeSearch": {
+      "title": "Tim dia diem",
+      "placeholder": "Tim dia diem de them",
+      "loading": "Dang tim dia diem...",
+      "empty": "Khong tim thay dia diem",
+      "noAddress": "Chua co dia chi",
+      "dayFallback": "Ngay {number}",
+      "addPlace": "Them {name}"
+    },
+    "itinerary": {
+      "title": "Lich trinh",
+      "days": "{count, plural, =0 {Chua co ngay} other {# ngay}}",
+      "empty": "Tao ngay lich trinh tu API hoac du lieu mau de bat dau lap ke hoach."
+    },
+    "day": {
+      "drag": "Sap xep ngay",
+      "fallbackTitle": "Ngay {number}",
+      "itemCount": "{count, plural, =0 {Chua co diem dung} other {# diem dung}}",
+      "empty": "Ngay nay chua co diem dung.",
+      "addPlaceholder": "Them diem dung, hoat dong, hoac nhac nho",
+      "add": "Them"
+    },
+    "item": {
+      "drag": "Sap xep muc lich trinh",
+      "delete": "Xoa muc lich trinh",
+      "titleLabel": "Tieu de muc",
+      "descriptionLabel": "Mo ta muc",
+      "descriptionPlaceholder": "Ghi chu, thong tin dat cho, hoac y tuong thoi gian",
+      "travelTime": "{minutes} phut di chuyen"
+    },
+    "map": {
+      "label": "Ban do chuyen di",
+      "marker": "Chon {name}",
+      "zoomIn": "Phong to",
+      "zoomOut": "Thu nho",
+      "fit": "Tap trung dia diem dau",
+      "attribution": "OpenStreetMap"
+    }
+  },
   "empty": {
-    "title": "Chưa có chuyến đi",
-    "description": "Tạo chuyến đi đầu tiên để lưu địa điểm và xây dựng lịch trình."
+    "title": "Chua co chuyen di",
+    "description": "Tao chuyen di dau tien de luu dia diem va xay dung lich trinh."
   },
   "form": {
-    "titleLabel": "Tên chuyến đi",
-    "titlePlaceholder": "Kỳ nghỉ miền Bắc Việt Nam",
-    "descriptionLabel": "Mô tả",
-    "descriptionPlaceholder": "Ghi chú lập kế hoạch tùy chọn",
-    "startDateLabel": "Ngày bắt đầu",
-    "endDateLabel": "Ngày kết thúc",
-    "submit": "Tạo chuyến đi"
+    "titleLabel": "Ten chuyen di",
+    "titlePlaceholder": "Ky nghi mien Bac Viet Nam",
+    "descriptionLabel": "Mo ta",
+    "descriptionPlaceholder": "Ghi chu lap ke hoach tuy chon",
+    "startDateLabel": "Ngay bat dau",
+    "endDateLabel": "Ngay ket thuc",
+    "submit": "Tao chuyen di"
   },
   "card": {
     "dateRange": "{startDate} - {endDate}",
-    "noDates": "Chưa đặt ngày",
-    "noDestinations": "Chưa có điểm đến",
-    "collaborators": "{count, plural, =0 {Chưa có cộng tác viên} other {# cộng tác viên}}",
-    "days": "{count, plural, =0 {Chưa có ngày lịch trình} other {# ngày lịch trình}}"
+    "noDates": "Chua dat ngay",
+    "noDestinations": "Chua co diem den",
+    "collaborators": "{count, plural, =0 {Chua co cong tac vien} other {# cong tac vien}}",
+    "days": "{count, plural, =0 {Chua co ngay lich trinh} other {# ngay lich trinh}}"
   },
   "status": {
-    "DRAFT": "Bản nháp",
-    "PLANNED": "Đã lên kế hoạch",
-    "ACTIVE": "Đang diễn ra",
-    "COMPLETED": "Hoàn tất",
-    "ARCHIVED": "Đã lưu trữ"
+    "DRAFT": "Ban nhap",
+    "PLANNED": "Da len ke hoach",
+    "ACTIVE": "Dang dien ra",
+    "COMPLETED": "Hoan tat",
+    "ARCHIVED": "Da luu tru"
   },
   "toast": {
-    "created": "Đã tạo chuyến đi.",
-    "deleted": "Đã xóa chuyến đi."
+    "created": "Da tao chuyen di.",
+    "deleted": "Da xoa chuyen di."
   }
 }

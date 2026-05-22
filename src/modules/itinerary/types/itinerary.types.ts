@@ -1,16 +1,13 @@
-export interface ItineraryStop {
-  id: string;
-  tripId: string;
-  placeId: string;
-  day: number;
-  order: number;
-  arrivalTime?: string;
-  departureTime?: string;
-  notes?: string;
-}
+import type {
+  CreateItineraryItemRequestDto,
+  ItineraryItemDto,
+  ReorderItineraryItemsRequestDto,
+  TripDayDto,
+  UpdateItineraryItemRequestDto
+} from "@/services/api/contracts";
 
-export interface ReorderItineraryStopPayload {
-  stopId: string;
-  day: number;
-  order: number;
-}
+export type TripDay = TripDayDto;
+export type ItineraryItem = ItineraryItemDto;
+export type CreateItineraryItemPayload = CreateItineraryItemRequestDto;
+export type UpdateItineraryItemPayload = UpdateItineraryItemRequestDto;
+export type ReorderItineraryItemsPayload = ReorderItineraryItemsRequestDto;

@@ -26,16 +26,27 @@ export function useOAuthLoginMutation(provider: OAuthProvider) {
   const t = useTranslations("auth");
 
   return useMutation({
-    mutationFn: (payload: Pick<OAuthLoginPayload, "credential">) =>
-      loginWithOAuth(provider, {
+    mutationFn: (payload: Pick<OAuthLoginPayload, "credential">) => {
+      const timezone = getTimeZone();
+      const loginPayload: OAuthLoginPayload = {
         ...payload,
-        locale,
-        timezone: getTimeZone()
-      }),
+        locale
+      };
+
+      if (timezone) {
+        loginPayload.timezone = timezone;
+      }
+
+      return loginWithOAuth(provider, loginPayload);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: authKeys.all });
       toast.success(t("login.success"));
-      router.replace(getSafeAuthRedirectTarget(searchParams.get("redirectTo"), locale));
+      router.replace(
+        getSafeAuthRedirectTarget(searchParams.get("redirectTo"), locale) as Parameters<
+          typeof router.replace
+        >[0]
+      );
     },
     onError: () => {
       toast.error(t("errors.oauth_failed"));

@@ -13,6 +13,7 @@ This app uses a practical feature-based architecture for a modern trip planner. 
 - React Hook Form and Zod for typed, localized forms.
 - Framer Motion is installed for future interaction polish where animation improves usability.
 - Node.js 24.15.0 LTS is the runtime target across Docker, local development, and CI.
+- dnd-kit is the standardized drag-and-drop layer for itinerary planning interactions.
 
 ## Folder Structure
 
@@ -45,15 +46,40 @@ src/
     itinerary/
     places/
     profile/
+    map/
   providers/
   services/
     api/
     errors/
   stores/
+    use-planner-store.ts
   types/
 ```
 
 `app/` is only routing and composition. Feature behavior lives under `modules/`. Cross-feature infrastructure lives under `services/`, `providers/`, `stores/`, and `components/`.
+
+The trip editor lives at:
+
+```txt
+src/app/[locale]/(app)/trips/[tripId]/edit
+```
+
+and composes feature code from:
+
+- `src/modules/trips` for trip detail, editor shell, notes, and trip-level mutations.
+- `src/modules/itinerary` for itinerary item services and optimistic mutations.
+- `src/modules/places` for place search.
+- `src/modules/map` for provider-shaped map rendering and map math.
+- `src/stores/use-planner-store.ts` for local UI interaction state.
+
+The editor workflow is inspired by Wanderlog-style trip planning:
+
+- editable planner on the left
+- interactive map on the right
+- synchronized selection
+- day sections
+- itinerary cards
+- direct manipulation interactions
 
 ## Runtime and Docker
 
@@ -66,6 +92,15 @@ It is declared in:
 - frontend Dockerfiles
 
 Docker Compose starts only the frontend. Development images use bind mounts for live reload and named volumes for dependency directories. Production images are multi-stage builds.
+
+Frontend Docker development reads:
+
+- `NEXT_PUBLIC_API_URL`
+- `API_INTERNAL_URL`
+- `NEXT_PUBLIC_MAP_PROVIDER`
+- `NEXT_PUBLIC_OSM_TILE_URL`
+
+The browser-facing API URL remains `http://localhost:4000/api/v1`; server-side API calls can use `host.docker.internal` through `API_INTERNAL_URL`.
 
 ## Dependency Setup
 
@@ -118,6 +153,20 @@ validation.json
 ```
 
 This keeps files reviewable and prevents giant flat translation maps. Validation schemas are factories that receive `useTranslations("validation")`, so validation text is localized at the form boundary.
+
+All trip editor UI strings live under:
+
+```txt
+trip.editor.*
+```
+
+in:
+
+```txt
+src/i18n/messages/<locale>/trip.json
+```
+
+New editor copy must use `next-intl`; avoid hardcoded labels, loading states, empty states, and action text.
 
 ## API Layer
 
@@ -191,6 +240,9 @@ TanStack Query owns server state:
 - places.
 - itinerary stops.
 - future realtime invalidation.
+- trip detail: `tripKeys.detail(tripId)`
+- trip list: `tripKeys.list()`
+- place search: `placeKeys.search(params)`
 
 Zustand owns local interaction state:
 
@@ -200,8 +252,13 @@ Zustand owns local interaction state:
 - map viewport.
 - temporary draft stops.
 - filters.
+- selected itinerary item/place.
+- hovered item.
+- place search/panel state.
 
 Do not store server records in Zustand.
+
+Server state must not be copied into Zustand. Components read trip data from React Query and write UI-only selection state to the planner store.
 
 ## Forms
 
@@ -221,6 +278,10 @@ The app uses route groups:
 
 Each route can define localized metadata using `getTranslations`. Shared layout chrome lives in `components/layouts/AppShell`, not inside feature modules.
 
+The trip editor route is an App Router server page that renders a client editor shell. The map is dynamically imported with `ssr: false` because map providers depend on browser APIs and should not inflate the initial server component payload.
+
+The editor intentionally full-bleeds from the normal app shell using a `w-screen` editor container while preserving the authenticated layout and locale-aware route segment.
+
 ## Error and Loading States
 
 - API errors normalize to `ApiError`.
@@ -230,7 +291,7 @@ Each route can define localized metadata using `getTranslations`. Shared layout 
 
 ## Map Architecture
 
-Map-specific concepts are isolated in `modules/places` and `stores/use-planner-store.ts`.
+Map-specific concepts are isolated in `modules/places`, `modules/map`, and `stores/use-planner-store.ts`.
 
 The app currently avoids choosing Google Maps, Mapbox, or OpenStreetMap. Future provider-specific adapters should live behind services/hooks so itinerary UI does not care which map SDK is active.
 
@@ -240,6 +301,65 @@ Recommended future shape:
 - `modules/places/services/mapbox-places.service.ts`
 - `modules/places/components/map-view.tsx`
 - `modules/itinerary/components/drag-itinerary-board.tsx`
+
+`src/modules/map` exposes map types and an OpenStreetMap-compatible renderer. The current renderer:
+
+- renders OSM tiles from `NEXT_PUBLIC_OSM_TILE_URL`
+- projects markers using Web Mercator utilities
+- draws an SVG route line from itinerary marker order
+- highlights selected and hovered markers
+- emits marker selection and viewport changes through typed callbacks
+
+Business logic stays outside map components. The trip editor prepares markers/routes from trip DTOs, and the map only renders provider-ready data. This keeps the future Google Maps or Mapbox adapter focused on rendering, not itinerary rules.
+
+## Drag And Drop
+
+dnd-kit is the standard drag layer for editor planning.
+
+- Day sections use a sortable context for reordering trip days.
+- Each day owns a nested sortable context for itinerary items.
+- Drag handles use keyboard and pointer sensors.
+- Reorder payloads use stable spaced order values (`1024`, `2048`, etc.) so future insertions can happen without rewriting every row.
+- Cross-day item moves are supported by the backend reorder API shape and can be enabled in the UI without changing the contract.
+
+## Optimistic Updates
+
+Optimistic mutations live in feature mutation hooks:
+
+- `useReorderTripDaysMutation`
+- `useReorderItineraryItemsMutation`
+- item create/update/delete mutations
+- trip update and note creation mutations
+
+Reorder hooks:
+
+1. cancel the detail query
+2. snapshot the previous trip
+3. write optimistic days/items
+4. roll back on error
+5. reconcile with the server response on success
+
+`clientMutationId` is sent with reorder requests so future realtime fanout can ignore a client's own echoed mutation.
+
+## Responsive Layout
+
+Desktop uses two columns:
+
+- left planner: editable details, notes, search, itinerary timeline
+- right map: sticky viewport-height panel
+
+Tablet and mobile collapse to a single column with the map below the planner. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.
+
+## Future Realtime
+
+Realtime should not replace React Query. Add a collaboration transport later that subscribes to trip mutation events and applies them by invalidating or patching `tripKeys.detail(tripId)`.
+
+Recommended future boundaries:
+
+- `src/modules/collaboration` for websocket/presence client code
+- mutation `clientMutationId` for echo suppression
+- Redis-backed presence on the backend
+- presence UI in the planner header, not inside map provider components
 
 ## Example Module
 

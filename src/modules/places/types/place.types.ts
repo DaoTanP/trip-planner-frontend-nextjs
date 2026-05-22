@@ -1,3 +1,5 @@
+import type { PlaceDto, SearchPlacesQueryDto } from "@/services/api/contracts";
+
 export type MapProvider = "google" | "mapbox" | "openStreetMap";
 
 export interface GeoPoint {
@@ -5,15 +7,7 @@ export interface GeoPoint {
   longitude: number;
 }
 
-export interface PlaceSearchResult {
-  id: string;
-  name: string;
-  address: string;
-  location: GeoPoint;
-  provider: MapProvider;
-}
-
-export interface PlaceSearchParams {
-  query: string;
+export type Place = PlaceDto;
+export type PlaceSearchParams = SearchPlacesQueryDto & {
   near?: GeoPoint;
-}
+};

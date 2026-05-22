@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getItineraryStops } from "../services/itinerary.service";
+import { getTripDays } from "../services/itinerary.service";
 
 export const itineraryKeys = {
   all: ["itinerary"] as const,
@@ -10,6 +10,6 @@ export const itineraryKeys = {
 export function itineraryQueryOptions(tripId: string) {
   return queryOptions({
     queryKey: itineraryKeys.byTrip(tripId),
-    queryFn: ({ signal }) => getItineraryStops(tripId, signal)
+    queryFn: ({ signal }) => getTripDays(tripId, signal)
   });
 }

@@ -99,6 +99,10 @@ Frontend Docker development reads:
 - `API_INTERNAL_URL`
 - `NEXT_PUBLIC_MAP_PROVIDER`
 - `NEXT_PUBLIC_OSM_TILE_URL`
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+- `NEXT_PUBLIC_GOOGLE_MAP_ID`
+- `NEXT_PUBLIC_GOOGLE_MAPS_REGION`
+- `NEXT_PUBLIC_GOOGLE_MAPS_LANGUAGE`
 
 The browser-facing API URL remains `http://localhost:4000/api/v1`; server-side API calls can use `host.docker.internal` through `API_INTERNAL_URL`.
 
@@ -293,24 +297,39 @@ The editor intentionally full-bleeds from the normal app shell using a `w-screen
 
 Map-specific concepts are isolated in `modules/places`, `modules/map`, and `stores/use-planner-store.ts`.
 
-The app currently avoids choosing Google Maps, Mapbox, or OpenStreetMap. Future provider-specific adapters should live behind services/hooks so itinerary UI does not care which map SDK is active.
+`src/modules/map` owns provider rendering, routing DTOs, provider errors, and provider math. `src/modules/places` owns provider-backed place search, place details, geocoding, reverse geocoding, and mapping those results into backend place creation payloads. Itinerary and trip editor components consume normalized contracts only.
 
-Recommended future shape:
+The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. Google Maps is implemented as a provider adapter, and the OSM renderer remains available as a replaceable fallback path. Provider-specific code lives under:
 
-- `modules/places/services/google-places.service.ts`
-- `modules/places/services/mapbox-places.service.ts`
-- `modules/places/components/map-view.tsx`
-- `modules/itinerary/components/drag-itinerary-board.tsx`
+- `src/modules/map/providers/google` for Maps JavaScript loading, rendering, markers, polylines, and directions.
+- `src/modules/map/providers/osm` for the OSM tile renderer and Web Mercator projection.
+- `src/modules/places/services/google-places.service.ts` for Google Places autocomplete, details, geocoding, and reverse geocoding.
+- `src/modules/map/services/map-route.service.ts` and `src/modules/map/queries/map-route.queries.ts` for provider-neutral routing.
 
-`src/modules/map` exposes map types and an OpenStreetMap-compatible renderer. The current renderer:
+The trip editor derives `MapMarker[]` and fallback route points from trip DTOs, then asks TanStack Query for provider route geometry. The map receives provider-ready props and emits only viewport, marker select, and marker hover callbacks. Business logic stays outside map components.
 
-- renders OSM tiles from `NEXT_PUBLIC_OSM_TILE_URL`
-- projects markers using Web Mercator utilities
-- draws an SVG route line from itinerary marker order
-- highlights selected and hovered markers
-- emits marker selection and viewport changes through typed callbacks
+Google route results normalize to provider-independent route DTOs:
 
-Business logic stays outside map components. The trip editor prepares markers/routes from trip DTOs, and the map only renders provider-ready data. This keeps the future Google Maps or Mapbox adapter focused on rendering, not itinerary rules.
+- decoded route points for polyline rendering.
+- encoded polyline for future persistence/caching.
+- route legs for multi-stop expansion.
+- distance and duration totals for estimation.
+
+Place results normalize before reaching UI:
+
+- autocomplete results use provider-safe IDs and labels.
+- place details map to backend `CreatePlaceRequestDto` fields.
+- raw Google responses are not exposed to trip, itinerary, or card components.
+- adding a Google result first creates or resolves a backend place, then creates the itinerary item.
+
+Google Maps rendering remains client-only. The trip editor dynamically imports the map with `ssr: false`; the Google Maps JavaScript SDK is loaded lazily only when the Google provider is active. Server Components never import the SDK and do not include provider payloads in the server render.
+
+Google Maps Platform setup requires these APIs enabled on the browser API key:
+
+- Maps JavaScript API
+- Places API
+- Geocoding API
+- Directions API
 
 ## Drag And Drop
 

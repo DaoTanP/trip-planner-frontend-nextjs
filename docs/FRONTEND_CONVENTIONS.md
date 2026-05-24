@@ -125,6 +125,11 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Provider components must not fetch trip data.
 - Provider components must not mutate itinerary data directly.
 - New providers should implement the same data contract before adding provider-specific options.
+- Provider SDK imports and script loaders must stay inside `src/modules/map/providers/<provider>`.
+- Route geometry, encoded polylines, distance, and duration must normalize to `MapRoute` before reaching editor UI.
+- Marker hover and selection sync through `use-planner-store`; fetched route/place data stays in TanStack Query.
+- Place autocomplete, details, geocoding, and reverse geocoding belong in `src/modules/places`, not itinerary cards.
+- UI components must not expose raw Google Maps, Mapbox, OSM, or HERE response shapes.
 
 ## Responsive UI
 
@@ -140,8 +145,14 @@ Map provider variables belong in `.env.example`, `.env.docker`, and Docker compo
 
 - `NEXT_PUBLIC_MAP_PROVIDER`
 - `NEXT_PUBLIC_OSM_TILE_URL`
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
+- `NEXT_PUBLIC_GOOGLE_MAP_ID`
+- `NEXT_PUBLIC_GOOGLE_MAPS_REGION`
+- `NEXT_PUBLIC_GOOGLE_MAPS_LANGUAGE`
 
 Never put private map provider secrets in `NEXT_PUBLIC_*` variables.
+
+Google Maps browser keys must be restricted by HTTP referrer in Google Cloud. Enable Maps JavaScript API, Places API, Geocoding API, and Directions API for Google provider support.
 
 ## Testing
 

@@ -32,7 +32,8 @@
       "empty": "No places found",
       "noAddress": "Address not available",
       "dayFallback": "Day {number}",
-      "addPlace": "Add {name}"
+      "addPlace": "Add {name}",
+      "addError": "Place could not be added."
     },
     "itinerary": {
       "title": "Itinerary",
@@ -61,7 +62,15 @@
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "fit": "Focus first place",
-      "attribution": "OpenStreetMap"
+      "loading": "Loading map...",
+      "missingApiKey": "Google Maps is not configured.",
+      "loadError": "Map could not be loaded.",
+      "attribution": "OpenStreetMap",
+      "attributionOsm": "OpenStreetMap",
+      "attributionGoogle": "Google Maps",
+      "routeDistanceKilometers": "{kilometers} km",
+      "routeDurationMinutes": "{minutes, plural, =1 {# min} other {# min}}",
+      "routeSummary": "{distance}, {duration}"
     }
   },
   "empty": {

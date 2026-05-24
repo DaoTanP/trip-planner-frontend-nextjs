@@ -1,13 +1,19 @@
 "use client";
 
 import { MapPin, Plus, Search } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { placeSearchQueryOptions } from "@/modules/places/queries/place.queries";
+import {
+  placeDetailQueryOptions,
+  placeSearchQueryOptions
+} from "@/modules/places/queries/place.queries";
+import { useCreatePlaceFromDetailsMutation } from "@/modules/places/mutations/use-place-mutations";
+import type { PlaceSearchResult } from "@/modules/places/types/place.types";
 import { useCreateItineraryItemMutation } from "@/modules/itinerary/mutations/use-itinerary-mutations";
 
 import type { TripDay } from "../../types/trip.types";
@@ -18,10 +24,14 @@ interface PlaceSearchBoxProps {
 }
 
 export function PlaceSearchBox({ tripId, days }: PlaceSearchBoxProps) {
+  const locale = useLocale();
   const t = useTranslations("trip.editor.placeSearch");
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [dayId, setDayId] = useState(days[0]?.id ?? "");
+  const [pendingPlaceId, setPendingPlaceId] = useState<string | undefined>();
+  const createPlace = useCreatePlaceFromDetailsMutation();
   const createItem = useCreateItineraryItemMutation(tripId);
 
   useEffect(() => {
@@ -30,9 +40,49 @@ export function PlaceSearchBox({ tripId, days }: PlaceSearchBoxProps) {
     return () => window.clearTimeout(timeout);
   }, [query]);
 
-  const searchParams = useMemo(() => ({ q: debouncedQuery, limit: 8 }), [debouncedQuery]);
+  const searchParams = useMemo(
+    () => ({ q: debouncedQuery, limit: 8, language: locale }),
+    [debouncedQuery, locale]
+  );
   const placesQuery = useQuery(placeSearchQueryOptions(searchParams));
   const selectedDayId = days.some((day) => day.id === dayId) ? dayId : (days[0]?.id ?? "");
+  const isAddingPlace = Boolean(pendingPlaceId) || createPlace.isPending || createItem.isPending;
+
+  async function handleAddPlace(place: PlaceSearchResult) {
+    if (!selectedDayId) {
+      return;
+    }
+
+    setPendingPlaceId(place.id);
+
+    try {
+      const details = await queryClient.fetchQuery(
+        placeDetailQueryOptions({
+          placeId: place.providerPlaceId ?? place.id,
+          provider: place.provider,
+          storedPlaceId: place.storedPlaceId,
+          language: locale
+        })
+      );
+      const storedPlace = await createPlace.mutateAsync(details);
+      const payload = {
+        placeId: storedPlace.id,
+        title: storedPlace.name,
+        order: (days.find((day) => day.id === selectedDayId)?.items.length ?? 0) * 1024 + 1024
+      };
+
+      createItem.mutate({
+        dayId: selectedDayId,
+        payload: storedPlace.formattedAddress
+          ? { ...payload, description: storedPlace.formattedAddress }
+          : payload
+      });
+    } catch {
+      toast.error(t("addError"));
+    } finally {
+      setPendingPlaceId(undefined);
+    }
+  }
 
   return (
     <section className="rounded-md border bg-card p-4 shadow-sm">
@@ -88,22 +138,8 @@ export function PlaceSearchBox({ tripId, days }: PlaceSearchBoxProps) {
               size="icon"
               variant="secondary"
               aria-label={t("addPlace", { name: place.name })}
-              disabled={!selectedDayId || createItem.isPending}
-              onClick={() => {
-                const payload = {
-                  placeId: place.id,
-                  title: place.name,
-                  order:
-                    (days.find((day) => day.id === selectedDayId)?.items.length ?? 0) * 1024 + 1024
-                };
-
-                createItem.mutate({
-                  dayId: selectedDayId,
-                  payload: place.formattedAddress
-                    ? { ...payload, description: place.formattedAddress }
-                    : payload
-                });
-              }}
+              disabled={!selectedDayId || isAddingPlace}
+              onClick={() => void handleAddPlace(place)}
             >
               <Plus aria-hidden="true" />
             </Button>

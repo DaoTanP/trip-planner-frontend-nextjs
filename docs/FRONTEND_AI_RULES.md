@@ -121,12 +121,16 @@ Examples:
 ## Map and Collaboration Rules
 
 - Treat map providers as replaceable adapters.
+- Keep Google Maps, Mapbox, OSM, and HERE SDK access inside provider modules.
 - Keep viewport, filters, selected places, and temporary drag state in client stores.
 - Keep persisted trips, stops, and places in TanStack Query.
+- Keep place autocomplete, place details, geocoding, reverse geocoding, route, and distance/duration requests in service/query layers.
 - Future WebSocket events should invalidate or patch TanStack Query data, not bypass it with duplicated stores.
 - Keep provider-specific logic isolated inside `src/modules/map/providers`.
 - Do not couple itinerary rendering to specific map providers.
 - Synchronize marker selection and itinerary selection through shared interaction state only.
+- Normalize provider DTOs before they cross into trip or itinerary UI.
+- Preserve client-only map loading through dynamic imports and provider script loaders.
 - Prepare architecture for future collaborative editing without implementing realtime prematurely.
 
 ## Drag-and-Drop Rules

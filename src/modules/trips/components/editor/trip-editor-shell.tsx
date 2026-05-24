@@ -2,13 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo } from "react";
 import { RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
+import { mapRouteQueryOptions } from "@/modules/map/queries/map-route.queries";
 import type { MapMarker } from "@/modules/map/types/map.types";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
@@ -35,6 +36,7 @@ interface TripEditorShellProps {
 }
 
 export function TripEditorShell({ tripId }: TripEditorShellProps) {
+  const locale = useLocale();
   const t = useTranslations("trip.editor");
   const tripQuery = useQuery(tripDetailQueryOptions(tripId));
   const viewport = usePlannerStore((state) => state.viewport);
@@ -42,6 +44,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const hoveredItemId = usePlannerStore((state) => state.hoveredItemId);
   const setViewport = usePlannerStore((state) => state.setViewport);
   const selectItem = usePlannerStore((state) => state.selectItem);
+  const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
   const setSelectedTripId = usePlannerStore((state) => state.setSelectedTripId);
 
   const markers = useMemo(
@@ -52,6 +55,16 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     () => (tripQuery.data ? getTripRoute(tripQuery.data) : []),
     [tripQuery.data]
   );
+  const routeRequest = useMemo(
+    () => ({
+      points: route,
+      travelMode: "driving" as const,
+      language: locale
+    }),
+    [locale, route]
+  );
+  const routeQuery = useQuery(mapRouteQueryOptions(routeRequest));
+  const renderedRoute = routeQuery.data?.points.length ? routeQuery.data.points : route;
   const selectedMarkerId = selectedItemId ? `item:${selectedItemId}` : undefined;
   const hoveredMarkerId = hoveredItemId ? `item:${hoveredItemId}` : undefined;
 
@@ -121,6 +134,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     });
   }
 
+  function handleMarkerHover(marker?: MapMarker) {
+    setHoveredItemId(marker?.itemId);
+  }
+
   return (
     <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-[96rem] gap-6 lg:grid-cols-[minmax(24rem,42rem)_minmax(28rem,1fr)] lg:items-start">
@@ -138,12 +155,14 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         <aside className="lg:sticky lg:top-20">
           <LazyTripMap
             markers={markers}
-            route={route}
+            route={renderedRoute}
+            routeResult={routeQuery.data}
             viewport={viewport}
             selectedMarkerId={selectedMarkerId}
             hoveredMarkerId={hoveredMarkerId}
             onViewportChange={setViewport}
             onMarkerSelect={handleMarkerSelect}
+            onMarkerHover={handleMarkerHover}
           />
         </aside>
       </div>

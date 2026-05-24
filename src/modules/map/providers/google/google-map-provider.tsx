@@ -1,0 +1,361 @@
+"use client";
+
+import { useLocale, useTranslations } from "next-intl";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { cn } from "@/lib/utils";
+import { RouteSummary } from "@/modules/map/components/route-summary";
+import { mapConfig } from "@/modules/map/config/map.config";
+import type { MapMarker, MapRoutePoint, TripMapProps } from "@/modules/map/types/map.types";
+
+import { loadGoogleMaps } from "./google-map-loader";
+import type {
+  GoogleMap,
+  GoogleMapOptions,
+  GoogleMapsApi,
+  GoogleMarker,
+  GoogleMarkerIcon,
+  GoogleMarkerLabel,
+  GooglePolyline
+} from "./google-map.types";
+import { toGoogleLatLngLiteral } from "./google-map.types";
+
+type LoadState = "idle" | "loading" | "ready" | "error";
+
+const markerPath = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z";
+
+function markerInitials(marker: MapMarker) {
+  return marker.label
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function createMarkerLabel(marker: MapMarker, index: number): GoogleMarkerLabel {
+  return {
+    text: markerInitials(marker) || String(index + 1),
+    color: "#ffffff",
+    fontSize: "11px",
+    fontWeight: "700"
+  };
+}
+
+function createMarkerIcon(
+  googleMaps: GoogleMapsApi,
+  state: "default" | "active"
+): GoogleMarkerIcon {
+  return {
+    path: markerPath,
+    fillColor: state === "active" ? "#0f766e" : "#2563eb",
+    fillOpacity: 1,
+    strokeColor: "#ffffff",
+    strokeWeight: 2,
+    scale: state === "active" ? 1.75 : 1.55,
+    anchor: new googleMaps.Point(12, 24)
+  };
+}
+
+function shouldUpdateViewport(map: GoogleMap, viewport: TripMapProps["viewport"]) {
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+
+  if (!center || typeof zoom !== "number") {
+    return true;
+  }
+
+  return (
+    Math.abs(center.lat() - viewport.latitude) > 0.00001 ||
+    Math.abs(center.lng() - viewport.longitude) > 0.00001 ||
+    Math.abs(zoom - viewport.zoom) > 0.01
+  );
+}
+
+function resolveRoutePath(routeResult: TripMapProps["routeResult"], route: MapRoutePoint[]) {
+  return routeResult?.points.length ? routeResult.points : route;
+}
+
+export function GoogleMapProvider({
+  markers,
+  route,
+  routeResult,
+  viewport,
+  selectedMarkerId,
+  hoveredMarkerId,
+  onViewportChange,
+  onMarkerSelect,
+  onMarkerHover
+}: TripMapProps) {
+  const locale = useLocale();
+  const t = useTranslations("trip.editor.map");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const initialViewportRef = useRef(viewport);
+  const googleMapsRef = useRef<GoogleMapsApi | null>(null);
+  const mapRef = useRef<GoogleMap | null>(null);
+  const markersRef = useRef<Map<string, GoogleMarker>>(new Map());
+  const markerDataRef = useRef<Map<string, MapMarker>>(new Map());
+  const polylineRef = useRef<GooglePolyline | null>(null);
+  const onViewportChangeRef = useRef(onViewportChange);
+  const onMarkerSelectRef = useRef(onMarkerSelect);
+  const onMarkerHoverRef = useRef(onMarkerHover);
+  const [loadState, setLoadState] = useState<LoadState>(
+    mapConfig.googleMapsApiKey ? "loading" : "idle"
+  );
+  const [errorKey, setErrorKey] = useState<"missingApiKey" | "loadError">("loadError");
+
+  const isMissingApiKey = !mapConfig.googleMapsApiKey;
+  const displayLoadState = isMissingApiKey ? "error" : loadState;
+  const displayErrorKey = isMissingApiKey ? "missingApiKey" : errorKey;
+  const routePath = useMemo(() => resolveRoutePath(routeResult, route), [route, routeResult]);
+
+  useEffect(() => {
+    onViewportChangeRef.current = onViewportChange;
+  }, [onViewportChange]);
+
+  useEffect(() => {
+    onMarkerSelectRef.current = onMarkerSelect;
+  }, [onMarkerSelect]);
+
+  useEffect(() => {
+    onMarkerHoverRef.current = onMarkerHover;
+  }, [onMarkerHover]);
+
+  useEffect(() => {
+    markerDataRef.current = new Map(markers.map((marker) => [marker.id, marker]));
+  }, [markers]);
+
+  useEffect(() => {
+    if (!containerRef.current) {
+      return;
+    }
+
+    if (isMissingApiKey) {
+      return;
+    }
+
+    let isMounted = true;
+    const markerInstances = markersRef.current;
+
+    void loadGoogleMaps({
+      language: mapConfig.googleMapsLanguage || locale,
+      region: mapConfig.googleMapsRegion
+    })
+      .then((googleMaps) => {
+        if (!isMounted || !containerRef.current) {
+          return;
+        }
+
+        const initialViewport = initialViewportRef.current;
+        const mapOptions: GoogleMapOptions = {
+          center: {
+            lat: initialViewport.latitude,
+            lng: initialViewport.longitude
+          },
+          clickableIcons: false,
+          controlSize: 32,
+          fullscreenControl: false,
+          gestureHandling: "cooperative",
+          mapTypeControl: false,
+          streetViewControl: false,
+          zoom: initialViewport.zoom,
+          zoomControl: true
+        };
+
+        if (mapConfig.googleMapId) {
+          mapOptions.mapId = mapConfig.googleMapId;
+        }
+
+        const map = new googleMaps.Map(containerRef.current, mapOptions);
+
+        googleMapsRef.current = googleMaps;
+        mapRef.current = map;
+        map.addListener("idle", () => {
+          const center = map.getCenter();
+          const zoom = map.getZoom();
+
+          if (!center || typeof zoom !== "number") {
+            return;
+          }
+
+          onViewportChangeRef.current({
+            latitude: center.lat(),
+            longitude: center.lng(),
+            zoom
+          });
+        });
+        setLoadState("ready");
+      })
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setErrorKey("loadError");
+        setLoadState("error");
+      });
+
+    return () => {
+      isMounted = false;
+      const googleMaps = googleMapsRef.current;
+
+      if (googleMaps && mapRef.current) {
+        googleMaps.event.clearInstanceListeners(mapRef.current);
+      }
+      markerInstances.forEach((marker) => {
+        googleMaps?.event.clearInstanceListeners(marker);
+        marker.setMap(null);
+      });
+      markerInstances.clear();
+      polylineRef.current?.setMap(null);
+      polylineRef.current = null;
+      mapRef.current = null;
+    };
+  }, [isMissingApiKey, locale]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+
+    if (loadState !== "ready" || !map || !shouldUpdateViewport(map, viewport)) {
+      return;
+    }
+
+    map.setCenter({
+      lat: viewport.latitude,
+      lng: viewport.longitude
+    });
+    map.setZoom(viewport.zoom);
+  }, [loadState, viewport]);
+
+  useEffect(() => {
+    const googleMaps = googleMapsRef.current;
+    const map = mapRef.current;
+
+    if (loadState !== "ready" || !googleMaps || !map) {
+      return;
+    }
+
+    const activeIds = new Set(markers.map((marker) => marker.id));
+
+    markers.forEach((marker, index) => {
+      const isActive = marker.id === selectedMarkerId || marker.id === hoveredMarkerId;
+      const position = {
+        lat: marker.latitude,
+        lng: marker.longitude
+      };
+      const icon = createMarkerIcon(googleMaps, isActive ? "active" : "default");
+      const label = createMarkerLabel(marker, index);
+      const existingMarker = markersRef.current.get(marker.id);
+
+      if (existingMarker) {
+        existingMarker.setPosition(position);
+        existingMarker.setTitle(marker.label);
+        existingMarker.setLabel(label);
+        existingMarker.setIcon(icon);
+        existingMarker.setZIndex(isActive ? 20 : 10);
+        return;
+      }
+
+      const googleMarker = new googleMaps.Marker({
+        icon,
+        label,
+        map,
+        optimized: true,
+        position,
+        title: marker.label,
+        zIndex: isActive ? 20 : 10
+      });
+      googleMarker.addListener("click", () => {
+        const currentMarker = markerDataRef.current.get(marker.id);
+
+        if (currentMarker) {
+          onMarkerSelectRef.current(currentMarker);
+        }
+      });
+      googleMarker.addListener("mouseover", () => {
+        onMarkerHoverRef.current?.(markerDataRef.current.get(marker.id));
+      });
+      googleMarker.addListener("mouseout", () => {
+        onMarkerHoverRef.current?.(undefined);
+      });
+      markersRef.current.set(marker.id, googleMarker);
+    });
+
+    markersRef.current.forEach((marker, markerId) => {
+      if (activeIds.has(markerId)) {
+        return;
+      }
+
+      googleMaps.event.clearInstanceListeners(marker);
+      marker.setMap(null);
+      markersRef.current.delete(markerId);
+    });
+  }, [hoveredMarkerId, loadState, markers, selectedMarkerId]);
+
+  useEffect(() => {
+    const googleMaps = googleMapsRef.current;
+    const map = mapRef.current;
+
+    if (loadState !== "ready" || !googleMaps || !map) {
+      return;
+    }
+
+    if (routePath.length < 2) {
+      polylineRef.current?.setMap(null);
+      polylineRef.current = null;
+      return;
+    }
+
+    const path = routePath.map(toGoogleLatLngLiteral);
+    const options = {
+      clickable: false,
+      geodesic: true,
+      strokeColor: "#2563eb",
+      strokeOpacity: 0.78,
+      strokeWeight: 5
+    };
+
+    if (!polylineRef.current) {
+      polylineRef.current = new googleMaps.Polyline({
+        ...options,
+        map,
+        path
+      });
+      return;
+    }
+
+    polylineRef.current.setPath(path);
+    polylineRef.current.setOptions(options);
+  }, [loadState, routePath]);
+
+  return (
+    <section
+      className="relative min-h-[26rem] overflow-hidden rounded-md border bg-muted md:min-h-[calc(100dvh-8rem)]"
+      aria-label={t("label")}
+    >
+      <div ref={containerRef} className="absolute inset-0" />
+      {displayLoadState === "loading" ? (
+        <div className="absolute inset-0 grid place-items-center bg-muted text-sm text-muted-foreground">
+          {t("loading")}
+        </div>
+      ) : null}
+      {displayLoadState === "error" ? (
+        <div className="absolute inset-0 grid place-items-center bg-muted p-6 text-center text-sm text-muted-foreground">
+          {t(displayErrorKey)}
+        </div>
+      ) : null}
+      <div className="absolute bottom-3 left-3 z-30 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
+        {t("attributionGoogle")}
+      </div>
+      <RouteSummary route={routeResult} />
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 rounded-md ring-1 ring-inset ring-border",
+          displayLoadState === "ready" && "ring-transparent"
+        )}
+        aria-hidden="true"
+      />
+    </section>
+  );
+}

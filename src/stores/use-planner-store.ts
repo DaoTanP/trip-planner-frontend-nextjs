@@ -2,6 +2,9 @@
 
 import { create } from "zustand";
 
+import { mapConfig } from "@/modules/map/config/map.config";
+import type { MapViewport } from "@/modules/map/types/map.types";
+
 interface PlannerDraftStop {
   placeId: string;
   dayId: string;
@@ -11,12 +14,6 @@ interface PlannerDraftStop {
 interface PlannerFilters {
   query: string;
   dayId?: string;
-}
-
-export interface MapViewport {
-  latitude: number;
-  longitude: number;
-  zoom: number;
 }
 
 interface PlannerState {
@@ -48,9 +45,9 @@ export const usePlannerStore = create<PlannerState>((set) => ({
     query: ""
   },
   viewport: {
-    latitude: 16.0471,
-    longitude: 108.2068,
-    zoom: 12
+    latitude: mapConfig.defaultViewport.latitude,
+    longitude: mapConfig.defaultViewport.longitude,
+    zoom: mapConfig.defaultViewport.zoom
   },
   isPlaceSearchOpen: false,
   setSelectedTripId: (selectedTripId) => set({ selectedTripId }),

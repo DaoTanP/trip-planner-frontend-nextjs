@@ -68,6 +68,7 @@
       "attribution": "OpenStreetMap",
       "attributionOsm": "OpenStreetMap",
       "attributionGoogle": "Google Maps",
+      "attributionMapLibre": "MapLibre / OpenStreetMap",
       "routeDistanceKilometers": "{kilometers} km",
       "routeDurationMinutes": "{minutes, plural, =1 {# min} other {# min}}",
       "routeSummary": "{distance}, {duration}"

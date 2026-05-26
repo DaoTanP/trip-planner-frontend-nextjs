@@ -1,46 +1,21 @@
-import type { MapViewport } from "@/stores/use-planner-store";
+import type { MapMarker } from "@/modules/map/providers/shared/map-marker.types";
+import type { MapRoute, MapRoutePoint } from "@/modules/map/providers/shared/map-route.types";
+import type { MapViewport } from "@/modules/map/providers/shared/map-provider.types";
 
-export type MapProviderId = "openStreetMap" | "google" | "mapbox" | "here";
-
-export type MapTravelMode = "driving" | "walking" | "bicycling" | "transit";
-
-export interface MapMarker {
-  id: string;
-  label: string;
-  latitude: number;
-  longitude: number;
-  itemId?: string | undefined;
-  placeId?: string | undefined;
-}
-
-export interface MapRoutePoint {
-  latitude: number;
-  longitude: number;
-}
-
-export interface MapRouteLeg {
-  start: MapRoutePoint;
-  end: MapRoutePoint;
-  distanceMeters: number | null;
-  durationSeconds: number | null;
-}
-
-export interface MapRoute {
-  provider: MapProviderId;
-  points: MapRoutePoint[];
-  encodedPolyline?: string | undefined;
-  distanceMeters: number | null;
-  durationSeconds: number | null;
-  legs: MapRouteLeg[];
-}
-
-export interface MapRouteRequest {
-  points: MapRoutePoint[];
-  travelMode?: MapTravelMode | undefined;
-  optimizeWaypoints?: boolean | undefined;
-  language?: string | undefined;
-  region?: string | undefined;
-}
+export type {
+  MapBounds,
+  MapProviderId,
+  MapViewport
+} from "@/modules/map/providers/shared/map-provider.types";
+export type { MapMarker } from "@/modules/map/providers/shared/map-marker.types";
+export type {
+  MapRoute,
+  MapRouteLeg,
+  MapRoutePoint,
+  MapRouteRequest,
+  MapTravelMode,
+  RoutePoint
+} from "@/modules/map/providers/shared/map-route.types";
 
 export interface TripMapProps {
   markers: MapMarker[];

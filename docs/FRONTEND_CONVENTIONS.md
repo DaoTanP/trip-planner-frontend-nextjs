@@ -130,6 +130,10 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Marker hover and selection sync through `use-planner-store`; fetched route/place data stays in TanStack Query.
 - Place autocomplete, details, geocoding, and reverse geocoding belong in `src/modules/places`, not itinerary cards.
 - UI components must not expose raw Google Maps, Mapbox, OSM, or HERE response shapes.
+- MapLibre components must stay under `src/modules/map/providers/maplibre`.
+- MapLibre route layers render normalized route points or decoded polylines only.
+- MapLibre viewport updates must flow through `MapViewport` and planner-store setters, not raw map instances.
+- Raw MapLibre refs may be held locally inside provider components/hooks but must not be stored globally.
 
 ## Responsive UI
 
@@ -144,6 +148,10 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 Map provider variables belong in `.env.example`, `.env.docker`, and Docker compose:
 
 - `NEXT_PUBLIC_MAP_PROVIDER`
+- `NEXT_PUBLIC_MAP_STYLE_URL`
+- `NEXT_PUBLIC_MAP_DEFAULT_LAT`
+- `NEXT_PUBLIC_MAP_DEFAULT_LNG`
+- `NEXT_PUBLIC_MAP_DEFAULT_ZOOM`
 - `NEXT_PUBLIC_OSM_TILE_URL`
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
 - `NEXT_PUBLIC_GOOGLE_MAP_ID`
@@ -153,6 +161,8 @@ Map provider variables belong in `.env.example`, `.env.docker`, and Docker compo
 Never put private map provider secrets in `NEXT_PUBLIC_*` variables.
 
 Google Maps browser keys must be restricted by HTTP referrer in Google Cloud. Enable Maps JavaScript API, Places API, Geocoding API, and Directions API for Google provider support.
+
+Use `NEXT_PUBLIC_MAP_PROVIDER=maplibre` for the MapLibre renderer. The default `NEXT_PUBLIC_MAP_STYLE_URL` is for local development; production should use a stable vector tile/style provider with correct attribution.
 
 ## Testing
 

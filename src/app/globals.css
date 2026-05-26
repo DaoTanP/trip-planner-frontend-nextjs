@@ -93,3 +93,25 @@ textarea,
 select {
   outline-color: var(--ring);
 }
+
+.trip-maplibre .maplibregl-map {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font: inherit;
+}
+
+.trip-maplibre .maplibregl-canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  outline: none;
+}
+
+.trip-maplibre .maplibregl-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}

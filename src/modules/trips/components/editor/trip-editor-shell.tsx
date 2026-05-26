@@ -3,13 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
 import { mapRouteQueryOptions } from "@/modules/map/queries/map-route.queries";
+import { getRouteRenderPoints } from "@/modules/map/services/routing/route-normalizer";
 import type { MapMarker } from "@/modules/map/types/map.types";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
@@ -25,9 +26,7 @@ const LazyTripMap = dynamic(
   () => import("@/modules/map/components/trip-map").then((mod) => mod.TripMap),
   {
     ssr: false,
-    loading: () => (
-      <div className="min-h-[26rem] rounded-md border bg-muted md:min-h-[calc(100dvh-8rem)]" />
-    )
+    loading: () => <div className="h-[26rem] rounded-md border bg-muted md:h-[calc(100dvh-8rem)]" />
   }
 );
 
@@ -64,7 +63,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     [locale, route]
   );
   const routeQuery = useQuery(mapRouteQueryOptions(routeRequest));
-  const renderedRoute = routeQuery.data?.points.length ? routeQuery.data.points : route;
+  const renderedRoute = useMemo(
+    () => getRouteRenderPoints(routeQuery.data, route),
+    [route, routeQuery.data]
+  );
   const selectedMarkerId = selectedItemId ? `item:${selectedItemId}` : undefined;
   const hoveredMarkerId = hoveredItemId ? `item:${hoveredItemId}` : undefined;
 
@@ -104,6 +106,25 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     });
   }, [markers, selectedItemId, setViewport, viewport.zoom]);
 
+  const handleMarkerSelect = useCallback(
+    (marker: MapMarker) => {
+      selectItem(marker.itemId, marker.placeId);
+      setViewport({
+        latitude: marker.latitude,
+        longitude: marker.longitude,
+        zoom: Math.max(viewport.zoom, 14)
+      });
+    },
+    [selectItem, setViewport, viewport.zoom]
+  );
+
+  const handleMarkerHover = useCallback(
+    (marker?: MapMarker) => {
+      setHoveredItemId(marker?.itemId);
+    },
+    [setHoveredItemId]
+  );
+
   if (tripQuery.isLoading) {
     return <TripEditorSkeleton />;
   }
@@ -124,19 +145,6 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   }
 
   const trip = tripQuery.data;
-
-  function handleMarkerSelect(marker: MapMarker) {
-    selectItem(marker.itemId, marker.placeId);
-    setViewport({
-      latitude: marker.latitude,
-      longitude: marker.longitude,
-      zoom: Math.max(viewport.zoom, 14)
-    });
-  }
-
-  function handleMarkerHover(marker?: MapMarker) {
-    setHoveredItemId(marker?.itemId);
-  }
 
   return (
     <div className="relative left-1/2 w-screen -translate-x-1/2 px-4 sm:px-6 lg:px-8">

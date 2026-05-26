@@ -121,6 +121,7 @@ Examples:
 ## Map and Collaboration Rules
 
 - Treat map providers as replaceable adapters.
+- Keep MapLibre rendering isolated under `src/modules/map/providers/maplibre`.
 - Keep Google Maps, Mapbox, OSM, and HERE SDK access inside provider modules.
 - Keep viewport, filters, selected places, and temporary drag state in client stores.
 - Keep persisted trips, stops, and places in TanStack Query.
@@ -130,6 +131,8 @@ Examples:
 - Do not couple itinerary rendering to specific map providers.
 - Synchronize marker selection and itinerary selection through shared interaction state only.
 - Normalize provider DTOs before they cross into trip or itinerary UI.
+- Render MapLibre markers and route layers from normalized `MapMarker`, `MapRoute`, and `MapViewport` contracts only.
+- Do not store MapLibre map instances, sources, layers, or style objects in Zustand.
 - Preserve client-only map loading through dynamic imports and provider script loaders.
 - Prepare architecture for future collaborative editing without implementing realtime prematurely.
 

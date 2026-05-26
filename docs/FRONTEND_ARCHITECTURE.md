@@ -98,6 +98,10 @@ Frontend Docker development reads:
 - `NEXT_PUBLIC_API_URL`
 - `API_INTERNAL_URL`
 - `NEXT_PUBLIC_MAP_PROVIDER`
+- `NEXT_PUBLIC_MAP_STYLE_URL`
+- `NEXT_PUBLIC_MAP_DEFAULT_LAT`
+- `NEXT_PUBLIC_MAP_DEFAULT_LNG`
+- `NEXT_PUBLIC_MAP_DEFAULT_ZOOM`
 - `NEXT_PUBLIC_OSM_TILE_URL`
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`
 - `NEXT_PUBLIC_GOOGLE_MAP_ID`
@@ -299,14 +303,25 @@ Map-specific concepts are isolated in `modules/places`, `modules/map`, and `stor
 
 `src/modules/map` owns provider rendering, routing DTOs, provider errors, and provider math. `src/modules/places` owns provider-backed place search, place details, geocoding, reverse geocoding, and mapping those results into backend place creation payloads. Itinerary and trip editor components consume normalized contracts only.
 
-The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. Google Maps is implemented as a provider adapter, and the OSM renderer remains available as a replaceable fallback path. Provider-specific code lives under:
+The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL JS is the default rendering engine, Google Maps remains a provider adapter for Google-backed rendering and routing, and the OSM raster renderer remains available as a lightweight fallback path. Provider-specific code lives under:
 
+- `src/modules/map/providers/maplibre` for MapLibre GL JS and `react-map-gl` rendering, markers, viewport sync, and route layers.
 - `src/modules/map/providers/google` for Maps JavaScript loading, rendering, markers, polylines, and directions.
 - `src/modules/map/providers/osm` for the OSM tile renderer and Web Mercator projection.
 - `src/modules/places/services/google-places.service.ts` for Google Places autocomplete, details, geocoding, and reverse geocoding.
 - `src/modules/map/services/map-route.service.ts` and `src/modules/map/queries/map-route.queries.ts` for provider-neutral routing.
+- `src/modules/map/providers/shared` for provider-independent marker, route, viewport, and bounds contracts.
 
-The trip editor derives `MapMarker[]` and fallback route points from trip DTOs, then asks TanStack Query for provider route geometry. The map receives provider-ready props and emits only viewport, marker select, and marker hover callbacks. Business logic stays outside map components.
+The trip editor derives `MapMarker[]` and fallback route points from trip DTOs, then asks TanStack Query for provider route geometry when the active provider supports routing. The map receives provider-ready props and emits only viewport, marker select, and marker hover callbacks. Business logic stays outside map components.
+
+MapLibre renders normalized map contracts only:
+
+- `MapMarker[]` for marker positions and labels.
+- `MapRoutePoint[]` or normalized `MapRoute` points for route line rendering.
+- `MapViewport` for center and zoom.
+- `MapBounds` for future fit-to-route and clustering workflows.
+
+MapLibre does not own itinerary logic, trip records, place normalization, or route fetching. It only renders vector maps, marker overlays, and route layers.
 
 Google route results normalize to provider-independent route DTOs:
 
@@ -322,7 +337,15 @@ Place results normalize before reaching UI:
 - raw Google responses are not exposed to trip, itinerary, or card components.
 - adding a Google result first creates or resolves a backend place, then creates the itinerary item.
 
-Google Maps rendering remains client-only. The trip editor dynamically imports the map with `ssr: false`; the Google Maps JavaScript SDK is loaded lazily only when the Google provider is active. Server Components never import the SDK and do not include provider payloads in the server render.
+Map rendering remains client-only. The trip editor dynamically imports the map with `ssr: false`; MapLibre, Google Maps, and other provider SDKs are loaded lazily only when a map route actually renders. Server Components never import map SDKs and do not include provider payloads in the server render.
+
+MapLibre environment configuration:
+
+- `NEXT_PUBLIC_MAP_PROVIDER=maplibre`
+- `NEXT_PUBLIC_MAP_STYLE_URL` points to the vector style JSON.
+- `NEXT_PUBLIC_MAP_DEFAULT_LAT`, `NEXT_PUBLIC_MAP_DEFAULT_LNG`, and `NEXT_PUBLIC_MAP_DEFAULT_ZOOM` seed the local planner viewport.
+
+The default style is `https://demotiles.maplibre.org/style.json` for local development. Production deployments should replace it with an owned or commercially supported OSM-compatible vector style and attribution policy.
 
 Google Maps Platform setup requires these APIs enabled on the browser API key:
 

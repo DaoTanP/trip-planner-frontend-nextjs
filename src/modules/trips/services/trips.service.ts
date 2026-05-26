@@ -5,9 +5,10 @@ import type { ApiSuccessResponse } from "@/types/api";
 import type {
   CreateTripNotePayload,
   CreateTripPayload,
-  ReorderTripDaysPayload,
   Trip,
+  TripCollaborator,
   TripDetail,
+  TripExpenses,
   TripNote,
   TripsListMeta
 } from "../types/trip.types";
@@ -52,22 +53,40 @@ export async function updateTrip(tripId: string, payload: UpdateTripRequestDto) 
   return response.data.trip;
 }
 
-export async function reorderTripDays(tripId: string, payload: ReorderTripDaysPayload) {
-  const response = await apiPatch<
-    ApiSuccessResponse<{ days: TripDetail["days"]; clientMutationId?: string }>,
-    ReorderTripDaysPayload
-  >(apiEndpoints.trips.reorderDays(tripId), payload);
-
-  return response.data;
-}
-
 export async function createTripNote(tripId: string, payload: CreateTripNotePayload) {
-  const response = await apiPost<ApiSuccessResponse<{ note: TripNote }>, CreateTripNotePayload>(
-    apiEndpoints.trips.notes(tripId),
-    payload
-  );
+  const response = await apiPost<
+    ApiSuccessResponse<{ note: TripNote; clientMutationId?: string }>,
+    CreateTripNotePayload
+  >(apiEndpoints.trips.notes(tripId), payload);
 
   return response.data.note;
+}
+
+export async function getTripNotes(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<{ notes: TripNote[] }>>(
+    apiEndpoints.trips.notes(tripId),
+    signal
+  );
+
+  return response.data.notes;
+}
+
+export async function getTripCollaborators(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<{ collaborators: TripCollaborator[] }>>(
+    apiEndpoints.trips.collaborators(tripId),
+    signal
+  );
+
+  return response.data.collaborators;
+}
+
+export async function getTripExpenses(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<TripExpenses>>(
+    apiEndpoints.trips.expenses(tripId),
+    signal
+  );
+
+  return response.data;
 }
 
 export async function deleteTrip(tripId: string) {

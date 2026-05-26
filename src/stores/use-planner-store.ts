@@ -7,13 +7,11 @@ import type { MapViewport } from "@/modules/map/types/map.types";
 
 interface PlannerDraftStop {
   placeId: string;
-  dayId: string;
   order: number;
 }
 
 interface PlannerFilters {
   query: string;
-  dayId?: string;
 }
 
 interface PlannerState {

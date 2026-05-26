@@ -66,16 +66,16 @@
   },
   "home": {
     "eyebrow": "Map-first planning workspace",
-    "title": "Build trips around places, days, and real movement.",
-    "description": "A production-ready frontend foundation for planning routes, saving places, shaping itineraries, and adding collaboration when the product is ready.",
+    "title": "Build trips around places, routes, and real movement.",
+    "description": "A production-ready frontend foundation for sequencing stops, saving places, shaping routes, and adding collaboration when the product is ready.",
     "primaryAction": "Open trips",
     "secondaryAction": "Log in",
     "mapTitle": "Hanoi to Da Nang",
-    "mapSubtitle": "3 cities · 7 days · 840 km",
-    "dayLabel": "Day {day}",
+    "mapSubtitle": "3 cities · 14 stops · 840 km",
+    "dayLabel": "Stop {day}",
     "stats": {
       "stops": "Stops",
-      "days": "Days",
+      "days": "Stops",
       "distance": "km"
     },
     "workspace": {

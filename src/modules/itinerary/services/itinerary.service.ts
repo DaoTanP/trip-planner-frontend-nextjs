@@ -6,31 +6,30 @@ import type {
   CreateItineraryItemPayload,
   ItineraryItem,
   ReorderItineraryItemsPayload,
-  TripDay,
   UpdateItineraryItemPayload
 } from "../types/itinerary.types";
 
-export async function getTripDays(tripId: string, signal?: AbortSignal) {
-  const response = await apiGet<ApiSuccessResponse<{ days: TripDay[] }>>(
-    apiEndpoints.trips.days(tripId),
+export async function getItineraryItems(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<{ items: ItineraryItem[] }>>(
+    apiEndpoints.trips.itinerary(tripId),
     signal
   );
 
-  return response.data.days;
+  return response.data.items;
 }
 
-export async function createItineraryItem(dayId: string, payload: CreateItineraryItemPayload) {
+export async function createItineraryItem(tripId: string, payload: CreateItineraryItemPayload) {
   const response = await apiPost<
-    ApiSuccessResponse<{ item: ItineraryItem }>,
+    ApiSuccessResponse<{ item: ItineraryItem; clientMutationId?: string }>,
     CreateItineraryItemPayload
-  >(apiEndpoints.itinerary.dayItems(dayId), payload);
+  >(apiEndpoints.trips.itinerary(tripId), payload);
 
   return response.data.item;
 }
 
 export async function updateItineraryItem(itemId: string, payload: UpdateItineraryItemPayload) {
   const response = await apiPatch<
-    ApiSuccessResponse<{ item: ItineraryItem }>,
+    ApiSuccessResponse<{ item: ItineraryItem; clientMutationId?: string }>,
     UpdateItineraryItemPayload
   >(apiEndpoints.itinerary.item(itemId), payload);
 
@@ -45,9 +44,9 @@ export async function deleteItineraryItem(itemId: string) {
 
 export async function reorderItineraryItems(tripId: string, payload: ReorderItineraryItemsPayload) {
   const response = await apiPatch<
-    ApiSuccessResponse<{ days: TripDay[]; clientMutationId?: string }>,
+    ApiSuccessResponse<{ items: ItineraryItem[]; clientMutationId?: string }>,
     ReorderItineraryItemsPayload
-  >(apiEndpoints.trips.reorderItems(tripId), payload);
+  >(apiEndpoints.trips.reorderItinerary(tripId), payload);
 
   return response.data;
 }

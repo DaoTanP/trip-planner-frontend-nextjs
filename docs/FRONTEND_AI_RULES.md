@@ -14,6 +14,7 @@ AI agents extending the trip editor must preserve:
 - clean frontend/backend contracts
 - modular map abstractions
 - predictable server-state management
+- flat timeline-first itinerary data flow
 
 ## Before Editing
 
@@ -32,11 +33,13 @@ AI agents extending the trip editor must preserve:
 - No broad shared folders for feature-specific code.
 - No new provider, state library, form library, or styling system without explicit approval.
 - No map SDK coupling inside itinerary UI.
+- No hard `TripDay` hierarchy in new editor state, services, queries, or components.
 - No Node runtime changes without updating `.nvmrc`, Dockerfiles, package engines, README, and an ADR.
 - No API server code, database migrations, queue workers, or server Docker services in this repository.
 - Keep server state in TanStack Query and interaction state in Zustand.
 - Keep map provider code isolated in `src/modules/map`.
 - Keep itinerary mutation logic isolated in `src/modules/itinerary`.
+- Keep itinerary items, places, notes, routes, collaborators, and expenses in granular TanStack Query caches.
 - Use dnd-kit for drag interactions.
 - Preserve optimistic rollback behavior for reorder, add, edit, and remove flows.
 - Update backend contracts before using new API fields in frontend code.
@@ -46,7 +49,8 @@ AI agents extending the trip editor must preserve:
 ## AI Agents Must Not
 
 - Put Prisma/backend-shaped assumptions directly into UI components.
-- Store trip detail, days, items, places, or notes in Zustand.
+- Store trip detail, itinerary items, places, routes, expenses, or notes in Zustand.
+- Recreate day-grouped server state in Zustand or component-local caches.
 - Fetch provider map data inside itinerary cards.
 - Hardcode visible editor copy.
 - Add a second drag library.
@@ -86,7 +90,7 @@ AI agents extending the trip editor must preserve:
 
 Examples:
 
-- trip.editor.day.add
+- trip.editor.itinerary.add
 - trip.editor.place.search
 - trip.editor.route.optimize
 
@@ -127,6 +131,7 @@ Examples:
 - Keep persisted trips, stops, and places in TanStack Query.
 - Keep place autocomplete, place details, geocoding, reverse geocoding, route, and distance/duration requests in service/query layers.
 - Future WebSocket events should invalidate or patch TanStack Query data, not bypass it with duplicated stores.
+- Future WebSocket events should patch the smallest granular cache: itinerary, notes, places, routes, collaborators, expenses, or trip metadata.
 - Keep provider-specific logic isolated inside `src/modules/map/providers`.
 - Do not couple itinerary rendering to specific map providers.
 - Synchronize marker selection and itinerary selection through shared interaction state only.
@@ -143,7 +148,8 @@ Examples:
 - Persist ordering through backend mutations.
 - Preserve optimistic rollback behavior.
 - Avoid full-list rerenders during drag interactions.
-- Prepare architecture for future cross-day itinerary dragging.
+- Reorder flat itinerary items with spaced `sortOrder` values and `clientMutationId`.
+- Keep grouping by date, location, section, morning/evening, or custom label presentation-only.
 
 ## State Management Rules
 
@@ -153,6 +159,10 @@ Use TanStack Query for:
 - trip details
 - itinerary items
 - places
+- routes
+- notes
+- collaborators
+- expenses
 - persisted planner state
 - authenticated user state
 

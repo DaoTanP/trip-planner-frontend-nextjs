@@ -7,15 +7,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 import { useCreateTripNoteMutation } from "../../mutations/use-trip-editor-mutations";
-import type { TripDetail } from "../../types/trip.types";
+import type { TripNote } from "../../types/trip.types";
 
 interface TripNotesEditorProps {
-  trip: TripDetail;
+  tripId: string;
+  notes: TripNote[];
 }
 
-export function TripNotesEditor({ trip }: TripNotesEditorProps) {
+export function TripNotesEditor({ tripId, notes }: TripNotesEditorProps) {
   const t = useTranslations("trip.editor.notes");
-  const createNote = useCreateTripNoteMutation(trip.id);
+  const createNote = useCreateTripNoteMutation(tripId);
   const [body, setBody] = useState("");
 
   return (
@@ -25,7 +26,7 @@ export function TripNotesEditor({ trip }: TripNotesEditorProps) {
           <NotebookPen className="size-4" aria-hidden="true" />
           {t("title")}
         </h2>
-        <span className="text-xs text-muted-foreground">{trip.notes.length}</span>
+        <span className="text-xs text-muted-foreground">{notes.length}</span>
       </div>
 
       <div className="grid gap-3">
@@ -42,7 +43,7 @@ export function TripNotesEditor({ trip }: TripNotesEditorProps) {
           disabled={body.trim().length === 0 || createNote.isPending}
           onClick={() => {
             createNote.mutate(
-              { body: body.trim(), order: 0 },
+              { body: body.trim(), clientMutationId: crypto.randomUUID(), order: 0 },
               {
                 onSuccess: () => setBody("")
               }
@@ -54,9 +55,9 @@ export function TripNotesEditor({ trip }: TripNotesEditorProps) {
         </Button>
       </div>
 
-      {trip.notes.length > 0 ? (
+      {notes.length > 0 ? (
         <div className="mt-4 grid gap-2">
-          {trip.notes.slice(0, 3).map((note) => (
+          {notes.slice(0, 3).map((note) => (
             <article key={note.id} className="rounded-md bg-muted p-3 text-sm">
               {note.title ? <h3 className="mb-1 font-medium">{note.title}</h3> : null}
               <p className="line-clamp-3 text-muted-foreground">{note.body}</p>

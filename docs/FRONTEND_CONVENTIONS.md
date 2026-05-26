@@ -15,6 +15,8 @@ These conventions keep the codebase predictable as it grows.
 - Place search belongs in `src/modules/places`.
 - Map rendering and provider math belong in `src/modules/map`.
 - UI-only trip editor state belongs in `src/stores/use-planner-store.ts`.
+- Itinerary items are a flat trip-scoped sequence. Do not model day ownership in frontend state or service contracts.
+- Date/day/location/custom grouping is presentation-only and must be computed from flat items.
 
 Do not place itinerary reorder logic inside map components. Do not place map projection logic inside itinerary cards.
 
@@ -76,6 +78,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Use TanStack Query for server records and optimistic cache writes.
 - Query keys must come from module query files.
 - Mutations that affect trip detail should patch or invalidate `tripKeys.detail(tripId)`.
+- Mutations that affect itinerary items should patch `itineraryKeys.items(tripId)` and only invalidate related place/route/trip summary queries when needed.
 
 ## Query And State
 
@@ -83,6 +86,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Do not duplicate server records inside Zustand.
 - Keep optimistic cache updates centralized inside mutation hooks.
 - Use query invalidation or targeted cache patching after successful itinerary mutations.
+- Do not store itinerary items, places, notes, route segments, collaborators, or expenses in Zustand.
 
 ## Forms
 
@@ -118,6 +122,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Use stable order values with `orderStride`.
 - Send full server reorder payloads from the final optimistic order.
 - Roll back optimistic cache updates on mutation error.
+- Reorder flat itinerary item sequences by `sortOrder`; do not send `dayId` in new reorder payloads.
 
 ## Map
 
@@ -128,6 +133,8 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Provider SDK imports and script loaders must stay inside `src/modules/map/providers/<provider>`.
 - Route geometry, encoded polylines, distance, and duration must normalize to `MapRoute` before reaching editor UI.
 - Marker hover and selection sync through `use-planner-store`; fetched route/place data stays in TanStack Query.
+- Markers are derived from itinerary item IDs plus normalized trip places. Itinerary item payloads must not duplicate place coordinates.
+- Cached route geometry comes from trip route segment queries; provider routing remains a fallback.
 - Place autocomplete, details, geocoding, and reverse geocoding belong in `src/modules/places`, not itinerary cards.
 - UI components must not expose raw Google Maps, Mapbox, OSM, or HERE response shapes.
 - MapLibre components must stay under `src/modules/map/providers/maplibre`.

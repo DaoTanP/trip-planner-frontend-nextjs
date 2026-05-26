@@ -34,7 +34,9 @@ export function useCreateTripMutation() {
         coverImageUrl: null,
         destinationNames: [],
         collaboratorCount: 0,
-        itineraryDayCount: 0,
+        itineraryItemCount: 0,
+        noteCount: 0,
+        routeSegmentCount: 0,
         version: 1,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()

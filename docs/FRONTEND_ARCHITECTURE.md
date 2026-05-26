@@ -77,8 +77,8 @@ The editor workflow is inspired by Wanderlog-style trip planning:
 - editable planner on the left
 - interactive map on the right
 - synchronized selection
-- day sections
-- itinerary cards
+- flat timeline sequence
+- itinerary cards with optional presentation grouping
 - direct manipulation interactions
 
 ## Runtime and Docker
@@ -246,7 +246,10 @@ TanStack Query owns server state:
 - trips.
 - session/profile.
 - places.
-- itinerary stops.
+- flat itinerary items.
+- trip notes.
+- route segments.
+- collaborators and expenses.
 - future realtime invalidation.
 - trip detail: `tripKeys.detail(tripId)`
 - trip list: `tripKeys.list()`
@@ -314,6 +317,8 @@ The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL J
 
 The trip editor derives `MapMarker[]` and fallback route points from trip DTOs, then asks TanStack Query for provider route geometry when the active provider supports routing. The map receives provider-ready props and emits only viewport, marker select, and marker hover callbacks. Business logic stays outside map components.
 
+The editor now derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. `RouteSegment` queries provide cached encoded polylines when available; provider route queries remain a fallback for routes that have not been cached yet.
+
 MapLibre renders normalized map contracts only:
 
 - `MapMarker[]` for marker positions and labels.
@@ -358,30 +363,28 @@ Google Maps Platform setup requires these APIs enabled on the browser API key:
 
 dnd-kit is the standard drag layer for editor planning.
 
-- Day sections use a sortable context for reordering trip days.
-- Each day owns a nested sortable context for itinerary items.
+- The timeline uses one sortable context for flat itinerary items.
 - Drag handles use keyboard and pointer sensors.
 - Reorder payloads use stable spaced order values (`1024`, `2048`, etc.) so future insertions can happen without rewriting every row.
-- Cross-day item moves are supported by the backend reorder API shape and can be enabled in the UI without changing the contract.
+- Date, location, time-of-day, and custom grouping are presentation-only and must not change the reorder contract.
 
 ## Optimistic Updates
 
 Optimistic mutations live in feature mutation hooks:
 
-- `useReorderTripDaysMutation`
 - `useReorderItineraryItemsMutation`
 - item create/update/delete mutations
 - trip update and note creation mutations
 
 Reorder hooks:
 
-1. cancel the detail query
-2. snapshot the previous trip
-3. write optimistic days/items
+1. cancel the itinerary query
+2. snapshot the previous item list
+3. write optimistic flat item order
 4. roll back on error
 5. reconcile with the server response on success
 
-`clientMutationId` is sent with reorder requests so future realtime fanout can ignore a client's own echoed mutation.
+`clientMutationId` is sent with reorder and create requests so future realtime fanout can ignore a client's own echoed mutation. Item `version`/`expectedVersion` fields are used for stale update detection.
 
 ## Responsive Layout
 
@@ -394,7 +397,7 @@ Tablet and mobile collapse to a single column with the map below the planner. Fi
 
 ## Future Realtime
 
-Realtime should not replace React Query. Add a collaboration transport later that subscribes to trip mutation events and applies them by invalidating or patching `tripKeys.detail(tripId)`.
+Realtime should not replace React Query. Add a collaboration transport later that subscribes to trip mutation events and patches the smallest matching cache: itinerary item events patch `itineraryKeys.items(tripId)`, route events patch `mapRouteKeys.byTrip(tripId)`, note events patch `tripKeys.notes(tripId)`, and trip metadata events patch `tripKeys.detail(tripId)`.
 
 Recommended future boundaries:
 

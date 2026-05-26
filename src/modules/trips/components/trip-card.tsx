@@ -48,7 +48,7 @@ export function TripCard({ trip }: TripCardProps) {
           <Users className="size-4" aria-hidden="true" />
           {t("card.collaborators", { count: trip.collaboratorCount })}
         </p>
-        <p>{t("card.days", { count: trip.itineraryDayCount })}</p>
+        <p>{t("card.items", { count: trip.itineraryItemCount })}</p>
       </div>
 
       <div className="flex justify-end gap-2">

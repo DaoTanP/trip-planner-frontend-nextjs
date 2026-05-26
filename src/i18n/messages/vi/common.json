@@ -66,16 +66,16 @@
   },
   "home": {
     "eyebrow": "Không gian lập kế hoạch ưu tiên bản đồ",
-    "title": "Xây dựng chuyến đi quanh địa điểm, ngày và di chuyển thực tế.",
-    "description": "Nền tảng frontend sẵn sàng cho production để lập tuyến đường, lưu địa điểm, tạo lịch trình và mở rộng cộng tác khi sản phẩm sẵn sàng.",
+    "title": "Xây dựng chuyến đi quanh địa điểm, tuyến đường và di chuyển thực tế.",
+    "description": "Nền tảng frontend sẵn sàng cho production để sắp xếp điểm dừng, lưu địa điểm, tạo tuyến đường và mở rộng cộng tác khi sản phẩm sẵn sàng.",
     "primaryAction": "Mở chuyến đi",
     "secondaryAction": "Đăng nhập",
     "mapTitle": "Hà Nội đến Đà Nẵng",
-    "mapSubtitle": "3 thành phố · 7 ngày · 840 km",
-    "dayLabel": "Ngày {day}",
+    "mapSubtitle": "3 thành phố · 14 điểm dừng · 840 km",
+    "dayLabel": "Điểm dừng {day}",
     "stats": {
       "stops": "Điểm dừng",
-      "days": "Ngày",
+      "days": "Điểm dừng",
       "distance": "km"
     },
     "workspace": {

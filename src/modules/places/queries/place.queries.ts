@@ -3,6 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   geocodePlaces,
   getPlaceDetails,
+  getTripPlaces,
   reverseGeocodePlaces,
   searchPlaces
 } from "../services/places.service";
@@ -15,12 +16,21 @@ import type {
 
 export const placeKeys = {
   all: ["places"] as const,
+  byTrip: (tripId: string) => [...placeKeys.all, "trip", tripId] as const,
   search: (params: PlaceSearchParams) => [...placeKeys.all, "search", params] as const,
   detail: (params: PlaceDetailsParams) => [...placeKeys.all, "detail", params] as const,
   geocode: (params: GeocodeParams) => [...placeKeys.all, "geocode", params] as const,
   reverseGeocode: (params: ReverseGeocodeParams) =>
     [...placeKeys.all, "reverse-geocode", params] as const
 };
+
+export function tripPlacesQueryOptions(tripId: string) {
+  return queryOptions({
+    queryKey: placeKeys.byTrip(tripId),
+    queryFn: ({ signal }) => getTripPlaces(tripId, signal),
+    staleTime: 30_000
+  });
+}
 
 export function placeSearchQueryOptions(params: PlaceSearchParams) {
   return queryOptions({

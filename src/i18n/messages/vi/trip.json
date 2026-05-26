@@ -31,20 +31,13 @@
       "loading": "Đang tìm địa điểm...",
       "empty": "Không tìm thấy địa điểm",
       "noAddress": "Chưa có địa chỉ",
-      "dayFallback": "Ngày {number}",
       "addPlace": "Thêm {name}",
       "addError": "Không thêm được địa điểm."
     },
     "itinerary": {
-      "title": "Lịch trình",
-      "days": "{count, plural, =0 {Chưa có ngày} other {# ngày}}",
-      "empty": "Tạo ngày lịch trình từ API hoặc dữ liệu mẫu để bắt đầu lập kế hoạch."
-    },
-    "day": {
-      "drag": "Sắp xếp ngày",
-      "fallbackTitle": "Ngày {number}",
-      "itemCount": "{count, plural, =0 {Chưa có điểm dừng} other {# điểm dừng}}",
-      "empty": "Ngày này chưa có điểm dừng.",
+      "title": "Dòng thời gian",
+      "items": "{count, plural, =0 {Chưa có điểm dừng} other {# điểm dừng}}",
+      "empty": "Thêm địa điểm, hoạt động, nhắc nhở hoặc ý tưởng linh hoạt để bắt đầu lập tuyến.",
       "addPlaceholder": "Thêm điểm dừng, hoạt động hoặc nhắc nhở",
       "add": "Thêm"
     },
@@ -54,7 +47,7 @@
       "titleLabel": "Tiêu đề mục",
       "descriptionLabel": "Mô tả mục",
       "descriptionPlaceholder": "Ghi chú, thông tin đặt chỗ hoặc ý tưởng thời gian",
-      "travelTime": "{minutes} phút di chuyển"
+      "duration": "{minutes} phút"
     },
     "map": {
       "label": "Bản đồ chuyến đi",
@@ -92,7 +85,7 @@
     "noDates": "Chưa đặt ngày",
     "noDestinations": "Chưa có điểm đến",
     "collaborators": "{count, plural, =0 {Chưa có cộng tác viên} other {# cộng tác viên}}",
-    "days": "{count, plural, =0 {Chưa có ngày lịch trình} other {# ngày lịch trình}}"
+    "items": "{count, plural, =0 {Chưa có điểm dừng} other {# điểm dừng}}"
   },
   "status": {
     "DRAFT": "Bản nháp",

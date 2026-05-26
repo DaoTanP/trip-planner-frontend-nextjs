@@ -79,6 +79,15 @@ export async function createPlace(payload: CreatePlaceRequestDto) {
   return response.data.place;
 }
 
+export async function getTripPlaces(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<{ places: Place[] }>>(
+    apiEndpoints.trips.places(tripId),
+    signal
+  );
+
+  return response.data.places;
+}
+
 export async function createPlaceFromDetails(details: PlaceDetails) {
   if (details.storedPlaceId) {
     return getStoredPlace(details.storedPlaceId);
@@ -128,10 +137,10 @@ function shouldUseGooglePlaces(provider?: PlaceProvider) {
 function mapPlaceDtoToSearchResult(place: PlaceDto): PlaceSearchResult {
   return {
     id: place.id,
-    provider: providerFromSource(place.source),
-    source: place.source,
+    provider: providerFromSource(place.provider),
+    source: place.provider,
     storedPlaceId: place.id,
-    providerPlaceId: place.externalId ?? undefined,
+    providerPlaceId: place.providerPlaceId ?? undefined,
     name: place.name,
     formattedAddress: place.formattedAddress,
     countryCode: place.countryCode,
@@ -168,11 +177,14 @@ function providerFromSource(source: PlaceSourceDto): PlaceProvider {
 function toCreatePlacePayload(details: PlaceDetails): CreatePlaceRequestDto {
   const payload: CreatePlaceRequestDto = {
     name: details.name,
-    source: details.source
+    provider: details.source
   };
 
   if (details.providerPlaceId) {
-    payload.externalId = details.providerPlaceId;
+    payload.providerPlaceId = details.providerPlaceId;
+  }
+  if (details.formattedAddress) {
+    payload.address = details.formattedAddress;
   }
   if (details.formattedAddress) {
     payload.formattedAddress = details.formattedAddress;
@@ -199,7 +211,7 @@ function toCreatePlacePayload(details: PlaceDetails): CreatePlaceRequestDto {
     payload.categories = details.categories;
   }
   if (details.sourcePayload) {
-    payload.sourcePayload = details.sourcePayload;
+    payload.providerPayload = details.sourcePayload;
   }
   if (details.metadata) {
     payload.metadata = details.metadata;

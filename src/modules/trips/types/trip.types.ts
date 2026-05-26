@@ -1,27 +1,27 @@
 import type {
-  CreateTripRequestDto,
   CreateTripNoteRequestDto,
-  ItineraryItemDto,
-  ListTripsQueryDto,
+  CreateTripRequestDto,
+  ExpenseCategoryDto,
+  ExpenseDto,
   PaginationMeta,
-  PlaceDto,
-  ReorderTripDaysRequestDto,
-  TripDayDto,
+  RouteSegmentDto,
+  TripCollaboratorDto,
   TripDetailDto,
+  TripExpensesDto,
   TripNoteDto,
   TripSummaryDto
 } from "@/services/api/contracts";
 
 export type Trip = TripSummaryDto;
 export type TripDetail = TripDetailDto;
-export type TripDay = TripDayDto;
-export type ItineraryItem = ItineraryItemDto;
-export type TripPlace = PlaceDto;
 export type TripNote = TripNoteDto;
+export type TripRouteSegment = RouteSegmentDto;
+export type TripCollaborator = TripCollaboratorDto;
+export type TripExpense = ExpenseDto;
+export type TripExpenseCategory = ExpenseCategoryDto;
+export type TripExpenses = TripExpensesDto;
 export type CreateTripPayload = CreateTripRequestDto;
 export type CreateTripNotePayload = CreateTripNoteRequestDto;
-export type ReorderTripDaysPayload = ReorderTripDaysRequestDto;
-export type ListTripsQuery = ListTripsQueryDto;
 export type TripsListMeta = {
   pagination: PaginationMeta;
 };

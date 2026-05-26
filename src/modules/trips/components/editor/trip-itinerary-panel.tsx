@@ -14,40 +14,65 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy
 } from "@dnd-kit/sortable";
-import { CalendarPlus } from "lucide-react";
+import { ListOrdered, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useMemo, useState } from "react";
 
-import { useReorderTripDaysMutation } from "../../mutations/use-trip-editor-mutations";
-import type { TripDetail } from "../../types/trip.types";
-import { reorderDays } from "../../utils/trip-editor.utils";
-import { ItineraryDaySection } from "./itinerary-day-section";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  useCreateItineraryItemMutation,
+  useReorderItineraryItemsMutation
+} from "@/modules/itinerary/mutations/use-itinerary-mutations";
+import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
+import type { PlaceDto } from "@/services/api/contracts";
+
+import { getPlaceMap, orderStride, reorderItinerarySequence } from "../../utils/trip-editor.utils";
+import { ItineraryItemCard } from "./itinerary-item-card";
 
 interface TripItineraryPanelProps {
-  trip: TripDetail;
+  tripId: string;
+  items: ItineraryItem[];
+  places: PlaceDto[];
 }
 
-export function TripItineraryPanel({ trip }: TripItineraryPanelProps) {
+export function TripItineraryPanel({ tripId, items, places }: TripItineraryPanelProps) {
   const t = useTranslations("trip.editor.itinerary");
-  const reorderDaysMutation = useReorderTripDaysMutation(trip.id);
+  const createItem = useCreateItineraryItemMutation(tripId);
+  const reorderItems = useReorderItineraryItemsMutation(tripId);
+  const [newItemTitle, setNewItemTitle] = useState("");
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+  const orderedItems = useMemo(
+    () => [...items].sort((left, right) => left.sortOrder - right.sortOrder),
+    [items]
+  );
+  const placeMap = useMemo(() => getPlaceMap(places), [places]);
 
-  function handleDayDragEnd(event: DragEndEvent) {
+  function handleItemDragEnd(event: DragEndEvent) {
     const { active, over } = event;
 
     if (!over || active.id === over.id) {
       return;
     }
 
-    const optimisticDays = reorderDays(trip.days, String(active.id), String(over.id));
+    const optimisticItems = reorderItinerarySequence(
+      orderedItems,
+      String(active.id),
+      String(over.id)
+    );
 
-    reorderDaysMutation.mutate({
-      optimisticDays,
+    reorderItems.mutate({
+      optimisticItems,
       payload: {
         clientMutationId: crypto.randomUUID(),
-        dayIds: optimisticDays.map((day) => day.id)
+        updates: optimisticItems.map((item) => ({
+          itemId: item.id,
+          sortOrder: item.sortOrder,
+          expectedVersion: item.version
+        }))
       }
     });
   }
@@ -57,29 +82,61 @@ export function TripItineraryPanel({ trip }: TripItineraryPanelProps) {
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold">{t("title")}</h2>
         <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
-          <CalendarPlus className="size-3" aria-hidden="true" />
-          {t("days", { count: trip.days.length })}
+          <ListOrdered className="size-3" aria-hidden="true" />
+          {t("items", { count: orderedItems.length })}
         </span>
       </div>
 
-      {trip.days.length > 0 ? (
+      <form
+        className="grid gap-2 rounded-md border bg-card p-3 shadow-sm sm:grid-cols-[1fr_auto]"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const title = newItemTitle.trim();
+
+          if (!title) {
+            return;
+          }
+
+          createItem.mutate(
+            {
+              title,
+              clientMutationId: crypto.randomUUID(),
+              sortOrder: orderedItems.length * orderStride + orderStride
+            },
+            {
+              onSuccess: () => setNewItemTitle("")
+            }
+          );
+        }}
+      >
+        <Input
+          value={newItemTitle}
+          onChange={(event) => setNewItemTitle(event.target.value)}
+          placeholder={t("addPlaceholder")}
+        />
+        <Button type="submit" variant="secondary" disabled={createItem.isPending}>
+          <Plus aria-hidden="true" />
+          {t("add")}
+        </Button>
+      </form>
+
+      {orderedItems.length > 0 ? (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragEnd={handleDayDragEnd}
+          onDragEnd={handleItemDragEnd}
         >
           <SortableContext
-            items={trip.days.map((day) => day.id)}
+            items={orderedItems.map((item) => item.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="grid gap-4">
-              {trip.days.map((day, index) => (
-                <ItineraryDaySection
-                  key={day.id}
-                  tripId={trip.id}
-                  day={day}
-                  days={trip.days}
-                  dayNumber={index + 1}
+            <div className="grid gap-3">
+              {orderedItems.map((item) => (
+                <ItineraryItemCard
+                  key={`${item.id}:${item.version}:${item.title}:${item.description ?? ""}`}
+                  tripId={tripId}
+                  item={item}
+                  place={item.placeId ? placeMap.get(item.placeId) : undefined}
                 />
               ))}
             </div>

@@ -10,14 +10,15 @@ export const apiEndpoints = {
   trips: {
     list: "/trips",
     detail: (tripId: string) => `/trips/${tripId}`,
-    days: (tripId: string) => `/trips/${tripId}/days`,
-    reorderDays: (tripId: string) => `/trips/${tripId}/days/reorder`,
-    reorderItems: (tripId: string) => `/trips/${tripId}/itinerary-items/reorder`,
-    notes: (tripId: string) => `/trips/${tripId}/notes`
+    itinerary: (tripId: string) => `/trips/${tripId}/itinerary`,
+    reorderItinerary: (tripId: string) => `/trips/${tripId}/itinerary/reorder`,
+    places: (tripId: string) => `/trips/${tripId}/places`,
+    routes: (tripId: string) => `/trips/${tripId}/routes`,
+    notes: (tripId: string) => `/trips/${tripId}/notes`,
+    collaborators: (tripId: string) => `/trips/${tripId}/collaborators`,
+    expenses: (tripId: string) => `/trips/${tripId}/expenses`
   },
   itinerary: {
-    day: (dayId: string) => `/trip-days/${dayId}`,
-    dayItems: (dayId: string) => `/trip-days/${dayId}/itinerary-items`,
     item: (itemId: string) => `/itinerary-items/${itemId}`
   },
   tripNotes: {

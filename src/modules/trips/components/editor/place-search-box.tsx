@@ -8,28 +8,28 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateItineraryItemMutation } from "@/modules/itinerary/mutations/use-itinerary-mutations";
+import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
+import { useCreatePlaceFromDetailsMutation } from "@/modules/places/mutations/use-place-mutations";
 import {
   placeDetailQueryOptions,
   placeSearchQueryOptions
 } from "@/modules/places/queries/place.queries";
-import { useCreatePlaceFromDetailsMutation } from "@/modules/places/mutations/use-place-mutations";
 import type { PlaceSearchResult } from "@/modules/places/types/place.types";
-import { useCreateItineraryItemMutation } from "@/modules/itinerary/mutations/use-itinerary-mutations";
 
-import type { TripDay } from "../../types/trip.types";
+import { orderStride } from "../../utils/trip-editor.utils";
 
 interface PlaceSearchBoxProps {
   tripId: string;
-  days: TripDay[];
+  items: ItineraryItem[];
 }
 
-export function PlaceSearchBox({ tripId, days }: PlaceSearchBoxProps) {
+export function PlaceSearchBox({ tripId, items }: PlaceSearchBoxProps) {
   const locale = useLocale();
   const t = useTranslations("trip.editor.placeSearch");
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [dayId, setDayId] = useState(days[0]?.id ?? "");
   const [pendingPlaceId, setPendingPlaceId] = useState<string | undefined>();
   const createPlace = useCreatePlaceFromDetailsMutation();
   const createItem = useCreateItineraryItemMutation(tripId);
@@ -45,14 +45,9 @@ export function PlaceSearchBox({ tripId, days }: PlaceSearchBoxProps) {
     [debouncedQuery, locale]
   );
   const placesQuery = useQuery(placeSearchQueryOptions(searchParams));
-  const selectedDayId = days.some((day) => day.id === dayId) ? dayId : (days[0]?.id ?? "");
   const isAddingPlace = Boolean(pendingPlaceId) || createPlace.isPending || createItem.isPending;
 
   async function handleAddPlace(place: PlaceSearchResult) {
-    if (!selectedDayId) {
-      return;
-    }
-
     setPendingPlaceId(place.id);
 
     try {
@@ -68,15 +63,16 @@ export function PlaceSearchBox({ tripId, days }: PlaceSearchBoxProps) {
       const payload = {
         placeId: storedPlace.id,
         title: storedPlace.name,
-        order: (days.find((day) => day.id === selectedDayId)?.items.length ?? 0) * 1024 + 1024
+        type: "PLACE" as const,
+        clientMutationId: crypto.randomUUID(),
+        sortOrder: items.length * orderStride + orderStride
       };
 
-      createItem.mutate({
-        dayId: selectedDayId,
-        payload: storedPlace.formattedAddress
+      createItem.mutate(
+        storedPlace.formattedAddress
           ? { ...payload, description: storedPlace.formattedAddress }
           : payload
-      });
+      );
     } catch {
       toast.error(t("addError"));
     } finally {
@@ -91,27 +87,14 @@ export function PlaceSearchBox({ tripId, days }: PlaceSearchBoxProps) {
         {t("title")}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("placeholder")}
-            className="pl-9"
-          />
-        </div>
-        <select
-          value={selectedDayId}
-          onChange={(event) => setDayId(event.target.value)}
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          {days.map((day, index) => (
-            <option key={day.id} value={day.id}>
-              {day.title || t("dayFallback", { number: index + 1 })}
-            </option>
-          ))}
-        </select>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t("placeholder")}
+          className="pl-9"
+        />
       </div>
 
       <div className="mt-3 grid gap-2">
@@ -138,7 +121,7 @@ export function PlaceSearchBox({ tripId, days }: PlaceSearchBoxProps) {
               size="icon"
               variant="secondary"
               aria-label={t("addPlace", { name: place.name })}
-              disabled={!selectedDayId || isAddingPlace}
+              disabled={isAddingPlace}
               onClick={() => void handleAddPlace(place)}
             >
               <Plus aria-hidden="true" />

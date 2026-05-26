@@ -9,13 +9,19 @@ import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
-import { mapRouteQueryOptions } from "@/modules/map/queries/map-route.queries";
+import {
+  mapRouteQueryOptions,
+  tripRouteSegmentsQueryOptions
+} from "@/modules/map/queries/map-route.queries";
 import { getRouteRenderPoints } from "@/modules/map/services/routing/route-normalizer";
 import type { MapMarker } from "@/modules/map/types/map.types";
+import { decodePolyline } from "@/modules/map/utils/polyline";
+import { itineraryQueryOptions } from "@/modules/itinerary/queries/itinerary.queries";
+import { tripPlacesQueryOptions } from "@/modules/places/queries/place.queries";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
-import { tripDetailQueryOptions } from "../../queries/trip.queries";
-import { getTripMapMarkers, getTripRoute } from "../../utils/trip-editor.utils";
+import { tripDetailQueryOptions, tripNotesQueryOptions } from "../../queries/trip.queries";
+import { getItineraryMapMarkers, getItineraryRoute } from "../../utils/trip-editor.utils";
 import { PlaceSearchBox } from "./place-search-box";
 import { TripEditorHeader } from "./trip-editor-header";
 import { TripEditorSkeleton } from "./trip-editor-skeleton";
@@ -38,6 +44,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const locale = useLocale();
   const t = useTranslations("trip.editor");
   const tripQuery = useQuery(tripDetailQueryOptions(tripId));
+  const itineraryQuery = useQuery(itineraryQueryOptions(tripId));
+  const placesQuery = useQuery(tripPlacesQueryOptions(tripId));
+  const notesQuery = useQuery(tripNotesQueryOptions(tripId));
+  const routeSegmentsQuery = useQuery(tripRouteSegmentsQueryOptions(tripId));
   const viewport = usePlannerStore((state) => state.viewport);
   const selectedItemId = usePlannerStore((state) => state.selectedItemId);
   const hoveredItemId = usePlannerStore((state) => state.hoveredItemId);
@@ -46,13 +56,14 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
   const setSelectedTripId = usePlannerStore((state) => state.setSelectedTripId);
 
-  const markers = useMemo(
-    () => (tripQuery.data ? getTripMapMarkers(tripQuery.data) : []),
-    [tripQuery.data]
-  );
-  const route = useMemo(
-    () => (tripQuery.data ? getTripRoute(tripQuery.data) : []),
-    [tripQuery.data]
+  const items = useMemo(() => itineraryQuery.data ?? [], [itineraryQuery.data]);
+  const places = useMemo(() => placesQuery.data ?? [], [placesQuery.data]);
+  const notes = useMemo(() => notesQuery.data ?? [], [notesQuery.data]);
+  const markers = useMemo(() => getItineraryMapMarkers(items, places), [items, places]);
+  const route = useMemo(() => getItineraryRoute(items, places), [items, places]);
+  const cachedRoute = useMemo(
+    () => routeSegmentsQuery.data?.flatMap((segment) => decodePolyline(segment.polyline)) ?? [],
+    [routeSegmentsQuery.data]
   );
   const routeRequest = useMemo(
     () => ({
@@ -64,8 +75,8 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   );
   const routeQuery = useQuery(mapRouteQueryOptions(routeRequest));
   const renderedRoute = useMemo(
-    () => getRouteRenderPoints(routeQuery.data, route),
-    [route, routeQuery.data]
+    () => getRouteRenderPoints(routeQuery.data, cachedRoute.length > 0 ? cachedRoute : route),
+    [cachedRoute, route, routeQuery.data]
   );
   const selectedMarkerId = selectedItemId ? `item:${selectedItemId}` : undefined;
   const hoveredMarkerId = hoveredItemId ? `item:${hoveredItemId}` : undefined;
@@ -125,11 +136,11 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     [setHoveredItemId]
   );
 
-  if (tripQuery.isLoading) {
+  if (tripQuery.isLoading || itineraryQuery.isLoading) {
     return <TripEditorSkeleton />;
   }
 
-  if (tripQuery.isError || !tripQuery.data) {
+  if (tripQuery.isError || itineraryQuery.isError || !tripQuery.data) {
     return (
       <ErrorState
         title={t("errorTitle")}
@@ -155,9 +166,9 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           className="grid gap-4"
         >
           <TripEditorHeader key={`${trip.id}:${trip.version}`} trip={trip} />
-          <TripNotesEditor trip={trip} />
-          <PlaceSearchBox tripId={trip.id} days={trip.days} />
-          <TripItineraryPanel trip={trip} />
+          <TripNotesEditor tripId={trip.id} notes={notes} />
+          <PlaceSearchBox tripId={trip.id} items={items} />
+          <TripItineraryPanel tripId={trip.id} items={items} places={places} />
         </motion.div>
 
         <aside className="lg:sticky lg:top-20">

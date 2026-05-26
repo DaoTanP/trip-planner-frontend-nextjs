@@ -12,17 +12,19 @@ import {
   useDeleteItineraryItemMutation,
   useUpdateItineraryItemMutation
 } from "@/modules/itinerary/mutations/use-itinerary-mutations";
+import type { PlaceDto } from "@/services/api/contracts";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
-import type { ItineraryItem } from "../../types/trip.types";
+import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
 import { getItemMarkerId } from "../../utils/trip-editor.utils";
 
 interface ItineraryItemCardProps {
   tripId: string;
   item: ItineraryItem;
+  place?: PlaceDto | undefined;
 }
 
-export function ItineraryItemCard({ tripId, item }: ItineraryItemCardProps) {
+export function ItineraryItemCard({ tripId, item, place }: ItineraryItemCardProps) {
   const t = useTranslations("trip.editor.item");
   const selectedItemId = usePlannerStore((state) => state.selectedItemId);
   const selectItem = usePlannerStore((state) => state.selectItem);
@@ -34,8 +36,7 @@ export function ItineraryItemCard({ tripId, item }: ItineraryItemCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
     data: {
-      type: "itinerary-item",
-      dayId: item.dayId
+      type: "itinerary-item"
     }
   });
 
@@ -98,10 +99,10 @@ export function ItineraryItemCard({ tripId, item }: ItineraryItemCardProps) {
             aria-label={t("descriptionLabel")}
           />
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {item.place ? (
+            {place ? (
               <span className="inline-flex min-w-0 items-center gap-1">
                 <MapPin className="size-3" aria-hidden="true" />
-                <span className="truncate">{item.place.name}</span>
+                <span className="truncate">{place.name}</span>
               </span>
             ) : null}
             {item.startTime ? (
@@ -113,8 +114,8 @@ export function ItineraryItemCard({ tripId, item }: ItineraryItemCardProps) {
                 })}
               </span>
             ) : null}
-            {item.travelTimeMinutes ? (
-              <span>{t("travelTime", { minutes: item.travelTimeMinutes })}</span>
+            {item.durationMinutes ? (
+              <span>{t("duration", { minutes: item.durationMinutes })}</span>
             ) : null}
           </div>
         </div>
@@ -137,7 +138,7 @@ export function ItineraryItemCard({ tripId, item }: ItineraryItemCardProps) {
         </Button>
       </div>
 
-      {item.place ? <span className="sr-only">{getItemMarkerId(item)}</span> : null}
+      {place ? <span className="sr-only">{getItemMarkerId(item)}</span> : null}
     </article>
   );
 }

@@ -4,8 +4,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { UpdateTripRequestDto } from "@/services/api/contracts";
 
-import { createTripNote, updateTrip } from "../services/trips.service";
-import type { CreateTripNotePayload, TripDetail, TripNote } from "../types/trip.types";
+import { createNote, updateTrip } from "../services/trips.service";
+import type {
+  CreateNotePayload,
+  CursorPage,
+  TripDetail,
+  TripEditorNote
+} from "../types/trip.types";
 import { tripKeys } from "../queries/trip.queries";
 
 export function useUpdateTripMutation(tripId: string) {
@@ -20,14 +25,22 @@ export function useUpdateTripMutation(tripId: string) {
   });
 }
 
-export function useCreateTripNoteMutation(tripId: string) {
+export function useCreateNoteMutation(tripId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: CreateTripNotePayload) => createTripNote(tripId, payload),
+    mutationFn: (payload: CreateNotePayload) => createNote(tripId, payload),
     onSuccess: (note) => {
-      queryClient.setQueryData<TripNote[]>(tripKeys.notes(tripId), (current) =>
-        current ? [note, ...current] : [note]
+      queryClient.setQueryData<CursorPage<TripEditorNote>>(tripKeys.notes(tripId), (current) =>
+        current
+          ? {
+              ...current,
+              items: [note, ...current.items]
+            }
+          : {
+              items: [note],
+              pagination: { limit: 50, nextCursor: null, hasNextPage: false }
+            }
       );
       queryClient.setQueryData<TripDetail>(tripKeys.detail(tripId), (current) =>
         current ? { ...current, noteCount: current.noteCount + 1 } : current

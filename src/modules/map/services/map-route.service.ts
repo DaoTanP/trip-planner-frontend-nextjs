@@ -4,7 +4,7 @@ import { MapProviderError } from "@/modules/map/providers/shared/map-provider-er
 import type { MapRoute, MapRouteRequest } from "@/modules/map/types/map.types";
 import { apiEndpoints } from "@/services/api/endpoints";
 import { apiGet } from "@/services/api/request";
-import type { RouteSegmentDto } from "@/services/api/contracts";
+import type { CursorPaginationMeta, RouteSegmentDto } from "@/services/api/contracts";
 import type { ApiSuccessResponse } from "@/types/api";
 
 export async function getMapRoute(
@@ -23,10 +23,12 @@ export async function getMapRoute(
 }
 
 export async function getTripRouteSegments(tripId: string, signal?: AbortSignal) {
-  const response = await apiGet<ApiSuccessResponse<{ routes: RouteSegmentDto[] }>>(
-    apiEndpoints.trips.routes(tripId),
-    signal
-  );
+  const response = await apiGet<
+    ApiSuccessResponse<{ routes: RouteSegmentDto[] }, { pagination: CursorPaginationMeta }>
+  >(apiEndpoints.trips.routes(tripId), signal);
 
-  return response.data.routes;
+  return {
+    items: response.data.routes,
+    pagination: response.meta.pagination
+  };
 }

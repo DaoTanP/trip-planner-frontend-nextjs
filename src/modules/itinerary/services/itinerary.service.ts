@@ -5,17 +5,21 @@ import type { ApiSuccessResponse } from "@/types/api";
 import type {
   CreateItineraryItemPayload,
   ItineraryItem,
+  ItineraryItemsPage,
   ReorderItineraryItemsPayload,
+  ReorderItineraryItemsResult,
   UpdateItineraryItemPayload
 } from "../types/itinerary.types";
 
 export async function getItineraryItems(tripId: string, signal?: AbortSignal) {
-  const response = await apiGet<ApiSuccessResponse<{ items: ItineraryItem[] }>>(
-    apiEndpoints.trips.itinerary(tripId),
-    signal
-  );
+  const response = await apiGet<
+    ApiSuccessResponse<{ items: ItineraryItem[] }, { pagination: ItineraryItemsPage["pagination"] }>
+  >(apiEndpoints.trips.itinerary(tripId), signal);
 
-  return response.data.items;
+  return {
+    items: response.data.items,
+    pagination: response.meta.pagination
+  } satisfies ItineraryItemsPage;
 }
 
 export async function createItineraryItem(tripId: string, payload: CreateItineraryItemPayload) {
@@ -44,7 +48,7 @@ export async function deleteItineraryItem(itemId: string) {
 
 export async function reorderItineraryItems(tripId: string, payload: ReorderItineraryItemsPayload) {
   const response = await apiPatch<
-    ApiSuccessResponse<{ items: ItineraryItem[]; clientMutationId?: string }>,
+    ApiSuccessResponse<ReorderItineraryItemsResult>,
     ReorderItineraryItemsPayload
   >(apiEndpoints.trips.reorderItinerary(tripId), payload);
 

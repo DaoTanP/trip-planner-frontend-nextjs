@@ -1,6 +1,9 @@
-import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
+import type {
+  ItineraryItem,
+  ReorderItineraryItemsPayload
+} from "@/modules/itinerary/types/itinerary.types";
 import type { MapMarker, MapRoutePoint } from "@/modules/map/types/map.types";
-import type { PlaceDto } from "@/services/api/contracts";
+import type { PlaceDto, RouteSegmentDto } from "@/services/api/contracts";
 
 export const orderStride = 1024;
 
@@ -60,8 +63,69 @@ export function reorderItinerarySequence(items: ItineraryItem[], activeId: strin
 
   nextItems.splice(overIndex, 0, activeItem);
 
-  return nextItems.map((item, index) => ({
-    ...item,
-    sortOrder: (index + 1) * orderStride
-  }));
+  return nextItems;
+}
+
+function getOptimisticSortOrder(
+  previousItem: ItineraryItem | undefined,
+  nextItem: ItineraryItem | undefined,
+  fallbackIndex: number
+) {
+  const lowerSortOrder = previousItem?.sortOrder ?? 0;
+  const upperSortOrder = nextItem?.sortOrder ?? lowerSortOrder + orderStride * 2;
+
+  return upperSortOrder - lowerSortOrder > 1
+    ? lowerSortOrder + Math.floor((upperSortOrder - lowerSortOrder) / 2)
+    : (fallbackIndex + 1) * orderStride;
+}
+
+export function buildItineraryReorderIntent(
+  items: ItineraryItem[],
+  activeId: string,
+  overId: string,
+  clientMutationId: string
+): {
+  optimisticItems: ItineraryItem[];
+  payload: ReorderItineraryItemsPayload;
+} | null {
+  const nextItems = reorderItinerarySequence(items, activeId, overId);
+  const movedIndex = nextItems.findIndex((item) => item.id === activeId);
+  const movedItem = nextItems[movedIndex];
+
+  if (!movedItem) {
+    return null;
+  }
+
+  const previousItem = nextItems[movedIndex - 1];
+  const nextItem = nextItems[movedIndex + 1];
+  const optimisticSortOrder = getOptimisticSortOrder(previousItem, nextItem, movedIndex);
+
+  return {
+    optimisticItems: nextItems.map((item) =>
+      item.id === movedItem.id ? { ...item, sortOrder: optimisticSortOrder } : item
+    ),
+    payload: {
+      itemId: movedItem.id,
+      beforeItemId: nextItem?.id ?? null,
+      afterItemId: previousItem?.id ?? null,
+      expectedVersion: movedItem.version,
+      clientMutationId
+    }
+  };
+}
+
+export function getCachedRoutePoints(
+  items: ItineraryItem[],
+  routeSegments: RouteSegmentDto[],
+  decode: (polyline: string) => MapRoutePoint[]
+) {
+  const segmentById = new Map(routeSegments.map((segment) => [segment.id, segment]));
+
+  return [...items]
+    .sort((left, right) => left.sortOrder - right.sortOrder)
+    .flatMap((item) => {
+      const segment = item.routeSegmentId ? segmentById.get(item.routeSegmentId) : undefined;
+
+      return segment ? decode(segment.polyline) : [];
+    });
 }

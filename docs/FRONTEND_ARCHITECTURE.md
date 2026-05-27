@@ -246,9 +246,9 @@ TanStack Query owns server state:
 - trips.
 - session/profile.
 - places.
-- flat itinerary items.
-- trip notes.
-- route segments.
+- flat itinerary item cursor pages.
+- generic note cursor pages.
+- route segment cursor pages.
 - collaborators and expenses.
 - future realtime invalidation.
 - trip detail: `tripKeys.detail(tripId)`
@@ -270,6 +270,8 @@ Zustand owns local interaction state:
 Do not store server records in Zustand.
 
 Server state must not be copied into Zustand. Components read trip data from React Query and write UI-only selection state to the planner store.
+
+Trip summary DTOs do not include `Destination` or `destinationNames`. Cards and editor summaries should derive useful location/timeline labels from itinerary counts, flat items, places, and route segments.
 
 ## Forms
 
@@ -317,7 +319,7 @@ The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL J
 
 The trip editor derives `MapMarker[]` and fallback route points from trip DTOs, then asks TanStack Query for provider route geometry when the active provider supports routing. The map receives provider-ready props and emits only viewport, marker select, and marker hover callbacks. Business logic stays outside map components.
 
-The editor now derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. `RouteSegment` queries provide cached encoded polylines when available; provider route queries remain a fallback for routes that have not been cached yet.
+The editor now derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. `RouteSegment` queries provide cached encoded polylines keyed by provider, from/to place, travel mode, and route profile hash when available; provider route queries remain a fallback for routes that have not been cached yet.
 
 MapLibre renders normalized map contracts only:
 
@@ -327,6 +329,8 @@ MapLibre renders normalized map contracts only:
 - `MapBounds` for future fit-to-route and clustering workflows.
 
 MapLibre does not own itinerary logic, trip records, place normalization, or route fetching. It only renders vector maps, marker overlays, and route layers.
+
+MapLibre markers are rendered through a GeoJSON source and layers rather than one React marker component per itinerary item. This keeps marker rendering scalable, enables clustering, and leaves hover/selection as lightweight layer interactions mapped back to normalized `MapMarker` IDs.
 
 Google route results normalize to provider-independent route DTOs:
 
@@ -365,8 +369,8 @@ dnd-kit is the standard drag layer for editor planning.
 
 - The timeline uses one sortable context for flat itinerary items.
 - Drag handles use keyboard and pointer sensors.
-- Reorder payloads use stable spaced order values (`1024`, `2048`, etc.) so future insertions can happen without rewriting every row.
-- Date, location, time-of-day, and custom grouping are presentation-only and must not change the reorder contract.
+- Reorder mutations are intent based: the UI sends the moved `itemId`, optional `beforeItemId`, optional `afterItemId`, `expectedVersion`, and `clientMutationId`.
+- Date, location, time-of-day, and custom grouping are presentation-only and must not change the reorder contract or introduce day IDs.
 
 ## Optimistic Updates
 
@@ -379,12 +383,12 @@ Optimistic mutations live in feature mutation hooks:
 Reorder hooks:
 
 1. cancel the itinerary query
-2. snapshot the previous item list
+2. snapshot the previous cursor page
 3. write optimistic flat item order
 4. roll back on error
-5. reconcile with the server response on success
+5. reconcile only the server-returned moved or affected items on success
 
-`clientMutationId` is sent with reorder and create requests so future realtime fanout can ignore a client's own echoed mutation. Item `version`/`expectedVersion` fields are used for stale update detection.
+`clientMutationId` is sent with reorder and create requests so future realtime fanout can ignore a client's own echoed mutation. Item `version`/`expectedVersion` fields are used for stale update detection. The frontend does not send full reordered arrays.
 
 ## Responsive Layout
 
@@ -397,7 +401,7 @@ Tablet and mobile collapse to a single column with the map below the planner. Fi
 
 ## Future Realtime
 
-Realtime should not replace React Query. Add a collaboration transport later that subscribes to trip mutation events and patches the smallest matching cache: itinerary item events patch `itineraryKeys.items(tripId)`, route events patch `mapRouteKeys.byTrip(tripId)`, note events patch `tripKeys.notes(tripId)`, and trip metadata events patch `tripKeys.detail(tripId)`.
+Realtime should not replace React Query. Add a collaboration transport later that subscribes to trip mutation events and patches the smallest matching cache: itinerary item events patch the item cursor page under `itineraryKeys.items(tripId)`, route events patch `mapRouteKeys.byTrip(tripId)`, note events patch `tripKeys.notes(tripId)`, and trip metadata events patch `tripKeys.detail(tripId)`.
 
 Recommended future boundaries:
 

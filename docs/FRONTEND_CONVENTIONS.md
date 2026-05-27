@@ -17,6 +17,7 @@ These conventions keep the codebase predictable as it grows.
 - UI-only trip editor state belongs in `src/stores/use-planner-store.ts`.
 - Itinerary items are a flat trip-scoped sequence. Do not model day ownership in frontend state or service contracts.
 - Date/day/location/custom grouping is presentation-only and must be computed from flat items.
+- Do not depend on `Destination` or `destinationNames`; derive display summaries from trip counts, places, and route segments.
 
 Do not place itinerary reorder logic inside map components. Do not place map projection logic inside itinerary cards.
 
@@ -75,6 +76,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Use DTO aliases from `src/services/api/contracts` instead of hand-writing backend request/response types.
 - Services return feature-ready data, not raw Axios responses.
 - List queries should preserve pagination metadata from `meta.pagination` when the UI may need it later.
+- Cursor-paginated editor resources should keep page objects in TanStack Query rather than discarding pagination metadata.
 - Use TanStack Query for server records and optimistic cache writes.
 - Query keys must come from module query files.
 - Mutations that affect trip detail should patch or invalidate `tripKeys.detail(tripId)`.
@@ -120,9 +122,11 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Use dnd-kit sensors and sortable contexts.
 - Keep drag handles explicit and keyboard accessible.
 - Use stable order values with `orderStride`.
-- Send full server reorder payloads from the final optimistic order.
+- Send intent-based reorder payloads with `itemId`, optional `beforeItemId`, optional `afterItemId`, `expectedVersion`, and `clientMutationId`.
+- Do not send full reordered arrays from the frontend.
 - Roll back optimistic cache updates on mutation error.
-- Reorder flat itinerary item sequences by `sortOrder`; do not send `dayId` in new reorder payloads.
+- Reorder flat itinerary item sequences by `sortOrder`; do not send `dayId` in reorder payloads.
+- Never add `TripDay` or day-based API contracts to frontend modules.
 
 ## Map
 
@@ -135,10 +139,12 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Marker hover and selection sync through `use-planner-store`; fetched route/place data stays in TanStack Query.
 - Markers are derived from itinerary item IDs plus normalized trip places. Itinerary item payloads must not duplicate place coordinates.
 - Cached route geometry comes from trip route segment queries; provider routing remains a fallback.
+- Treat route cache identity as provider, from place, to place, and travel mode.
 - Place autocomplete, details, geocoding, and reverse geocoding belong in `src/modules/places`, not itinerary cards.
 - UI components must not expose raw Google Maps, Mapbox, OSM, or HERE response shapes.
 - MapLibre components must stay under `src/modules/map/providers/maplibre`.
 - MapLibre route layers render normalized route points or decoded polylines only.
+- MapLibre itinerary markers should render through GeoJSON sources/layers with clustering support, not one React marker component per item.
 - MapLibre viewport updates must flow through `MapViewport` and planner-store setters, not raw map instances.
 - Raw MapLibre refs may be held locally inside provider components/hooks but must not be stored globally.
 

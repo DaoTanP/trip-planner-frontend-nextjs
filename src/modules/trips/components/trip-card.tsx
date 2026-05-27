@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, MapPin, Pencil, Trash2, Users } from "lucide-react";
+import { CalendarDays, Pencil, Route, Trash2, Users } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -21,8 +21,10 @@ export function TripCard({ trip }: TripCardProps) {
   const deleteMutation = useDeleteTripMutation();
   const startDate = trip.startDate ? format.dateTime(new Date(trip.startDate), "tripDate") : null;
   const endDate = trip.endDate ? format.dateTime(new Date(trip.endDate), "tripDate") : null;
-  const destinations =
-    trip.destinationNames.length > 0 ? trip.destinationNames.join(", ") : t("card.noDestinations");
+  const timelineSummary = t("card.timelineSummary", {
+    itemCount: trip.itineraryItemCount,
+    routeCount: trip.routeSegmentCount
+  });
 
   return (
     <article className="grid gap-4 rounded-md border bg-card p-4 shadow-sm">
@@ -30,8 +32,8 @@ export function TripCard({ trip }: TripCardProps) {
         <div className="min-w-0 space-y-1">
           <h2 className="truncate text-base font-semibold">{trip.title}</h2>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MapPin className="size-4" aria-hidden="true" />
-            {destinations}
+            <Route className="size-4" aria-hidden="true" />
+            {timelineSummary}
           </p>
         </div>
         <Badge variant={trip.status === "COMPLETED" ? "success" : "secondary"}>
@@ -48,7 +50,6 @@ export function TripCard({ trip }: TripCardProps) {
           <Users className="size-4" aria-hidden="true" />
           {t("card.collaborators", { count: trip.collaboratorCount })}
         </p>
-        <p>{t("card.items", { count: trip.itineraryItemCount })}</p>
       </div>
 
       <div className="flex justify-end gap-2">

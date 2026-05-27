@@ -21,8 +21,8 @@ export const apiEndpoints = {
   itinerary: {
     item: (itemId: string) => `/itinerary-items/${itemId}`
   },
-  tripNotes: {
-    detail: (noteId: string) => `/trip-notes/${noteId}`
+  notes: {
+    detail: (noteId: string) => `/notes/${noteId}`
   },
   places: {
     list: "/places",

@@ -3,7 +3,7 @@
 import { LocateFixed, Minus, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Map from "react-map-gl/maplibre";
+import ReactMap, { type MapLayerMouseEvent } from "react-map-gl/maplibre";
 
 import { Button } from "@/components/ui/button";
 import { RouteSummary } from "@/modules/map/components/route-summary";
@@ -15,7 +15,11 @@ import { getPointBounds, toLngLatBounds } from "@/modules/map/utils/bounds";
 import { clampZoom, hasViewportChanged, normalizeViewport } from "@/modules/map/utils/viewport";
 
 import { loadMapLibre } from "./maplibre-loader";
-import { MapLibreMarker } from "./maplibre-marker";
+import {
+  mapLibreMarkerInteractiveLayerIds,
+  mapLibreMarkerPointLayerId,
+  MapLibreMarkerLayer
+} from "./maplibre-marker-layer";
 import { MapLibreRouteLayer } from "./maplibre-route-layer";
 import type { MapLibreMapRef } from "./maplibre.types";
 import { viewportFromMap, viewportFromViewState } from "./maplibre.types";
@@ -38,6 +42,10 @@ export function MapLibreMap({
   const [hasLoadError, setHasLoadError] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const normalizedViewport = useMemo(() => normalizeViewport(viewport), [viewport]);
+  const markerById = useMemo(
+    () => new Map<string, MapMarker>(markers.map((marker) => [marker.id, marker])),
+    [markers]
+  );
 
   const handleMapLoad = useCallback(() => {
     setMapInstance(mapRef.current);
@@ -90,6 +98,53 @@ export function MapLibreMap({
     [onMarkerSelect]
   );
 
+  const getMarkerFromEvent = useCallback(
+    (event: MapLayerMouseEvent) => {
+      const markerFeature = event.features?.find(
+        (feature) => feature.layer.id === mapLibreMarkerPointLayerId
+      );
+      const markerId = markerFeature?.properties?.markerId;
+
+      return typeof markerId === "string" ? markerById.get(markerId) : undefined;
+    },
+    [markerById]
+  );
+
+  const handleMapClick = useCallback(
+    (event: MapLayerMouseEvent) => {
+      const marker = getMarkerFromEvent(event);
+
+      if (marker) {
+        handleMarkerSelect(marker);
+      }
+    },
+    [getMarkerFromEvent, handleMarkerSelect]
+  );
+
+  const handleMapMouseMove = useCallback(
+    (event: MapLayerMouseEvent) => {
+      const marker = getMarkerFromEvent(event);
+      const map = mapRef.current;
+
+      if (map) {
+        map.getCanvas().style.cursor = marker ? "pointer" : "";
+      }
+
+      handleMarkerHover(marker);
+    },
+    [getMarkerFromEvent, handleMarkerHover, mapRef]
+  );
+
+  const handleMapMouseLeave = useCallback(() => {
+    const map = mapRef.current;
+
+    if (map) {
+      map.getCanvas().style.cursor = "";
+    }
+
+    handleMarkerHover(undefined);
+  }, [handleMarkerHover, mapRef]);
+
   const handleMoveEnd = useCallback(() => {
     const map = mapRef.current;
 
@@ -130,7 +185,7 @@ export function MapLibreMap({
       className="trip-maplibre relative h-[26rem] overflow-hidden rounded-md border bg-muted md:h-[calc(100dvh-8rem)]"
       aria-label={t("label")}
     >
-      <Map
+      <ReactMap
         ref={mapRef}
         mapLib={mapLib}
         initialViewState={normalizedViewport}
@@ -141,6 +196,7 @@ export function MapLibreMap({
         dragRotate={false}
         touchPitch={false}
         reuseMaps
+        interactiveLayerIds={mapLibreMarkerInteractiveLayerIds}
         style={{ height: "100%", width: "100%" }}
         onLoad={() => {
           setIsMapReady(true);
@@ -149,6 +205,9 @@ export function MapLibreMap({
         }}
         onMove={(event) => scheduleViewport(viewportFromViewState(event.viewState))}
         onMoveEnd={handleMoveEnd}
+        onClick={handleMapClick}
+        onMouseMove={handleMapMouseMove}
+        onMouseLeave={handleMapMouseLeave}
         onError={() => {
           if (!isMapReady) {
             setHasLoadError(true);
@@ -156,18 +215,12 @@ export function MapLibreMap({
         }}
       >
         <MapLibreRouteLayer route={route} />
-        {markers.map((marker, index) => (
-          <MapLibreMarker
-            key={marker.id}
-            index={index}
-            marker={marker}
-            isHovered={marker.id === hoveredMarkerId}
-            isSelected={marker.id === selectedMarkerId}
-            onHover={handleMarkerHover}
-            onSelect={handleMarkerSelect}
-          />
-        ))}
-      </Map>
+        <MapLibreMarkerLayer
+          markers={markers}
+          hoveredMarkerId={hoveredMarkerId}
+          selectedMarkerId={selectedMarkerId}
+        />
+      </ReactMap>
 
       {hasLoadError ? (
         <div className="absolute inset-0 z-40 grid place-items-center bg-muted p-6 text-center text-sm text-muted-foreground">

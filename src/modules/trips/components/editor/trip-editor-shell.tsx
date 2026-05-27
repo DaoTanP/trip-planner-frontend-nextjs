@@ -21,7 +21,11 @@ import { tripPlacesQueryOptions } from "@/modules/places/queries/place.queries";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
 import { tripDetailQueryOptions, tripNotesQueryOptions } from "../../queries/trip.queries";
-import { getItineraryMapMarkers, getItineraryRoute } from "../../utils/trip-editor.utils";
+import {
+  getCachedRoutePoints,
+  getItineraryMapMarkers,
+  getItineraryRoute
+} from "../../utils/trip-editor.utils";
 import { PlaceSearchBox } from "./place-search-box";
 import { TripEditorHeader } from "./trip-editor-header";
 import { TripEditorSkeleton } from "./trip-editor-skeleton";
@@ -56,14 +60,14 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
   const setSelectedTripId = usePlannerStore((state) => state.setSelectedTripId);
 
-  const items = useMemo(() => itineraryQuery.data ?? [], [itineraryQuery.data]);
+  const items = useMemo(() => itineraryQuery.data?.items ?? [], [itineraryQuery.data]);
   const places = useMemo(() => placesQuery.data ?? [], [placesQuery.data]);
-  const notes = useMemo(() => notesQuery.data ?? [], [notesQuery.data]);
+  const notes = useMemo(() => notesQuery.data?.items ?? [], [notesQuery.data]);
   const markers = useMemo(() => getItineraryMapMarkers(items, places), [items, places]);
   const route = useMemo(() => getItineraryRoute(items, places), [items, places]);
   const cachedRoute = useMemo(
-    () => routeSegmentsQuery.data?.flatMap((segment) => decodePolyline(segment.polyline)) ?? [],
-    [routeSegmentsQuery.data]
+    () => getCachedRoutePoints(items, routeSegmentsQuery.data?.items ?? [], decodePolyline),
+    [items, routeSegmentsQuery.data]
   );
   const routeRequest = useMemo(
     () => ({

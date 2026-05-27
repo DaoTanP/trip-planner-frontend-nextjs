@@ -33,7 +33,7 @@ AI agents extending the trip editor must preserve:
 - No broad shared folders for feature-specific code.
 - No new provider, state library, form library, or styling system without explicit approval.
 - No map SDK coupling inside itinerary UI.
-- No hard `TripDay` hierarchy in new editor state, services, queries, or components.
+- No `TripDay`, `legacyDayId`, `dayId`, `Destination`, or `destinationNames` in editor state, services, queries, or components.
 - No Node runtime changes without updating `.nvmrc`, Dockerfiles, package engines, README, and an ADR.
 - No API server code, database migrations, queue workers, or server Docker services in this repository.
 - Keep server state in TanStack Query and interaction state in Zustand.
@@ -51,6 +51,7 @@ AI agents extending the trip editor must preserve:
 - Put Prisma/backend-shaped assumptions directly into UI components.
 - Store trip detail, itinerary items, places, routes, expenses, or notes in Zustand.
 - Recreate day-grouped server state in Zustand or component-local caches.
+- Recreate destination-based trip summaries when places and route segments are the source data.
 - Fetch provider map data inside itinerary cards.
 - Hardcode visible editor copy.
 - Add a second drag library.
@@ -137,6 +138,7 @@ Examples:
 - Synchronize marker selection and itinerary selection through shared interaction state only.
 - Normalize provider DTOs before they cross into trip or itinerary UI.
 - Render MapLibre markers and route layers from normalized `MapMarker`, `MapRoute`, and `MapViewport` contracts only.
+- Render MapLibre itinerary markers through GeoJSON sources/layers with clustering support; do not reintroduce one React marker per item for large itineraries.
 - Do not store MapLibre map instances, sources, layers, or style objects in Zustand.
 - Preserve client-only map loading through dynamic imports and provider script loaders.
 - Prepare architecture for future collaborative editing without implementing realtime prematurely.
@@ -146,9 +148,10 @@ Examples:
 - Use dnd-kit exclusively.
 - Keep drag state lightweight and temporary.
 - Persist ordering through backend mutations.
+- Use intent-based reorder payloads with moved item and neighbor IDs; do not send full reordered arrays.
 - Preserve optimistic rollback behavior.
 - Avoid full-list rerenders during drag interactions.
-- Reorder flat itinerary items with spaced `sortOrder` values and `clientMutationId`.
+- Reorder flat itinerary items with sparse ordering, `expectedVersion`, and `clientMutationId`.
 - Keep grouping by date, location, section, morning/evening, or custom label presentation-only.
 
 ## State Management Rules

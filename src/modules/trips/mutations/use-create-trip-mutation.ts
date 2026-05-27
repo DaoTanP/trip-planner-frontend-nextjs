@@ -32,7 +32,6 @@ export function useCreateTripMutation() {
         visibility: payload.visibility ?? "PRIVATE",
         status: "DRAFT",
         coverImageUrl: null,
-        destinationNames: [],
         collaboratorCount: 0,
         itineraryItemCount: 0,
         noteCount: 0,

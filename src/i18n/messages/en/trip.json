@@ -83,7 +83,7 @@
   "card": {
     "dateRange": "{startDate} - {endDate}",
     "noDates": "Dates not set",
-    "noDestinations": "No destinations yet",
+    "timelineSummary": "{itemCount, plural, =0 {No stops} =1 {# stop} other {# stops}}, {routeCount, plural, =0 {no routes} =1 {# route} other {# routes}}",
     "collaborators": "{count, plural, =0 {No collaborators} =1 {# collaborator} other {# collaborators}}",
     "items": "{count, plural, =0 {No itinerary stops} =1 {# itinerary stop} other {# itinerary stops}}"
   },

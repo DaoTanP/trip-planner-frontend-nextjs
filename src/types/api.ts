@@ -6,5 +6,6 @@ export type {
   ApiResponse,
   ApiSuccessResponse,
   ApiValidationIssue,
+  CursorPaginationMeta,
   PaginationMeta
 } from "@/services/api/contracts";

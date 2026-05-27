@@ -16,6 +16,7 @@ import { itineraryKeys } from "../queries/itinerary.queries";
 import type {
   CreateItineraryItemPayload,
   ItineraryItem,
+  ItineraryItemsPage,
   ReorderItineraryItemsPayload,
   UpdateItineraryItemPayload
 } from "../types/itinerary.types";
@@ -23,14 +24,25 @@ import type {
 const sortItems = (items: ItineraryItem[]) =>
   [...items].sort((left, right) => left.sortOrder - right.sortOrder);
 
+const patchItemsPage = (
+  page: ItineraryItemsPage | undefined,
+  patch: (items: ItineraryItem[]) => ItineraryItem[]
+): ItineraryItemsPage | undefined =>
+  page
+    ? {
+        ...page,
+        items: patch(page.items)
+      }
+    : page;
+
 export function useCreateItineraryItemMutation(tripId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (payload: CreateItineraryItemPayload) => createItineraryItem(tripId, payload),
     onSuccess: (item) => {
-      queryClient.setQueryData<ItineraryItem[]>(itineraryKeys.items(tripId), (current) =>
-        sortItems([...(current ?? []), item])
+      queryClient.setQueryData<ItineraryItemsPage>(itineraryKeys.items(tripId), (current) =>
+        patchItemsPage(current, (items) => sortItems([...items, item]))
       );
       queryClient.setQueryData<TripDetail>(tripKeys.detail(tripId), (current) =>
         current ? { ...current, itineraryItemCount: current.itineraryItemCount + 1 } : current
@@ -50,30 +62,32 @@ export function useUpdateItineraryItemMutation(tripId: string) {
       updateItineraryItem(itemId, payload),
     onMutate: async ({ itemId, payload }) => {
       await queryClient.cancelQueries({ queryKey: itineraryKeys.items(tripId) });
-      const previousItems = queryClient.getQueryData<ItineraryItem[]>(itineraryKeys.items(tripId));
-
-      queryClient.setQueryData<ItineraryItem[]>(itineraryKeys.items(tripId), (current) =>
-        current
-          ? sortItems(
-              current.map((item) =>
-                item.id === itemId ? ({ ...item, ...payload } as ItineraryItem) : item
-              )
-            )
-          : current
+      const previousPage = queryClient.getQueryData<ItineraryItemsPage>(
+        itineraryKeys.items(tripId)
       );
 
-      return { previousItems };
+      queryClient.setQueryData<ItineraryItemsPage>(itineraryKeys.items(tripId), (current) =>
+        patchItemsPage(current, (items) =>
+          sortItems(
+            items.map((item) =>
+              item.id === itemId ? ({ ...item, ...payload } as ItineraryItem) : item
+            )
+          )
+        )
+      );
+
+      return { previousPage };
     },
     onError: (_error, _variables, context) => {
-      if (context?.previousItems) {
-        queryClient.setQueryData(itineraryKeys.items(tripId), context.previousItems);
+      if (context?.previousPage) {
+        queryClient.setQueryData(itineraryKeys.items(tripId), context.previousPage);
       }
     },
     onSuccess: (updatedItem) => {
-      queryClient.setQueryData<ItineraryItem[]>(itineraryKeys.items(tripId), (current) =>
-        current
-          ? sortItems(current.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
-          : current
+      queryClient.setQueryData<ItineraryItemsPage>(itineraryKeys.items(tripId), (current) =>
+        patchItemsPage(current, (items) =>
+          sortItems(items.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
+        )
       );
       void queryClient.invalidateQueries({ queryKey: placeKeys.byTrip(tripId) });
     }
@@ -87,10 +101,12 @@ export function useDeleteItineraryItemMutation(tripId: string) {
     mutationFn: (itemId: string) => deleteItineraryItem(itemId),
     onMutate: async (itemId) => {
       await queryClient.cancelQueries({ queryKey: itineraryKeys.items(tripId) });
-      const previousItems = queryClient.getQueryData<ItineraryItem[]>(itineraryKeys.items(tripId));
+      const previousPage = queryClient.getQueryData<ItineraryItemsPage>(
+        itineraryKeys.items(tripId)
+      );
 
-      queryClient.setQueryData<ItineraryItem[]>(itineraryKeys.items(tripId), (current) =>
-        current ? current.filter((item) => item.id !== itemId) : current
+      queryClient.setQueryData<ItineraryItemsPage>(itineraryKeys.items(tripId), (current) =>
+        patchItemsPage(current, (items) => items.filter((item) => item.id !== itemId))
       );
       queryClient.setQueryData<TripDetail>(tripKeys.detail(tripId), (current) =>
         current
@@ -98,11 +114,11 @@ export function useDeleteItineraryItemMutation(tripId: string) {
           : current
       );
 
-      return { previousItems };
+      return { previousPage };
     },
     onError: (_error, _variables, context) => {
-      if (context?.previousItems) {
-        queryClient.setQueryData(itineraryKeys.items(tripId), context.previousItems);
+      if (context?.previousPage) {
+        queryClient.setQueryData(itineraryKeys.items(tripId), context.previousPage);
       }
     },
     onSettled: () => {
@@ -123,22 +139,29 @@ export function useReorderItineraryItemsMutation(tripId: string) {
     }) => reorderItineraryItems(tripId, payload),
     onMutate: async ({ optimisticItems }) => {
       await queryClient.cancelQueries({ queryKey: itineraryKeys.items(tripId) });
-      const previousItems = queryClient.getQueryData<ItineraryItem[]>(itineraryKeys.items(tripId));
-
-      queryClient.setQueryData<ItineraryItem[]>(
-        itineraryKeys.items(tripId),
-        sortItems(optimisticItems)
+      const previousPage = queryClient.getQueryData<ItineraryItemsPage>(
+        itineraryKeys.items(tripId)
       );
 
-      return { previousItems };
+      queryClient.setQueryData<ItineraryItemsPage>(itineraryKeys.items(tripId), (current) =>
+        patchItemsPage(current, () => sortItems(optimisticItems))
+      );
+
+      return { previousPage };
     },
     onError: (_error, _variables, context) => {
-      if (context?.previousItems) {
-        queryClient.setQueryData(itineraryKeys.items(tripId), context.previousItems);
+      if (context?.previousPage) {
+        queryClient.setQueryData(itineraryKeys.items(tripId), context.previousPage);
       }
     },
-    onSuccess: ({ items }) => {
-      queryClient.setQueryData<ItineraryItem[]>(itineraryKeys.items(tripId), sortItems(items));
+    onSuccess: ({ affectedItems, item }) => {
+      const serverItems = affectedItems && affectedItems.length > 0 ? affectedItems : [item];
+      const serverItemMap = new Map(serverItems.map((serverItem) => [serverItem.id, serverItem]));
+      queryClient.setQueryData<ItineraryItemsPage>(itineraryKeys.items(tripId), (current) =>
+        patchItemsPage(current, (items) =>
+          sortItems(items.map((cachedItem) => serverItemMap.get(cachedItem.id) ?? cachedItem))
+        )
+      );
     }
   });
 }

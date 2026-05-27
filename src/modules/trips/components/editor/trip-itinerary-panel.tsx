@@ -27,7 +27,7 @@ import {
 import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
 import type { PlaceDto } from "@/services/api/contracts";
 
-import { getPlaceMap, orderStride, reorderItinerarySequence } from "../../utils/trip-editor.utils";
+import { buildItineraryReorderIntent, getPlaceMap } from "../../utils/trip-editor.utils";
 import { ItineraryItemCard } from "./itinerary-item-card";
 
 interface TripItineraryPanelProps {
@@ -58,22 +58,20 @@ export function TripItineraryPanel({ tripId, items, places }: TripItineraryPanel
       return;
     }
 
-    const optimisticItems = reorderItinerarySequence(
+    const reorderIntent = buildItineraryReorderIntent(
       orderedItems,
       String(active.id),
-      String(over.id)
+      String(over.id),
+      crypto.randomUUID()
     );
 
+    if (!reorderIntent) {
+      return;
+    }
+
     reorderItems.mutate({
-      optimisticItems,
-      payload: {
-        clientMutationId: crypto.randomUUID(),
-        updates: optimisticItems.map((item) => ({
-          itemId: item.id,
-          sortOrder: item.sortOrder,
-          expectedVersion: item.version
-        }))
-      }
+      optimisticItems: reorderIntent.optimisticItems,
+      payload: reorderIntent.payload
     });
   }
 
@@ -100,8 +98,7 @@ export function TripItineraryPanel({ tripId, items, places }: TripItineraryPanel
           createItem.mutate(
             {
               title,
-              clientMutationId: crypto.randomUUID(),
-              sortOrder: orderedItems.length * orderStride + orderStride
+              clientMutationId: crypto.randomUUID()
             },
             {
               onSuccess: () => setNewItemTitle("")

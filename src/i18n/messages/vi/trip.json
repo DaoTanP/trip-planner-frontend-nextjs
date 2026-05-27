@@ -83,7 +83,7 @@
   "card": {
     "dateRange": "{startDate} - {endDate}",
     "noDates": "Chưa đặt ngày",
-    "noDestinations": "Chưa có điểm đến",
+    "timelineSummary": "{itemCount, plural, =0 {Chưa có điểm dừng} other {# điểm dừng}}, {routeCount, plural, =0 {chưa có tuyến} other {# tuyến}}",
     "collaborators": "{count, plural, =0 {Chưa có cộng tác viên} other {# cộng tác viên}}",
     "items": "{count, plural, =0 {Chưa có điểm dừng} other {# điểm dừng}}"
   },

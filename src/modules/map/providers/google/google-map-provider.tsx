@@ -80,6 +80,7 @@ function resolveRoutePath(routeResult: TripMapProps["routeResult"], route: MapRo
 export function GoogleMapProvider({
   markers,
   route,
+  activeRoute,
   routeResult,
   viewport,
   selectedMarkerId,
@@ -97,6 +98,7 @@ export function GoogleMapProvider({
   const markersRef = useRef<Map<string, GoogleMarker>>(new Map());
   const markerDataRef = useRef<Map<string, MapMarker>>(new Map());
   const polylineRef = useRef<GooglePolyline | null>(null);
+  const activePolylineRef = useRef<GooglePolyline | null>(null);
   const onViewportChangeRef = useRef(onViewportChange);
   const onMarkerSelectRef = useRef(onMarkerSelect);
   const onMarkerHoverRef = useRef(onMarkerHover);
@@ -210,6 +212,8 @@ export function GoogleMapProvider({
       markerInstances.clear();
       polylineRef.current?.setMap(null);
       polylineRef.current = null;
+      activePolylineRef.current?.setMap(null);
+      activePolylineRef.current = null;
       mapRef.current = null;
     };
   }, [isMissingApiKey, locale]);
@@ -328,6 +332,42 @@ export function GoogleMapProvider({
     polylineRef.current.setPath(path);
     polylineRef.current.setOptions(options);
   }, [loadState, routePath]);
+
+  useEffect(() => {
+    const googleMaps = googleMapsRef.current;
+    const map = mapRef.current;
+
+    if (loadState !== "ready" || !googleMaps || !map) {
+      return;
+    }
+
+    if (!activeRoute || activeRoute.length < 2) {
+      activePolylineRef.current?.setMap(null);
+      activePolylineRef.current = null;
+      return;
+    }
+
+    const path = activeRoute.map(toGoogleLatLngLiteral);
+    const options = {
+      clickable: false,
+      geodesic: true,
+      strokeColor: "#f97316",
+      strokeOpacity: 0.92,
+      strokeWeight: 7
+    };
+
+    if (!activePolylineRef.current) {
+      activePolylineRef.current = new googleMaps.Polyline({
+        ...options,
+        map,
+        path
+      });
+      return;
+    }
+
+    activePolylineRef.current.setPath(path);
+    activePolylineRef.current.setOptions(options);
+  }, [activeRoute, loadState]);
 
   return (
     <section

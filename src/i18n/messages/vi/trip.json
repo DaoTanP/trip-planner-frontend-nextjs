@@ -20,6 +20,33 @@
     "retry": "Thử lại",
     "errorTitle": "Không tải được trình sửa chuyến đi",
     "errorDescription": "Làm mới dữ liệu chuyến đi hoặc thử lại sau khi kiểm tra kết nối.",
+    "header": {
+      "search": "Tìm",
+      "quickAdd": "Thêm nhanh",
+      "share": "Chia sẻ",
+      "shareCopied": "Đã sao chép liên kết chia sẻ.",
+      "shareFailed": "Không sao chép được liên kết chia sẻ.",
+      "noDerivedDates": "Ngày được suy ra từ dòng thời gian",
+      "lastEdited": "Sửa {value}",
+      "revision": "Revision {value}",
+      "distanceKilometers": "{value} km",
+      "durationMinutes": "{count, plural, =0 {0 phút} other {# phút}}",
+      "noCollaborators": "Chưa có cộng tác viên",
+      "collaboratorCount": "{count, plural, =0 {Đã sẵn sàng chỗ cho hiện diện} other {# cộng tác viên}}",
+      "sync": {
+        "synced": "Đã đồng bộ",
+        "syncing": "{count, plural, other {# đang chờ}}",
+        "conflict": "Xung đột"
+      },
+      "stats": {
+        "itinerary": "Lịch trình",
+        "places": "Địa điểm",
+        "distance": "Quãng đường",
+        "travelTime": "Di chuyển",
+        "notes": "Ghi chú",
+        "expenses": "Chi phí"
+      }
+    },
     "notes": {
       "title": "Ghi chú",
       "placeholder": "Viết ghi chú lập kế hoạch",
@@ -45,16 +72,37 @@
       "empty": "Không tìm thấy địa điểm",
       "noAddress": "Chưa có địa chỉ",
       "addPlace": "Thêm {name}",
+      "close": "Đóng tìm địa điểm",
       "addError": "Không thêm được địa điểm."
     },
     "itinerary": {
       "title": "Dòng thời gian",
       "items": "{count, plural, =0 {Chưa có điểm dừng} other {# điểm dừng}}",
+      "visibleItems": "Hiển thị {visible} / {total}",
       "empty": "Thêm địa điểm, hoạt động, nhắc nhở hoặc ý tưởng linh hoạt để bắt đầu lập tuyến.",
+      "filteredEmpty": "Không có mục lịch trình nào khớp bộ lọc.",
+      "searchPlaceholder": "Lọc dòng thời gian",
+      "typeFilter": "Lọc theo loại",
+      "statusFilter": "Lọc theo trạng thái",
+      "allTypes": "Tất cả loại",
+      "allStatuses": "Tất cả trạng thái",
+      "clear": "Xóa lọc",
+      "newItemType": "Loại mục mới",
       "addPlaceholder": "Thêm điểm dừng, hoạt động hoặc nhắc nhở",
       "add": "Thêm",
       "loadMore": "Tải thêm điểm dừng",
-      "loadingMore": "Đang tải điểm dừng"
+      "loadingMore": "Đang tải điểm dừng",
+      "groupCount": "{count, plural, other {# mục}}",
+      "grouping": {
+        "day": "Ngày",
+        "city": "Thành phố",
+        "type": "Loại",
+        "flat": "Phẳng"
+      },
+      "groups": {
+        "unscheduled": "Chưa xếp lịch",
+        "unknownCity": "Chưa rõ thành phố"
+      }
     },
     "item": {
       "drag": "Sắp xếp mục lịch trình",
@@ -62,7 +110,74 @@
       "titleLabel": "Tiêu đề mục",
       "descriptionLabel": "Mô tả mục",
       "descriptionPlaceholder": "Ghi chú, thông tin đặt chỗ hoặc ý tưởng thời gian",
-      "duration": "{minutes} phút"
+      "statusLabel": "Trạng thái mục",
+      "duration": "{minutes} phút",
+      "flexible": "Linh hoạt",
+      "allDay": "Cả ngày",
+      "routeSummary": "{mode}, {distance} km, {duration}",
+      "routeDuration": "{minutes, plural, other {# phút}}",
+      "notes": "{count, plural, other {# ghi chú}}",
+      "unresolved": "{count, plural, other {# chưa xử lý}}",
+      "editedAt": "Sửa {value}",
+      "types": {
+        "ACTIVITY": "Hoạt động",
+        "PLACE": "Địa điểm",
+        "LODGING": "Lưu trú",
+        "TRANSPORT": "Di chuyển",
+        "FOOD": "Ăn uống",
+        "NOTE": "Ghi chú",
+        "TASK": "Việc cần làm",
+        "CUSTOM": "Tùy chỉnh"
+      },
+      "statuses": {
+        "PLANNED": "Đã lên kế hoạch",
+        "BOOKED": "Đã đặt",
+        "COMPLETED": "Xong",
+        "CANCELLED": "Đã hủy"
+      },
+      "sync": {
+        "queued": "Đang xếp hàng",
+        "sending": "Đang đồng bộ",
+        "failed": "Lỗi",
+        "retrying": "Đang thử lại",
+        "conflicted": "Xung đột"
+      }
+    },
+    "insights": {
+      "title": "Tín hiệu lập kế hoạch",
+      "count": "{count, plural, =0 {Ổn} other {# tín hiệu}}",
+      "empty": "Chưa phát hiện vấn đề lập kế hoạch.",
+      "items": {
+        "missingRoutes": "{count, plural, other {# đoạn tuyến còn thiếu}}",
+        "overlap": "{count, plural, other {# mục bị trùng thời gian}}",
+        "impossibleTravel": "{count, plural, other {# khoảng di chuyển quá gấp}}",
+        "emptyDays": "{count, plural, other {# ngày còn trống}}",
+        "longIdle": "{count, plural, other {# khoảng nghỉ dài}} hơn {minutes} phút",
+        "budget": "Vượt ngân sách {amount}"
+      }
+    },
+    "quickAdd": {
+      "button": "Thêm",
+      "openCommand": "Mở bảng lệnh",
+      "openSearch": "Mở tìm địa điểm",
+      "openMap": "Mở bản đồ",
+      "paletteTitle": "Thao tác lập kế hoạch nhanh",
+      "close": "Đóng thao tác nhanh",
+      "actions": {
+        "place": "Thêm địa điểm",
+        "activity": "Thêm hoạt động",
+        "note": "Thêm ghi chú",
+        "transport": "Thêm di chuyển",
+        "lodging": "Thêm lưu trú",
+        "expense": "Thêm chi phí"
+      },
+      "defaults": {
+        "activity": "Hoạt động mới",
+        "note": "Ghi chú lập kế hoạch",
+        "transport": "Di chuyển",
+        "lodging": "Lưu trú",
+        "expense": "Chi phí"
+      }
     },
     "map": {
       "label": "Bản đồ chuyến đi",
@@ -70,6 +185,8 @@
       "zoomIn": "Phóng to",
       "zoomOut": "Thu nhỏ",
       "fit": "Tập trung địa điểm đầu",
+      "fitRoute": "Vừa tuyến đang chọn",
+      "close": "Đóng bản đồ",
       "loading": "Đang tải bản đồ...",
       "missingApiKey": "Chưa cấu hình Google Maps.",
       "loadError": "Không tải được bản đồ.",

@@ -1,6 +1,6 @@
 "use client";
 
-import { LocateFixed, Minus, Plus } from "lucide-react";
+import { LocateFixed, Minus, Plus, Route } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMap, { type MapLayerMouseEvent } from "react-map-gl/maplibre";
@@ -27,6 +27,7 @@ import { viewportFromMap, viewportFromViewState } from "./maplibre.types";
 export function MapLibreMap({
   markers,
   route,
+  activeRoute,
   routeResult,
   viewport,
   selectedMarkerId,
@@ -83,6 +84,21 @@ export function MapLibreMap({
       padding: 64
     });
   }, [mapRef, markers]);
+
+  const handleFitActiveRoute = useCallback(() => {
+    const map = mapRef.current;
+    const bounds = getPointBounds(activeRoute ?? route);
+
+    if (!map || !bounds) {
+      return;
+    }
+
+    map.fitBounds(toLngLatBounds(bounds), {
+      duration: 260,
+      maxZoom: 15,
+      padding: 72
+    });
+  }, [activeRoute, mapRef, route]);
 
   const handleMarkerHover = useCallback(
     (marker?: MapMarker) => {
@@ -214,7 +230,7 @@ export function MapLibreMap({
           }
         }}
       >
-        <MapLibreRouteLayer route={route} />
+        <MapLibreRouteLayer route={route} activeRoute={activeRoute} />
         <MapLibreMarkerLayer
           markers={markers}
           hoveredMarkerId={hoveredMarkerId}
@@ -246,6 +262,16 @@ export function MapLibreMap({
           onClick={() => handleZoom(-1)}
         >
           <Minus aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="secondary"
+          aria-label={t("fitRoute")}
+          disabled={(activeRoute?.length ?? route.length) < 2}
+          onClick={handleFitActiveRoute}
+        >
+          <Route aria-hidden="true" />
         </Button>
         <Button
           type="button"

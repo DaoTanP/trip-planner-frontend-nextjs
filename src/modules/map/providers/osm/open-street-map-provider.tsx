@@ -1,6 +1,6 @@
 "use client";
 
-import { LocateFixed, Minus, Plus } from "lucide-react";
+import { LocateFixed, Minus, Plus, Route } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -37,6 +37,7 @@ function markerInitials(marker: MapMarker) {
 export function OpenStreetMapProvider({
   markers,
   route,
+  activeRoute,
   routeResult,
   viewport,
   selectedMarkerId,
@@ -114,6 +115,18 @@ export function OpenStreetMapProvider({
       })
       .join(" ");
   }, [route, size.height, size.width, viewport, zoom]);
+  const activeRoutePoints = useMemo(() => {
+    if (size.width === 0 || size.height === 0 || !activeRoute?.length) {
+      return "";
+    }
+
+    return activeRoute
+      .map((point) => {
+        const projected = projectPoint(point, { ...viewport, zoom });
+        return `${size.width / 2 + projected.x},${size.height / 2 + projected.y}`;
+      })
+      .join(" ");
+  }, [activeRoute, size.height, size.width, viewport, zoom]);
 
   return (
     <section
@@ -139,17 +152,30 @@ export function OpenStreetMapProvider({
         />
       ))}
 
-      {routePoints ? (
+      {routePoints || activeRoutePoints ? (
         <svg className="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
-          <polyline
-            points={routePoints}
-            fill="none"
-            stroke="rgb(37 99 235)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="5"
-            strokeOpacity="0.72"
-          />
+          {routePoints ? (
+            <polyline
+              points={routePoints}
+              fill="none"
+              stroke="rgb(37 99 235)"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="5"
+              strokeOpacity="0.72"
+            />
+          ) : null}
+          {activeRoutePoints ? (
+            <polyline
+              points={activeRoutePoints}
+              fill="none"
+              stroke="rgb(249 115 22)"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="7"
+              strokeOpacity="0.9"
+            />
+          ) : null}
         </svg>
       ) : null}
 
@@ -198,6 +224,26 @@ export function OpenStreetMapProvider({
           onClick={() => onViewportChange({ ...viewport, zoom: clampZoom(viewport.zoom - 1) })}
         >
           <Minus aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="secondary"
+          aria-label={t("fitRoute")}
+          disabled={(activeRoute?.length ?? route.length) < 2}
+          onClick={() => {
+            const routePoint = activeRoute?.[0] ?? route[0];
+            if (!routePoint) {
+              return;
+            }
+            onViewportChange({
+              latitude: routePoint.latitude,
+              longitude: routePoint.longitude,
+              zoom: Math.max(viewport.zoom, 12)
+            });
+          }}
+        >
+          <Route aria-hidden="true" />
         </Button>
         <Button
           type="button"

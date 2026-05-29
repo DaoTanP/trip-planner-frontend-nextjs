@@ -20,6 +20,7 @@ export type {
 export interface TripMapProps {
   markers: MapMarker[];
   route: MapRoutePoint[];
+  activeRoute?: MapRoutePoint[] | undefined;
   routeResult?: MapRoute | undefined;
   viewport: MapViewport;
   selectedMarkerId?: string | undefined;

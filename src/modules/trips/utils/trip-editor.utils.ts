@@ -133,3 +133,21 @@ export function getCachedRoutePoints(
       return segment ? decode(segment.polyline) : [];
     });
 }
+
+export function getItemRoutePoints(
+  itemId: string | undefined,
+  items: ItineraryItem[],
+  routeSegments: RouteSegmentDto[],
+  decode: (polyline: string) => MapRoutePoint[]
+) {
+  if (!itemId) {
+    return [];
+  }
+
+  const item = items.find((candidate) => candidate.id === itemId);
+  const segment = item?.routeSegmentId
+    ? routeSegments.find((candidate) => candidate.id === item.routeSegmentId)
+    : undefined;
+
+  return segment ? decode(segment.polyline) : [];
+}

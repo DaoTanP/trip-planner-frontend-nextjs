@@ -20,6 +20,33 @@
     "retry": "Retry",
     "errorTitle": "Trip editor could not load",
     "errorDescription": "Refresh the trip data or try again after checking your connection.",
+    "header": {
+      "search": "Search",
+      "quickAdd": "Quick add",
+      "share": "Share",
+      "shareCopied": "Share link copied.",
+      "shareFailed": "Share link could not be copied.",
+      "noDerivedDates": "Dates derived from timeline",
+      "lastEdited": "Edited {value}",
+      "revision": "Revision {value}",
+      "distanceKilometers": "{value} km",
+      "durationMinutes": "{count, plural, =0 {0 min} =1 {# min} other {# min}}",
+      "noCollaborators": "No collaborators",
+      "collaboratorCount": "{count, plural, =0 {Presence placeholders ready} =1 {# collaborator} other {# collaborators}}",
+      "sync": {
+        "synced": "Synced",
+        "syncing": "{count, plural, =1 {# pending} other {# pending}}",
+        "conflict": "Conflict"
+      },
+      "stats": {
+        "itinerary": "Timeline",
+        "places": "Places",
+        "distance": "Distance",
+        "travelTime": "Travel",
+        "notes": "Notes",
+        "expenses": "Expenses"
+      }
+    },
     "notes": {
       "title": "Notes",
       "placeholder": "Write a planning note",
@@ -45,16 +72,37 @@
       "empty": "No places found",
       "noAddress": "Address not available",
       "addPlace": "Add {name}",
+      "close": "Close place search",
       "addError": "Place could not be added."
     },
     "itinerary": {
       "title": "Timeline",
       "items": "{count, plural, =0 {No stops} =1 {# stop} other {# stops}}",
+      "visibleItems": "{visible} of {total} visible",
       "empty": "Add places, activities, reminders, or flexible ideas to start shaping the route.",
+      "filteredEmpty": "No timeline items match the current filters.",
+      "searchPlaceholder": "Filter timeline",
+      "typeFilter": "Filter by type",
+      "statusFilter": "Filter by status",
+      "allTypes": "All types",
+      "allStatuses": "All statuses",
+      "clear": "Clear",
+      "newItemType": "New item type",
       "addPlaceholder": "Add a stop, activity, or reminder",
       "add": "Add",
       "loadMore": "Load more stops",
-      "loadingMore": "Loading stops"
+      "loadingMore": "Loading stops",
+      "groupCount": "{count, plural, =1 {# item} other {# items}}",
+      "grouping": {
+        "day": "Day",
+        "city": "City",
+        "type": "Type",
+        "flat": "Flat"
+      },
+      "groups": {
+        "unscheduled": "Unscheduled",
+        "unknownCity": "Unknown city"
+      }
     },
     "item": {
       "drag": "Reorder itinerary item",
@@ -62,7 +110,74 @@
       "titleLabel": "Item title",
       "descriptionLabel": "Item description",
       "descriptionPlaceholder": "Notes, booking details, or timing ideas",
-      "duration": "{minutes} min"
+      "statusLabel": "Item status",
+      "duration": "{minutes} min",
+      "flexible": "Flexible",
+      "allDay": "All day",
+      "routeSummary": "{mode}, {distance} km, {duration}",
+      "routeDuration": "{minutes, plural, =1 {# min} other {# min}}",
+      "notes": "{count, plural, =1 {# note} other {# notes}}",
+      "unresolved": "{count, plural, =1 {# unresolved} other {# unresolved}}",
+      "editedAt": "Edited {value}",
+      "types": {
+        "ACTIVITY": "Activity",
+        "PLACE": "Place",
+        "LODGING": "Lodging",
+        "TRANSPORT": "Transport",
+        "FOOD": "Food",
+        "NOTE": "Note",
+        "TASK": "Task",
+        "CUSTOM": "Custom"
+      },
+      "statuses": {
+        "PLANNED": "Planned",
+        "BOOKED": "Booked",
+        "COMPLETED": "Done",
+        "CANCELLED": "Cancelled"
+      },
+      "sync": {
+        "queued": "Queued",
+        "sending": "Syncing",
+        "failed": "Failed",
+        "retrying": "Retrying",
+        "conflicted": "Conflict"
+      }
+    },
+    "insights": {
+      "title": "Planning insights",
+      "count": "{count, plural, =0 {Clear} =1 {# signal} other {# signals}}",
+      "empty": "No planning issues detected.",
+      "items": {
+        "missingRoutes": "{count, plural, =1 {# route connector is missing} other {# route connectors are missing}}",
+        "overlap": "{count, plural, =1 {# event overlaps another item} other {# events overlap other items}}",
+        "impossibleTravel": "{count, plural, =1 {# travel gap is too tight} other {# travel gaps are too tight}}",
+        "emptyDays": "{count, plural, =1 {# empty day in the plan} other {# empty days in the plan}}",
+        "longIdle": "{count, plural, =1 {# long idle gap} other {# long idle gaps}} over {minutes} minutes",
+        "budget": "Budget is over by {amount}"
+      }
+    },
+    "quickAdd": {
+      "button": "Add",
+      "openCommand": "Open command palette",
+      "openSearch": "Open place search",
+      "openMap": "Open map",
+      "paletteTitle": "Quick planner actions",
+      "close": "Close quick actions",
+      "actions": {
+        "place": "Add place",
+        "activity": "Add activity",
+        "note": "Add note",
+        "transport": "Add transport",
+        "lodging": "Add lodging",
+        "expense": "Add expense"
+      },
+      "defaults": {
+        "activity": "New activity",
+        "note": "Planning note",
+        "transport": "Transport",
+        "lodging": "Lodging",
+        "expense": "Expense"
+      }
     },
     "map": {
       "label": "Trip map",
@@ -70,6 +185,8 @@
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "fit": "Focus first place",
+      "fitRoute": "Fit active route",
+      "close": "Close map",
       "loading": "Loading map...",
       "missingApiKey": "Google Maps is not configured.",
       "loadError": "Map could not be loaded.",

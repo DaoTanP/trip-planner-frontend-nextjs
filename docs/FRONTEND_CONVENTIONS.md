@@ -11,6 +11,7 @@ These conventions keep the codebase predictable as it grows.
 - Keep server state in TanStack Query and local UI state in Zustand.
 - Do not add API server code, database migrations, queues, or server Docker services to this repository.
 - Trip detail and editor composition belong in `src/modules/trips`.
+- Unified collaborative note services, queries, mutations, hooks, and panels belong in `src/modules/notes`.
 - Itinerary item services and mutations belong in `src/modules/itinerary`.
 - Place search belongs in `src/modules/places`.
 - Map rendering and provider math belong in `src/modules/map`.
@@ -77,10 +78,14 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Services return feature-ready data, not raw Axios responses.
 - List queries should preserve pagination metadata from `meta.pagination` when the UI may need it later.
 - Cursor-paginated editor resources should keep page objects in TanStack Query rather than discarding pagination metadata.
+- Itinerary and notes should use `useInfiniteQuery` for editor loading so large trips can hydrate page by page.
+- Notes must use the unified `/notes` API and `noteKeys.list(filters)` with `tripId`, `targetEntityType`, `targetEntityId`, and optional `parentNoteId`; do not add trip-, itinerary-, expense-, or place-specific note services.
+- Mutation hooks must patch infinite-query pages surgically and preserve pagination metadata.
 - Use TanStack Query for server records and optimistic cache writes.
 - Query keys must come from module query files.
 - Mutations that affect trip detail should patch or invalidate `tripKeys.detail(tripId)`.
 - Mutations that affect itinerary items should patch `itineraryKeys.items(tripId)` and only invalidate related place/route/trip summary queries when needed.
+- Mutations that return trip `revision` should patch `tripKeys.detail(tripId)` with the new revision. Do not store revisions in Zustand.
 
 ## Query And State
 
@@ -89,6 +94,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Keep optimistic cache updates centralized inside mutation hooks.
 - Use query invalidation or targeted cache patching after successful itinerary mutations.
 - Do not store itinerary items, places, notes, route segments, collaborators, or expenses in Zustand.
+- Note panels may be reused by trips, itinerary items, expenses, places, and future route/collaboration surfaces. They must not duplicate note server state outside TanStack Query.
 
 ## Forms
 
@@ -127,6 +133,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Roll back optimistic cache updates on mutation error.
 - Reorder flat itinerary item sequences by `sortOrder`; do not send `dayId` in reorder payloads.
 - Never add `TripDay` or day-based API contracts to frontend modules.
+- Keep item rendering isolated and compatible with virtualization. Large loaded timelines may render a visible window, but reorder payloads still use flat neighbor IDs.
 
 ## Map
 
@@ -139,12 +146,13 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Marker hover and selection sync through `use-planner-store`; fetched route/place data stays in TanStack Query.
 - Markers are derived from itinerary item IDs plus normalized trip places. Itinerary item payloads must not duplicate place coordinates.
 - Cached route geometry comes from trip route segment queries; provider routing remains a fallback.
-- Treat route cache identity as provider, from place, to place, and travel mode.
+- Treat route cache identity as provider, from place, to place, travel mode, route profile hash, departure/traffic settings, and alternate route index.
 - Place autocomplete, details, geocoding, and reverse geocoding belong in `src/modules/places`, not itinerary cards.
 - UI components must not expose raw Google Maps, Mapbox, OSM, or HERE response shapes.
 - MapLibre components must stay under `src/modules/map/providers/maplibre`.
 - MapLibre route layers render normalized route points or decoded polylines only.
 - MapLibre itinerary markers should render through GeoJSON sources/layers with clustering support, not one React marker component per item.
+- Marker and route derivation should sort flat itinerary items by `(sortOrder, id)` before building map props.
 - MapLibre viewport updates must flow through `MapViewport` and planner-store setters, not raw map instances.
 - Raw MapLibre refs may be held locally inside provider components/hooks but must not be stored globally.
 

@@ -4,6 +4,7 @@ import type { ApiSuccessResponse } from "@/types/api";
 
 import type {
   CreateItineraryItemPayload,
+  ItineraryItemMutationResult,
   ItineraryItem,
   ItineraryItemsPage,
   ReorderItineraryItemsPayload,
@@ -11,10 +12,29 @@ import type {
   UpdateItineraryItemPayload
 } from "../types/itinerary.types";
 
-export async function getItineraryItems(tripId: string, signal?: AbortSignal) {
+type CursorParams = {
+  cursor?: string | undefined;
+  limit?: number | undefined;
+};
+
+function withCursorParams(url: string, params?: CursorParams) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.cursor) searchParams.set("cursor", params.cursor);
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+
+  const queryString = searchParams.toString();
+  return queryString ? `${url}?${queryString}` : url;
+}
+
+export async function getItineraryItems(
+  tripId: string,
+  params?: CursorParams,
+  signal?: AbortSignal
+) {
   const response = await apiGet<
     ApiSuccessResponse<{ items: ItineraryItem[] }, { pagination: ItineraryItemsPage["pagination"] }>
-  >(apiEndpoints.trips.itinerary(tripId), signal);
+  >(withCursorParams(apiEndpoints.trips.itinerary(tripId), params), signal);
 
   return {
     items: response.data.items,
@@ -24,20 +44,20 @@ export async function getItineraryItems(tripId: string, signal?: AbortSignal) {
 
 export async function createItineraryItem(tripId: string, payload: CreateItineraryItemPayload) {
   const response = await apiPost<
-    ApiSuccessResponse<{ item: ItineraryItem; clientMutationId?: string }>,
+    ApiSuccessResponse<ItineraryItemMutationResult>,
     CreateItineraryItemPayload
   >(apiEndpoints.trips.itinerary(tripId), payload);
 
-  return response.data.item;
+  return response.data;
 }
 
 export async function updateItineraryItem(itemId: string, payload: UpdateItineraryItemPayload) {
   const response = await apiPatch<
-    ApiSuccessResponse<{ item: ItineraryItem; clientMutationId?: string }>,
+    ApiSuccessResponse<ItineraryItemMutationResult>,
     UpdateItineraryItemPayload
   >(apiEndpoints.itinerary.item(itemId), payload);
 
-  return response.data.item;
+  return response.data;
 }
 
 export async function deleteItineraryItem(itemId: string) {

@@ -23,7 +23,20 @@
     "notes": {
       "title": "Ghi chú",
       "placeholder": "Viết ghi chú lập kế hoạch",
-      "add": "Thêm ghi chú"
+      "replyPlaceholder": "Viết phản hồi",
+      "add": "Thêm ghi chú",
+      "reply": "Phản hồi",
+      "edit": "Sửa ghi chú",
+      "delete": "Xóa ghi chú",
+      "save": "Lưu",
+      "cancel": "Hủy",
+      "empty": "Chưa có ghi chú",
+      "deleted": "Ghi chú này đã bị xóa.",
+      "edited": "(đã sửa)",
+      "pending": "(đang chờ)",
+      "unknownAuthor": "Cộng tác viên không xác định",
+      "loadMore": "Tải thêm ghi chú",
+      "loadingMore": "Đang tải ghi chú"
     },
     "placeSearch": {
       "title": "Tìm địa điểm",
@@ -39,7 +52,9 @@
       "items": "{count, plural, =0 {Chưa có điểm dừng} other {# điểm dừng}}",
       "empty": "Thêm địa điểm, hoạt động, nhắc nhở hoặc ý tưởng linh hoạt để bắt đầu lập tuyến.",
       "addPlaceholder": "Thêm điểm dừng, hoạt động hoặc nhắc nhở",
-      "add": "Thêm"
+      "add": "Thêm",
+      "loadMore": "Tải thêm điểm dừng",
+      "loadingMore": "Đang tải điểm dừng"
     },
     "item": {
       "drag": "Sắp xếp mục lịch trình",

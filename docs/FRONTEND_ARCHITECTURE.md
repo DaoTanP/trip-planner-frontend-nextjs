@@ -43,6 +43,7 @@ src/
   modules/
     auth/
     trips/
+    notes/
     itinerary/
     places/
     profile/
@@ -66,7 +67,8 @@ src/app/[locale]/(app)/trips/[tripId]/edit
 
 and composes feature code from:
 
-- `src/modules/trips` for trip detail, editor shell, notes, and trip-level mutations.
+- `src/modules/trips` for trip detail, editor shell composition, and trip-level mutations.
+- `src/modules/notes` for unified collaborative note services, infinite queries, optimistic mutations, and reusable note panels.
 - `src/modules/itinerary` for itinerary item services and optimistic mutations.
 - `src/modules/places` for place search.
 - `src/modules/map` for provider-shaped map rendering and map math.
@@ -253,7 +255,9 @@ TanStack Query owns server state:
 - future realtime invalidation.
 - trip detail: `tripKeys.detail(tripId)`
 - trip list: `tripKeys.list()`
+- unified notes: `noteKeys.list(filters)`
 - place search: `placeKeys.search(params)`
+- trip mutation catch-up: `tripKeys.mutationEvents(tripId, revision)`
 
 Zustand owns local interaction state:
 
@@ -272,6 +276,8 @@ Do not store server records in Zustand.
 Server state must not be copied into Zustand. Components read trip data from React Query and write UI-only selection state to the planner store.
 
 Trip summary DTOs do not include `Destination` or `destinationNames`. Cards and editor summaries should derive useful location/timeline labels from itinerary counts, flat items, places, and route segments.
+
+Trip revisions are server state. The latest revision comes from trip detail and mutation responses, stays in TanStack Query, and is used as the future reconnect/offline catch-up boundary rather than duplicated into Zustand.
 
 ## Forms
 
@@ -332,6 +338,8 @@ MapLibre does not own itinerary logic, trip records, place normalization, or rou
 
 MapLibre markers are rendered through a GeoJSON source and layers rather than one React marker component per itinerary item. This keeps marker rendering scalable, enables clustering, and leaves hover/selection as lightweight layer interactions mapped back to normalized `MapMarker` IDs.
 
+Marker and route derivation is deterministic from flat itinerary order. The editor sorts by `(sortOrder, id)`, derives markers from normalized places, and renders cached `RouteSegment` polylines when they are loaded. Route segment loading can stay partial; provider routing remains a fallback until the backend route cache is hydrated.
+
 Google route results normalize to provider-independent route DTOs:
 
 - decoded route points for polyline rendering.
@@ -372,23 +380,28 @@ dnd-kit is the standard drag layer for editor planning.
 - Reorder mutations are intent based: the UI sends the moved `itemId`, optional `beforeItemId`, optional `afterItemId`, `expectedVersion`, and `clientMutationId`.
 - Date, location, time-of-day, and custom grouping are presentation-only and must not change the reorder contract or introduce day IDs.
 
+Large timelines use a virtualization-compatible render path. Small and medium trips render the full sortable list for best drag behavior; very large loaded lists switch to a windowed item renderer so the DOM does not grow with every cursor page. Item cards stay isolated so this can move to a dedicated virtualization package later without changing backend contracts.
+
 ## Optimistic Updates
 
 Optimistic mutations live in feature mutation hooks:
 
 - `useReorderItineraryItemsMutation`
 - item create/update/delete mutations
-- trip update and note creation mutations
+- trip update mutations
+- note create/update/delete mutations in `src/modules/notes`
 
 Reorder hooks:
 
 1. cancel the itinerary query
-2. snapshot the previous cursor page
-3. write optimistic flat item order
+2. snapshot the previous infinite cursor data
+3. write optimistic flat item order across loaded pages
 4. roll back on error
 5. reconcile only the server-returned moved or affected items on success
 
-`clientMutationId` is sent with reorder and create requests so future realtime fanout can ignore a client's own echoed mutation. Item `version`/`expectedVersion` fields are used for stale update detection. The frontend does not send full reordered arrays.
+`clientMutationId` is sent with reorder and create requests so future realtime fanout can ignore a client's own echoed mutation. Item `version`/`expectedVersion` fields are used for stale update detection. Mutation responses include the latest trip revision; mutation hooks patch `tripKeys.detail(tripId)` rather than refetching the whole editor. The frontend does not send full reordered arrays.
+
+Itinerary and notes use `useInfiniteQuery` over cursor APIs. Note queries are keyed by normalized filters such as `tripId`, `targetEntityType`, `targetEntityId`, and `parentNoteId`, so trip notes, itinerary item notes, expense notes, place notes, and replies reuse the same cache shape. Services preserve `meta.pagination`, query options use `nextCursor`, and mutation hooks patch loaded pages surgically. This is mobile/offline friendly because the client can hydrate partial resources, preserve scroll stability, and catch up later by revision.
 
 ## Responsive Layout
 
@@ -401,12 +414,13 @@ Tablet and mobile collapse to a single column with the map below the planner. Fi
 
 ## Future Realtime
 
-Realtime should not replace React Query. Add a collaboration transport later that subscribes to trip mutation events and patches the smallest matching cache: itinerary item events patch the item cursor page under `itineraryKeys.items(tripId)`, route events patch `mapRouteKeys.byTrip(tripId)`, note events patch `tripKeys.notes(tripId)`, and trip metadata events patch `tripKeys.detail(tripId)`.
+Realtime should not replace React Query. Add a collaboration transport later that subscribes to trip mutation events and patches the smallest matching cache: itinerary item events patch the item cursor page under `itineraryKeys.items(tripId)`, route events patch `mapRouteKeys.byTrip(tripId)`, note events patch matching `noteKeys.list(filters)` pages, and trip metadata events patch `tripKeys.detail(tripId)`.
 
 Recommended future boundaries:
 
 - `src/modules/collaboration` for websocket/presence client code
 - mutation `clientMutationId` for echo suppression
+- trip `revision` plus `GET /trips/:tripId/mutation-events` for reconnect catch-up
 - Redis-backed presence on the backend
 - presence UI in the planner header, not inside map provider components
 

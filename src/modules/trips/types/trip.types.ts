@@ -1,10 +1,9 @@
 import type {
-  CreateNoteRequestDto,
   CreateTripRequestDto,
   CursorPaginationMeta,
   ExpenseCategoryDto,
   ExpenseDto,
-  NoteDto,
+  MutationEventDto,
   PaginationMeta,
   RouteSegmentDto,
   TripCollaboratorDto,
@@ -15,14 +14,13 @@ import type {
 
 export type Trip = TripSummaryDto;
 export type TripDetail = TripDetailDto;
-export type TripEditorNote = NoteDto;
 export type TripRouteSegment = RouteSegmentDto;
 export type TripCollaborator = TripCollaboratorDto;
 export type TripExpense = ExpenseDto;
 export type TripExpenseCategory = ExpenseCategoryDto;
 export type TripExpenses = TripExpensesDto;
+export type TripMutationEvent = MutationEventDto;
 export type CreateTripPayload = CreateTripRequestDto;
-export type CreateNotePayload = CreateNoteRequestDto;
 export type TripsListMeta = {
   pagination: PaginationMeta;
 };
@@ -34,4 +32,9 @@ export type CursorPage<TItem> = {
 
 export type TripExpensesPage = TripExpenses & {
   pagination: CursorPaginationMeta;
+};
+
+export type TripMutationEventsPage = {
+  events: TripMutationEvent[];
+  latestRevision: string;
 };

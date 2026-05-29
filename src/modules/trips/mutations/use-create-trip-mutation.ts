@@ -37,6 +37,7 @@ export function useCreateTripMutation() {
         noteCount: 0,
         routeSegmentCount: 0,
         version: 1,
+        revision: "0",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };

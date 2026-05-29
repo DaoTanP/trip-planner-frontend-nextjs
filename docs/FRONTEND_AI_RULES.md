@@ -39,7 +39,9 @@ AI agents extending the trip editor must preserve:
 - Keep server state in TanStack Query and interaction state in Zustand.
 - Keep map provider code isolated in `src/modules/map`.
 - Keep itinerary mutation logic isolated in `src/modules/itinerary`.
+- Keep unified collaborative note services, queries, mutations, hooks, and panels isolated in `src/modules/notes`.
 - Keep itinerary items, places, notes, routes, collaborators, and expenses in granular TanStack Query caches.
+- Keep trip revisions in TanStack Query and use mutation-event queries only for future catch-up/sync boundaries.
 - Use dnd-kit for drag interactions.
 - Preserve optimistic rollback behavior for reorder, add, edit, and remove flows.
 - Update backend contracts before using new API fields in frontend code.
@@ -133,6 +135,8 @@ Examples:
 - Keep place autocomplete, place details, geocoding, reverse geocoding, route, and distance/duration requests in service/query layers.
 - Future WebSocket events should invalidate or patch TanStack Query data, not bypass it with duplicated stores.
 - Future WebSocket events should patch the smallest granular cache: itinerary, notes, places, routes, collaborators, expenses, or trip metadata.
+- Future note events should patch matching `noteKeys.list(filters)` pages, not trip detail or entity-specific note caches.
+- Future reconnect/offline flows should catch up through `GET /trips/:tripId/mutation-events` using the latest trip revision from TanStack Query.
 - Keep provider-specific logic isolated inside `src/modules/map/providers`.
 - Do not couple itinerary rendering to specific map providers.
 - Synchronize marker selection and itinerary selection through shared interaction state only.
@@ -152,6 +156,7 @@ Examples:
 - Preserve optimistic rollback behavior.
 - Avoid full-list rerenders during drag interactions.
 - Reorder flat itinerary items with sparse ordering, `expectedVersion`, and `clientMutationId`.
+- Keep very large itinerary rendering virtualization-compatible; do not couple cards to DOM assumptions that require every item to be mounted.
 - Keep grouping by date, location, section, morning/evening, or custom label presentation-only.
 
 ## State Management Rules
@@ -206,6 +211,7 @@ Do NOT:
 - Keep route screens thin.
 - Memoize expensive derived itinerary calculations when necessary.
 - Prepare architecture for large itineraries and many markers.
+- Use infinite queries for cursor-paginated editor resources when pages can grow large.
 
 ## Architecture Preservation Rules
 

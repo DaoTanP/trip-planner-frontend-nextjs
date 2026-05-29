@@ -5,7 +5,7 @@ import type {
 import type { MapMarker, MapRoutePoint } from "@/modules/map/types/map.types";
 import type { PlaceDto, RouteSegmentDto } from "@/services/api/contracts";
 
-export const orderStride = 1024;
+export const orderStride = 65_536;
 
 export function getItemMarkerId(item: ItineraryItem) {
   return `item:${item.id}`;
@@ -19,7 +19,11 @@ export function getItineraryMapMarkers(items: ItineraryItem[], places: PlaceDto[
   const placeMap = getPlaceMap(places);
   const markers: MapMarker[] = [];
 
-  for (const item of items) {
+  for (const item of [...items].sort((left, right) =>
+    left.sortOrder === right.sortOrder
+      ? left.id.localeCompare(right.id)
+      : left.sortOrder - right.sortOrder
+  )) {
     const place = item.placeId ? placeMap.get(item.placeId) : undefined;
 
     if (typeof place?.latitude !== "number" || typeof place.longitude !== "number") {

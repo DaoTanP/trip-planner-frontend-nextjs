@@ -14,14 +14,15 @@ export const apiEndpoints = {
     reorderItinerary: (tripId: string) => `/trips/${tripId}/itinerary/reorder`,
     places: (tripId: string) => `/trips/${tripId}/places`,
     routes: (tripId: string) => `/trips/${tripId}/routes`,
-    notes: (tripId: string) => `/trips/${tripId}/notes`,
     collaborators: (tripId: string) => `/trips/${tripId}/collaborators`,
-    expenses: (tripId: string) => `/trips/${tripId}/expenses`
+    expenses: (tripId: string) => `/trips/${tripId}/expenses`,
+    mutationEvents: (tripId: string) => `/trips/${tripId}/mutation-events`
   },
   itinerary: {
     item: (itemId: string) => `/itinerary-items/${itemId}`
   },
   notes: {
+    list: "/notes",
     detail: (noteId: string) => `/notes/${noteId}`
   },
   places: {

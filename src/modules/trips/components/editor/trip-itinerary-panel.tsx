@@ -27,6 +27,7 @@ import {
 import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
 import type { PlaceDto } from "@/services/api/contracts";
 
+import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import { buildItineraryReorderIntent, getPlaceMap } from "../../utils/trip-editor.utils";
 import { ItineraryItemCard } from "./itinerary-item-card";
 
@@ -34,9 +35,19 @@ interface TripItineraryPanelProps {
   tripId: string;
   items: ItineraryItem[];
   places: PlaceDto[];
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => void;
 }
 
-export function TripItineraryPanel({ tripId, items, places }: TripItineraryPanelProps) {
+export function TripItineraryPanel({
+  tripId,
+  items,
+  places,
+  hasNextPage = false,
+  isFetchingNextPage = false,
+  onLoadMore
+}: TripItineraryPanelProps) {
   const t = useTranslations("trip.editor.itinerary");
   const createItem = useCreateItineraryItemMutation(tripId);
   const reorderItems = useReorderItineraryItemsMutation(tripId);
@@ -50,6 +61,14 @@ export function TripItineraryPanel({ tripId, items, places }: TripItineraryPanel
     [items]
   );
   const placeMap = useMemo(() => getPlaceMap(places), [places]);
+  const itemIds = useMemo(() => orderedItems.map((item) => item.id), [orderedItems]);
+  const virtualWindow = useVirtualWindow({
+    itemCount: orderedItems.length,
+    estimateSize: 196,
+    overscan: 10,
+    enabled: orderedItems.length > 120
+  });
+  const { containerRef, isVirtualized, totalSize, virtualItems } = virtualWindow;
 
   function handleItemDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -123,20 +142,48 @@ export function TripItineraryPanel({ tripId, items, places }: TripItineraryPanel
           collisionDetection={closestCenter}
           onDragEnd={handleItemDragEnd}
         >
-          <SortableContext
-            items={orderedItems.map((item) => item.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="grid gap-3">
-              {orderedItems.map((item) => (
-                <ItineraryItemCard
-                  key={`${item.id}:${item.version}:${item.title}:${item.description ?? ""}`}
-                  tripId={tripId}
-                  item={item}
-                  place={item.placeId ? placeMap.get(item.placeId) : undefined}
-                />
-              ))}
-            </div>
+          <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+            {isVirtualized ? (
+              <div ref={containerRef} className="max-h-[70dvh] overflow-y-auto pr-1">
+                <div className="relative" style={{ height: totalSize }}>
+                  {virtualItems.map((virtualItem) => {
+                    const item = orderedItems[virtualItem.index];
+
+                    if (!item) {
+                      return null;
+                    }
+
+                    return (
+                      <div
+                        key={`${item.id}:${item.version}:${item.title}:${item.description ?? ""}`}
+                        className="absolute left-0 right-0 pb-3"
+                        style={{
+                          height: virtualItem.size,
+                          transform: `translateY(${virtualItem.start}px)`
+                        }}
+                      >
+                        <ItineraryItemCard
+                          tripId={tripId}
+                          item={item}
+                          place={item.placeId ? placeMap.get(item.placeId) : undefined}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {orderedItems.map((item) => (
+                  <ItineraryItemCard
+                    key={`${item.id}:${item.version}:${item.title}:${item.description ?? ""}`}
+                    tripId={tripId}
+                    item={item}
+                    place={item.placeId ? placeMap.get(item.placeId) : undefined}
+                  />
+                ))}
+              </div>
+            )}
           </SortableContext>
         </DndContext>
       ) : (
@@ -144,6 +191,17 @@ export function TripItineraryPanel({ tripId, items, places }: TripItineraryPanel
           {t("empty")}
         </div>
       )}
+
+      {hasNextPage ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isFetchingNextPage}
+          onClick={() => onLoadMore?.()}
+        >
+          {isFetchingNextPage ? t("loadingMore") : t("loadMore")}
+        </Button>
+      ) : null}
     </section>
   );
 }

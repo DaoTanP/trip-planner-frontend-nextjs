@@ -124,7 +124,14 @@ export const MapLibreMarkerLayer = memo(function MapLibreMarkerLayer({
   );
 
   return (
-    <Source id={markerSourceId} type="geojson" data={markerData} cluster clusterRadius={44}>
+    <Source
+      id={markerSourceId}
+      type="geojson"
+      data={markerData}
+      cluster
+      clusterRadius={44}
+      clusterMaxZoom={14}
+    >
       <Layer {...clusterLayer} />
       <Layer {...clusterCountLayer} />
       <Layer {...markerLayer} />

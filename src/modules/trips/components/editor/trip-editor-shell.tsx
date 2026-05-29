@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo } from "react";
@@ -16,11 +16,12 @@ import {
 import { getRouteRenderPoints } from "@/modules/map/services/routing/route-normalizer";
 import type { MapMarker } from "@/modules/map/types/map.types";
 import { decodePolyline } from "@/modules/map/utils/polyline";
-import { itineraryQueryOptions } from "@/modules/itinerary/queries/itinerary.queries";
+import { itineraryInfiniteQueryOptions } from "@/modules/itinerary/queries/itinerary.queries";
+import { NotePanel } from "@/modules/notes/components/note-panel";
 import { tripPlacesQueryOptions } from "@/modules/places/queries/place.queries";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
-import { tripDetailQueryOptions, tripNotesQueryOptions } from "../../queries/trip.queries";
+import { tripDetailQueryOptions } from "../../queries/trip.queries";
 import {
   getCachedRoutePoints,
   getItineraryMapMarkers,
@@ -30,7 +31,6 @@ import { PlaceSearchBox } from "./place-search-box";
 import { TripEditorHeader } from "./trip-editor-header";
 import { TripEditorSkeleton } from "./trip-editor-skeleton";
 import { TripItineraryPanel } from "./trip-itinerary-panel";
-import { TripNotesEditor } from "./trip-notes-editor";
 
 const LazyTripMap = dynamic(
   () => import("@/modules/map/components/trip-map").then((mod) => mod.TripMap),
@@ -48,9 +48,8 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const locale = useLocale();
   const t = useTranslations("trip.editor");
   const tripQuery = useQuery(tripDetailQueryOptions(tripId));
-  const itineraryQuery = useQuery(itineraryQueryOptions(tripId));
+  const itineraryQuery = useInfiniteQuery(itineraryInfiniteQueryOptions(tripId));
   const placesQuery = useQuery(tripPlacesQueryOptions(tripId));
-  const notesQuery = useQuery(tripNotesQueryOptions(tripId));
   const routeSegmentsQuery = useQuery(tripRouteSegmentsQueryOptions(tripId));
   const viewport = usePlannerStore((state) => state.viewport);
   const selectedItemId = usePlannerStore((state) => state.selectedItemId);
@@ -60,9 +59,11 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
   const setSelectedTripId = usePlannerStore((state) => state.setSelectedTripId);
 
-  const items = useMemo(() => itineraryQuery.data?.items ?? [], [itineraryQuery.data]);
+  const items = useMemo(
+    () => itineraryQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [itineraryQuery.data]
+  );
   const places = useMemo(() => placesQuery.data ?? [], [placesQuery.data]);
-  const notes = useMemo(() => notesQuery.data?.items ?? [], [notesQuery.data]);
   const markers = useMemo(() => getItineraryMapMarkers(items, places), [items, places]);
   const route = useMemo(() => getItineraryRoute(items, places), [items, places]);
   const cachedRoute = useMemo(
@@ -170,9 +171,16 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           className="grid gap-4"
         >
           <TripEditorHeader key={`${trip.id}:${trip.version}`} trip={trip} />
-          <TripNotesEditor tripId={trip.id} notes={notes} />
+          <NotePanel tripId={trip.id} targetEntityType="TRIP" targetEntityId={trip.id} />
           <PlaceSearchBox tripId={trip.id} items={items} />
-          <TripItineraryPanel tripId={trip.id} items={items} places={places} />
+          <TripItineraryPanel
+            tripId={trip.id}
+            items={items}
+            places={places}
+            hasNextPage={itineraryQuery.hasNextPage}
+            isFetchingNextPage={itineraryQuery.isFetchingNextPage}
+            onLoadMore={() => void itineraryQuery.fetchNextPage()}
+          />
         </motion.div>
 
         <aside className="lg:sticky lg:top-20">

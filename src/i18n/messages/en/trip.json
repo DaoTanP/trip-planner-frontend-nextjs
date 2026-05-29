@@ -23,7 +23,20 @@
     "notes": {
       "title": "Notes",
       "placeholder": "Write a planning note",
-      "add": "Add note"
+      "replyPlaceholder": "Write a reply",
+      "add": "Add note",
+      "reply": "Reply",
+      "edit": "Edit note",
+      "delete": "Delete note",
+      "save": "Save",
+      "cancel": "Cancel",
+      "empty": "No notes yet",
+      "deleted": "This note was deleted.",
+      "edited": "(edited)",
+      "pending": "(pending)",
+      "unknownAuthor": "Unknown collaborator",
+      "loadMore": "Load more notes",
+      "loadingMore": "Loading notes"
     },
     "placeSearch": {
       "title": "Place search",
@@ -39,7 +52,9 @@
       "items": "{count, plural, =0 {No stops} =1 {# stop} other {# stops}}",
       "empty": "Add places, activities, reminders, or flexible ideas to start shaping the route.",
       "addPlaceholder": "Add a stop, activity, or reminder",
-      "add": "Add"
+      "add": "Add",
+      "loadMore": "Load more stops",
+      "loadingMore": "Loading stops"
     },
     "item": {
       "drag": "Reorder itinerary item",

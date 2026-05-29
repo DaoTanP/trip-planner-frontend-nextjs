@@ -3,18 +3,30 @@ import { apiEndpoints } from "@/services/api/endpoints";
 import type { ApiSuccessResponse } from "@/types/api";
 
 import type {
-  CursorPage,
-  CreateNotePayload,
   CreateTripPayload,
   Trip,
   TripCollaborator,
   TripDetail,
-  TripEditorNote,
   TripExpenses,
   TripExpensesPage,
+  TripMutationEventsPage,
   TripsListMeta
 } from "../types/trip.types";
-import type { CursorPaginationMeta, UpdateTripRequestDto } from "@/services/api/contracts";
+import type {
+  CursorPaginationMeta,
+  ListMutationEventsQueryDto,
+  UpdateTripRequestDto
+} from "@/services/api/contracts";
+
+function withMutationEventParams(url: string, params?: ListMutationEventsQueryDto) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.afterRevision) searchParams.set("afterRevision", params.afterRevision);
+  if (params?.limit) searchParams.set("limit", String(params.limit));
+
+  const queryString = searchParams.toString();
+  return queryString ? `${url}?${queryString}` : url;
+}
 
 export async function getTrips(signal?: AbortSignal) {
   const response = await apiGet<ApiSuccessResponse<Trip[], TripsListMeta>>(
@@ -55,26 +67,6 @@ export async function updateTrip(tripId: string, payload: UpdateTripRequestDto) 
   return response.data.trip;
 }
 
-export async function createNote(tripId: string, payload: CreateNotePayload) {
-  const response = await apiPost<
-    ApiSuccessResponse<{ note: TripEditorNote; clientMutationId?: string }>,
-    CreateNotePayload
-  >(apiEndpoints.trips.notes(tripId), payload);
-
-  return response.data.note;
-}
-
-export async function getTripNotes(tripId: string, signal?: AbortSignal) {
-  const response = await apiGet<
-    ApiSuccessResponse<{ notes: TripEditorNote[] }, { pagination: CursorPaginationMeta }>
-  >(apiEndpoints.trips.notes(tripId), signal);
-
-  return {
-    items: response.data.notes,
-    pagination: response.meta.pagination
-  } satisfies CursorPage<TripEditorNote>;
-}
-
 export async function getTripCollaborators(tripId: string, signal?: AbortSignal) {
   const response = await apiGet<ApiSuccessResponse<{ collaborators: TripCollaborator[] }>>(
     apiEndpoints.trips.collaborators(tripId),
@@ -93,6 +85,19 @@ export async function getTripExpenses(tripId: string, signal?: AbortSignal) {
     ...response.data,
     pagination: response.meta.pagination
   } satisfies TripExpensesPage;
+}
+
+export async function getTripMutationEvents(
+  tripId: string,
+  params?: ListMutationEventsQueryDto,
+  signal?: AbortSignal
+) {
+  const response = await apiGet<ApiSuccessResponse<TripMutationEventsPage>>(
+    withMutationEventParams(apiEndpoints.trips.mutationEvents(tripId), params),
+    signal
+  );
+
+  return response.data;
 }
 
 export async function deleteTrip(tripId: string) {

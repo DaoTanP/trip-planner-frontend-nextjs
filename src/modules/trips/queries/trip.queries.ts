@@ -15,8 +15,8 @@ export const tripKeys = {
   detail: (tripId: string) => [...tripKeys.all, "detail", tripId] as const,
   collaborators: (tripId: string) => [...tripKeys.detail(tripId), "collaborators"] as const,
   expenses: (tripId: string) => [...tripKeys.detail(tripId), "expenses"] as const,
-  mutationEvents: (tripId: string, afterRevision?: string) =>
-    [...tripKeys.detail(tripId), "mutation-events", afterRevision ?? "0"] as const
+  mutationEvents: (tripId: string, sinceRevision?: string) =>
+    [...tripKeys.detail(tripId), "mutation-events", sinceRevision ?? "0"] as const
 };
 
 export function tripsQueryOptions() {
@@ -50,16 +50,16 @@ export function tripExpensesQueryOptions(tripId: string) {
   });
 }
 
-export function tripMutationEventsQueryOptions(tripId: string, afterRevision?: string) {
+export function tripMutationEventsQueryOptions(tripId: string, sinceRevision?: string) {
   return queryOptions({
-    queryKey: tripKeys.mutationEvents(tripId, afterRevision),
+    queryKey: tripKeys.mutationEvents(tripId, sinceRevision),
     queryFn: ({ signal }) =>
       getTripMutationEvents(
         tripId,
-        afterRevision === undefined ? undefined : { afterRevision },
+        sinceRevision === undefined ? undefined : { sinceRevision },
         signal
       ),
-    enabled: afterRevision !== undefined,
+    enabled: sinceRevision !== undefined,
     staleTime: 5_000
   });
 }

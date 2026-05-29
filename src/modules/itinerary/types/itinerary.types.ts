@@ -1,6 +1,7 @@
 import type {
   CreateItineraryItemRequestDto,
   CursorPaginationMeta,
+  DeleteItineraryItemQueryDto,
   ItineraryItemDto,
   ReorderItineraryItemsResponseDto,
   ReorderItineraryItemsRequestDto,
@@ -10,6 +11,7 @@ import type {
 export type ItineraryItem = ItineraryItemDto;
 export type CreateItineraryItemPayload = CreateItineraryItemRequestDto;
 export type UpdateItineraryItemPayload = UpdateItineraryItemRequestDto;
+export type DeleteItineraryItemQuery = DeleteItineraryItemQueryDto;
 export type ReorderItineraryItemsPayload = ReorderItineraryItemsRequestDto;
 export type ReorderItineraryItemsResult = ReorderItineraryItemsResponseDto;
 export type ItineraryItemMutationResult = {

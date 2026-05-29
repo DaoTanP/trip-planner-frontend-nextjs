@@ -19,6 +19,7 @@ import { decodePolyline } from "@/modules/map/utils/polyline";
 import { itineraryInfiniteQueryOptions } from "@/modules/itinerary/queries/itinerary.queries";
 import { NotePanel } from "@/modules/notes/components/note-panel";
 import { tripPlacesQueryOptions } from "@/modules/places/queries/place.queries";
+import { useTripDeltaSync } from "@/modules/sync/hooks/use-trip-delta-sync";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
 import { tripDetailQueryOptions } from "../../queries/trip.queries";
@@ -51,6 +52,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const itineraryQuery = useInfiniteQuery(itineraryInfiniteQueryOptions(tripId));
   const placesQuery = useQuery(tripPlacesQueryOptions(tripId));
   const routeSegmentsQuery = useQuery(tripRouteSegmentsQueryOptions(tripId));
+  useTripDeltaSync(tripId);
   const viewport = usePlannerStore((state) => state.viewport);
   const selectedItemId = usePlannerStore((state) => state.selectedItemId);
   const hoveredItemId = usePlannerStore((state) => state.hoveredItemId);

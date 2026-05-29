@@ -33,6 +33,7 @@ function withNoteParams(url: string, params?: ListNotesQueryDto) {
 function withDeleteParams(url: string, params?: DeleteNoteQuery) {
   const searchParams = new URLSearchParams();
 
+  if (params?.expectedRevision) searchParams.set("expectedRevision", params.expectedRevision);
   if (params?.clientMutationId) searchParams.set("clientMutationId", params.clientMutationId);
   if (params?.deviceId) searchParams.set("deviceId", params.deviceId);
 

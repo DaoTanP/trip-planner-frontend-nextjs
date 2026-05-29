@@ -48,6 +48,7 @@ src/
     places/
     profile/
     map/
+    sync/
   providers/
   services/
     api/
@@ -72,6 +73,7 @@ and composes feature code from:
 - `src/modules/itinerary` for itinerary item services and optimistic mutations.
 - `src/modules/places` for place search.
 - `src/modules/map` for provider-shaped map rendering and map math.
+- `src/modules/sync` for mutation queue state, revision catch-up, entity patchers, and reconciliation utilities.
 - `src/stores/use-planner-store.ts` for local UI interaction state.
 
 The editor workflow is inspired by Wanderlog-style trip planning:
@@ -279,6 +281,15 @@ Trip summary DTOs do not include `Destination` or `destinationNames`. Cards and 
 
 Trip revisions are server state. The latest revision comes from trip detail and mutation responses, stays in TanStack Query, and is used as the future reconnect/offline catch-up boundary rather than duplicated into Zustand.
 
+`src/modules/sync` is a runtime adapter over TanStack Query, not a new state store. It owns:
+
+- an in-memory mutation queue with `queued`, `sending`, `acknowledged`, `failed`, `retrying`, and `conflicted` states.
+- entity patchers for trip, itinerary item, note, expense, collaborator, and route segment caches.
+- revision-gap reconciliation through `GET /trips/:tripId/mutation-events`.
+- development-only sync diagnostics.
+
+The sync runtime never stores server entities itself. It applies deterministic patches to existing query caches and leaves long-lived UI state in Zustand.
+
 ## Forms
 
 Forms use React Hook Form plus Zod schema factories:
@@ -399,9 +410,11 @@ Reorder hooks:
 4. roll back on error
 5. reconcile only the server-returned moved or affected items on success
 
-`clientMutationId` is sent with reorder and create requests so future realtime fanout can ignore a client's own echoed mutation. Item `version`/`expectedVersion` fields are used for stale update detection. Mutation responses include the latest trip revision; mutation hooks patch `tripKeys.detail(tripId)` rather than refetching the whole editor. The frontend does not send full reordered arrays.
+`clientMutationId` is sent with replayable mutations so future realtime fanout can ignore a client's own echoed mutation. Item `version`/`expectedVersion` fields are used for stale entity detection, and `expectedRevision` is sent when the mutation depends on the current trip revision. `REVISION_CONFLICT` responses are handled as sync conflicts, not generic form failures. Mutation responses include the latest trip revision; mutation hooks patch `tripKeys.detail(tripId)` rather than refetching the whole editor. The frontend does not send full reordered arrays.
 
 Itinerary and notes use `useInfiniteQuery` over cursor APIs. Note queries are keyed by normalized filters such as `tripId`, `targetEntityType`, `targetEntityId`, and `parentNoteId`, so trip notes, itinerary item notes, expense notes, place notes, and replies reuse the same cache shape. Services preserve `meta.pagination`, query options use `nextCursor`, and mutation hooks patch loaded pages surgically. This is mobile/offline friendly because the client can hydrate partial resources, preserve scroll stability, and catch up later by revision.
+
+Optimistic mutation hooks enqueue the mutation intent in `src/modules/sync/queue`, apply the local cache patch, send the API request with the same `clientMutationId`, then acknowledge, fail, or mark the queue entry conflicted. The queue is intentionally lightweight and in-memory for now; it defines the lifecycle needed by a future persisted offline queue without replacing TanStack Query.
 
 ## Responsive Layout
 
@@ -414,13 +427,14 @@ Tablet and mobile collapse to a single column with the map below the planner. Fi
 
 ## Future Realtime
 
-Realtime should not replace React Query. Add a collaboration transport later that subscribes to trip mutation events and patches the smallest matching cache: itinerary item events patch the item cursor page under `itineraryKeys.items(tripId)`, route events patch `mapRouteKeys.byTrip(tripId)`, note events patch matching `noteKeys.list(filters)` pages, and trip metadata events patch `tripKeys.detail(tripId)`.
+Realtime should not replace React Query. The current sync runtime already catches up through `GET /trips/:tripId/mutation-events?sinceRevision=...`, applies entity patches, and records mutation queue state. Add a collaboration transport later that feeds the same reconciliation functions instead of writing a second cache path.
 
 Recommended future boundaries:
 
 - `src/modules/collaboration` for websocket/presence client code
 - mutation `clientMutationId` for echo suppression
 - trip `revision` plus `GET /trips/:tripId/mutation-events` for reconnect catch-up
+- `src/modules/sync/reconciliation` for websocket, reconnect, and offline replay patch application
 - Redis-backed presence on the backend
 - presence UI in the planner header, not inside map provider components
 

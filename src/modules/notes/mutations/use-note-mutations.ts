@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 
 import type { TripDetailDto } from "@/services/api/contracts";
+import { runQueuedMutation } from "@/modules/sync/runtime/sync-runtime";
 import { tripKeys } from "@/modules/trips/queries/trip.queries";
 
 import { noteKeys } from "../queries/note.queries";
@@ -99,6 +100,51 @@ const patchTripRevision = (
   );
 };
 
+const getTripRevision = (queryClient: QueryClient, tripId: string | null) =>
+  tripId ? queryClient.getQueryData<TripDetailDto>(tripKeys.detail(tripId))?.revision : undefined;
+
+const findCachedNote = (queryClient: QueryClient, noteId: string) => {
+  const noteQueries = queryClient.getQueriesData<NotesInfiniteData>({
+    queryKey: noteKeys.lists()
+  });
+
+  for (const [, data] of noteQueries) {
+    const note = data?.pages
+      .flatMap((page) => page.items)
+      .find((candidate) => candidate.id === noteId);
+    if (note) {
+      return note;
+    }
+  }
+
+  return null;
+};
+
+const resolveCreateTripId = (payload: CreateNotePayload, filters: ListNotesQuery) =>
+  payload.tripId ??
+  filters.tripId ??
+  (payload.targetEntityType === "TRIP" ? payload.targetEntityId : null);
+
+const withNoteMutationMeta = <
+  TPayload extends { clientMutationId?: string; expectedRevision?: string }
+>(
+  payload: TPayload,
+  queryClient: QueryClient,
+  tripId: string | null
+): TPayload & { clientMutationId: string } => {
+  const nextPayload: TPayload & { clientMutationId: string } = {
+    ...payload,
+    clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
+  };
+  const expectedRevision = payload.expectedRevision ?? getTripRevision(queryClient, tripId);
+
+  if (expectedRevision !== undefined) {
+    nextPayload.expectedRevision = expectedRevision;
+  }
+
+  return nextPayload;
+};
+
 const createOptimisticNote = (
   payload: CreateNotePayload,
   clientMutationId: string
@@ -129,13 +175,26 @@ export function useCreateNoteMutation(filters: ListNotesQuery) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: CreateNotePayload) =>
-      createNote({
-        ...payload,
-        clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
-      }),
+    mutationFn: (payload: CreateNotePayload) => {
+      const tripId = resolveCreateTripId(payload, filters);
+      const nextPayload = withNoteMutationMeta(payload, queryClient, tripId);
+
+      if (!tripId) {
+        return createNote(nextPayload);
+      }
+
+      return runQueuedMutation({
+        tripId,
+        clientMutationId: nextPayload.clientMutationId,
+        entityType: "NOTE",
+        operation: "ENTITY_CREATED",
+        payload: nextPayload as Record<string, unknown>,
+        mutationFn: () => createNote(nextPayload)
+      });
+    },
     onMutate: async (payload) => {
       const clientMutationId = payload.clientMutationId ?? crypto.randomUUID();
+      payload.clientMutationId = clientMutationId;
       const optimisticNote = createOptimisticNote(
         { ...payload, clientMutationId },
         clientMutationId
@@ -168,12 +227,26 @@ export function useUpdateNoteMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ noteId, payload }: { noteId: string; payload: UpdateNotePayload }) =>
-      updateNote(noteId, {
-        ...payload,
-        clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
-      }),
+    mutationFn: ({ noteId, payload }: { noteId: string; payload: UpdateNotePayload }) => {
+      const tripId = findCachedNote(queryClient, noteId)?.tripId ?? null;
+      const nextPayload = withNoteMutationMeta(payload, queryClient, tripId);
+
+      if (!tripId) {
+        return updateNote(noteId, nextPayload);
+      }
+
+      return runQueuedMutation({
+        tripId,
+        clientMutationId: nextPayload.clientMutationId,
+        entityType: "NOTE",
+        entityId: noteId,
+        operation: "ENTITY_UPDATED",
+        payload: nextPayload as Record<string, unknown>,
+        mutationFn: () => updateNote(noteId, nextPayload)
+      });
+    },
     onMutate: async ({ noteId, payload }) => {
+      payload.clientMutationId = payload.clientMutationId ?? crypto.randomUUID();
       await queryClient.cancelQueries({ queryKey: noteKeys.lists() });
       const previous = queryClient.getQueriesData<NotesInfiniteData>({
         queryKey: noteKeys.lists()
@@ -212,12 +285,28 @@ export function useDeleteNoteMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ noteId, params }: { noteId: string; params?: DeleteNoteQuery }) =>
-      deleteNote(noteId, {
-        ...params,
-        clientMutationId: params?.clientMutationId ?? crypto.randomUUID()
-      }),
-    onMutate: async ({ noteId }) => {
+    mutationFn: ({ noteId, params }: { noteId: string; params?: DeleteNoteQuery }) => {
+      const tripId = findCachedNote(queryClient, noteId)?.tripId ?? null;
+      const nextParams = withNoteMutationMeta(params ?? {}, queryClient, tripId);
+
+      if (!tripId) {
+        return deleteNote(noteId, nextParams);
+      }
+
+      return runQueuedMutation({
+        tripId,
+        clientMutationId: nextParams.clientMutationId,
+        entityType: "NOTE",
+        entityId: noteId,
+        operation: "ENTITY_DELETED",
+        payload: nextParams as Record<string, unknown>,
+        mutationFn: () => deleteNote(noteId, nextParams)
+      });
+    },
+    onMutate: async ({ noteId, params }) => {
+      if (params) {
+        params.clientMutationId = params.clientMutationId ?? crypto.randomUUID();
+      }
       await queryClient.cancelQueries({ queryKey: noteKeys.lists() });
       const previous = queryClient.getQueriesData<NotesInfiniteData>({
         queryKey: noteKeys.lists()

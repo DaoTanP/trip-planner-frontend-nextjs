@@ -3,6 +3,7 @@ import type {
   CursorPaginationMeta,
   ExpenseCategoryDto,
   ExpenseDto,
+  ListMutationEventsResponseDto,
   MutationEventDto,
   PaginationMeta,
   RouteSegmentDto,
@@ -34,7 +35,4 @@ export type TripExpensesPage = TripExpenses & {
   pagination: CursorPaginationMeta;
 };
 
-export type TripMutationEventsPage = {
-  events: TripMutationEvent[];
-  latestRevision: string;
-};
+export type TripMutationEventsPage = ListMutationEventsResponseDto;

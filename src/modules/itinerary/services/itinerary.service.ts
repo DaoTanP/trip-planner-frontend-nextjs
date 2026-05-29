@@ -4,6 +4,7 @@ import type { ApiSuccessResponse } from "@/types/api";
 
 import type {
   CreateItineraryItemPayload,
+  DeleteItineraryItemQuery,
   ItineraryItemMutationResult,
   ItineraryItem,
   ItineraryItemsPage,
@@ -22,6 +23,17 @@ function withCursorParams(url: string, params?: CursorParams) {
 
   if (params?.cursor) searchParams.set("cursor", params.cursor);
   if (params?.limit) searchParams.set("limit", String(params.limit));
+
+  const queryString = searchParams.toString();
+  return queryString ? `${url}?${queryString}` : url;
+}
+
+function withDeleteParams(url: string, params?: DeleteItineraryItemQuery) {
+  const searchParams = new URLSearchParams();
+
+  if (params?.expectedRevision) searchParams.set("expectedRevision", params.expectedRevision);
+  if (params?.clientMutationId) searchParams.set("clientMutationId", params.clientMutationId);
+  if (params?.deviceId) searchParams.set("deviceId", params.deviceId);
 
   const queryString = searchParams.toString();
   return queryString ? `${url}?${queryString}` : url;
@@ -60,8 +72,8 @@ export async function updateItineraryItem(itemId: string, payload: UpdateItinera
   return response.data;
 }
 
-export async function deleteItineraryItem(itemId: string) {
-  await apiDelete<void>(apiEndpoints.itinerary.item(itemId));
+export async function deleteItineraryItem(itemId: string, params?: DeleteItineraryItemQuery) {
+  await apiDelete<void>(withDeleteParams(apiEndpoints.itinerary.item(itemId), params));
 
   return itemId;
 }

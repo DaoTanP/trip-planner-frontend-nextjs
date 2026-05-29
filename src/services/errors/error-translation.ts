@@ -17,6 +17,7 @@ const errorKeyByCode: Record<string, string> = {
   FORBIDDEN: "errors.forbidden",
   NOT_FOUND: "errors.notFound.title",
   CONFLICT: "errors.conflict",
+  REVISION_CONFLICT: "errors.conflict",
   RATE_LIMITED: "errors.rateLimited",
   INTERNAL_SERVER_ERROR: "errors.unknown"
 };

@@ -15,6 +15,7 @@ These conventions keep the codebase predictable as it grows.
 - Itinerary item services and mutations belong in `src/modules/itinerary`.
 - Place search belongs in `src/modules/places`.
 - Map rendering and provider math belong in `src/modules/map`.
+- Sync runtime code belongs in `src/modules/sync`; do not put mutation queues or reconciliation helpers inside feature components.
 - UI-only trip editor state belongs in `src/stores/use-planner-store.ts`.
 - Itinerary items are a flat trip-scoped sequence. Do not model day ownership in frontend state or service contracts.
 - Date/day/location/custom grouping is presentation-only and must be computed from flat items.
@@ -86,12 +87,16 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Mutations that affect trip detail should patch or invalidate `tripKeys.detail(tripId)`.
 - Mutations that affect itinerary items should patch `itineraryKeys.items(tripId)` and only invalidate related place/route/trip summary queries when needed.
 - Mutations that return trip `revision` should patch `tripKeys.detail(tripId)` with the new revision. Do not store revisions in Zustand.
+- Replayable mutations should send `clientMutationId`, optional `deviceId`, and `expectedRevision` when the mutation depends on the current trip revision.
+- Use the sync runtime queue for optimistic mutation lifecycle state. Do not create a second global store for queued mutations.
+- Delta sync should call `GET /trips/:tripId/mutation-events` through `src/modules/sync/services` and patch existing query caches through sync patchers.
 
 ## Query And State
 
 - Use Zustand only for selected item, selected marker, hover state, viewport, panel state, and draft-only interaction state.
 - Do not duplicate server records inside Zustand.
 - Keep optimistic cache updates centralized inside mutation hooks.
+- Keep deterministic cache patching centralized in `src/modules/sync/patchers` when applying mutation events or future websocket events.
 - Use query invalidation or targeted cache patching after successful itinerary mutations.
 - Do not store itinerary items, places, notes, route segments, collaborators, or expenses in Zustand.
 - Note panels may be reused by trips, itinerary items, expenses, places, and future route/collaboration surfaces. They must not duplicate note server state outside TanStack Query.

@@ -16,6 +16,7 @@ export type ApiErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
+  | "REVISION_CONFLICT"
   | "RATE_LIMITED"
   | "INTERNAL_SERVER_ERROR";
 
@@ -381,6 +382,13 @@ export type MutationEventDto = {
   createdAt: string;
 };
 
+export type RevisionConflictDetailsDto = {
+  currentRevision: string;
+  latestTripRevision: string;
+  entityVersion?: number;
+  latestEntity?: Record<string, unknown> | null;
+};
+
 export type ListTripsQueryDto = {
   status?: TripStatusDto;
   page?: number;
@@ -406,6 +414,7 @@ export type UpdateTripRequestDto = Partial<
     coverImageUrl: string | null;
     preferences: Record<string, unknown> | null;
     metadata: Record<string, unknown> | null;
+    expectedRevision: string;
     clientMutationId: string;
     deviceId: string;
   }
@@ -429,6 +438,7 @@ export type CreateItineraryItemRequestDto = {
   durationMinutes?: number;
   bookingInfo?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  expectedRevision?: string;
   clientMutationId?: string;
   deviceId?: string;
 };
@@ -452,6 +462,7 @@ export type UpdateItineraryItemRequestDto = Partial<{
   bookingInfo: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
   expectedVersion: number;
+  expectedRevision: string;
   clientMutationId: string;
   deviceId: string;
 }>;
@@ -461,6 +472,7 @@ export type ReorderItineraryItemsRequestDto = {
   beforeItemId?: string | null;
   afterItemId?: string | null;
   expectedVersion?: number;
+  expectedRevision?: string;
   clientMutationId?: string;
   deviceId?: string;
 };
@@ -472,6 +484,12 @@ export type ReorderItineraryItemsResponseDto = {
   clientMutationId?: string;
 };
 
+export type DeleteItineraryItemQueryDto = {
+  expectedRevision?: string;
+  clientMutationId?: string;
+  deviceId?: string;
+};
+
 export type CreateNoteRequestDto = {
   tripId?: string;
   targetEntityType: NoteTargetEntityTypeDto;
@@ -481,6 +499,7 @@ export type CreateNoteRequestDto = {
   mentions?: Record<string, unknown>[] | null;
   attachments?: Record<string, unknown>[] | null;
   metadata?: Record<string, unknown> | null;
+  expectedRevision?: string;
   clientMutationId?: string;
   deviceId?: string;
 };
@@ -491,11 +510,13 @@ export type UpdateNoteRequestDto = Partial<{
   attachments: Record<string, unknown>[] | null;
   metadata: Record<string, unknown> | null;
   expectedVersion: number;
+  expectedRevision: string;
   clientMutationId: string;
   deviceId: string;
 }>;
 
 export type DeleteNoteQueryDto = {
+  expectedRevision?: string;
   clientMutationId?: string;
   deviceId?: string;
 };
@@ -507,7 +528,16 @@ export type MutationResponseMetaDto = {
 
 export type ListMutationEventsQueryDto = {
   afterRevision?: string;
+  sinceRevision?: string;
+  cursor?: string;
   limit?: number;
+};
+
+export type ListMutationEventsResponseDto = {
+  events: MutationEventDto[];
+  latestRevision: string;
+  hasMore: boolean;
+  nextCursor: string | null;
 };
 
 export type ListPlacesQueryDto = {
@@ -658,6 +688,7 @@ export type ApiV1Paths = {
       }>;
     };
     delete: {
+      query: DeleteItineraryItemQueryDto;
       response: void;
     };
   };
@@ -718,7 +749,7 @@ export type ApiV1Paths = {
   "/trips/{tripId}/mutation-events": {
     get: {
       query: ListMutationEventsQueryDto;
-      response: ApiSuccessResponse<{ events: MutationEventDto[]; latestRevision: string }>;
+      response: ApiSuccessResponse<ListMutationEventsResponseDto>;
     };
   };
   "/places": {

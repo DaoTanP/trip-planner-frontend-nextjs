@@ -41,7 +41,8 @@ AI agents extending the trip editor must preserve:
 - Keep itinerary mutation logic isolated in `src/modules/itinerary`.
 - Keep unified collaborative note services, queries, mutations, hooks, and panels isolated in `src/modules/notes`.
 - Keep itinerary items, places, notes, routes, collaborators, and expenses in granular TanStack Query caches.
-- Keep trip revisions in TanStack Query and use mutation-event queries only for future catch-up/sync boundaries.
+- Keep trip revisions in TanStack Query and use `src/modules/sync` for mutation-event catch-up, reconciliation, and debug utilities.
+- Keep mutation queue lifecycle state in `src/modules/sync/queue`; do not add Redux or another global state library.
 - Use dnd-kit for drag interactions.
 - Preserve optimistic rollback behavior for reorder, add, edit, and remove flows.
 - Update backend contracts before using new API fields in frontend code.
@@ -62,6 +63,7 @@ AI agents extending the trip editor must preserve:
 - Duplicate backend DTOs inside feature modules.
 - Bypass centralized API utilities.
 - Create feature-specific global state when local module state is sufficient.
+- Write websocket/offline patch logic directly inside feature components instead of routing it through sync patchers.
 
 ## Feature Work Checklist
 
@@ -76,9 +78,10 @@ AI agents extending the trip editor must preserve:
 9. Keep `app/` files thin.
 10. Run typecheck and lint.
 11. Verify optimistic update rollback behavior.
-12. Verify query invalidation behavior.
-13. Verify responsive planner/map behavior.
-14. Verify drag-and-drop accessibility behavior.
+12. Verify sync queue acknowledgement/failure/conflict behavior when touching optimistic mutations.
+13. Verify query invalidation behavior.
+14. Verify responsive planner/map behavior.
+15. Verify drag-and-drop accessibility behavior.
 
 ## i18n Rules
 
@@ -112,6 +115,7 @@ Examples:
 - Sync backend API contracts into `src/services/api/contracts/v1.ts` before using new fields.
 - Prefer optimistic updates with rollback-safe mutations for itinerary interactions.
 - Invalidate or patch TanStack Query data after successful mutations.
+- Use `expectedRevision` for revision-sensitive optimistic mutations and treat `REVISION_CONFLICT` as a reconciliation state.
 
 ## UI Rules
 
@@ -133,10 +137,10 @@ Examples:
 - Keep viewport, filters, selected places, and temporary drag state in client stores.
 - Keep persisted trips, stops, and places in TanStack Query.
 - Keep place autocomplete, place details, geocoding, reverse geocoding, route, and distance/duration requests in service/query layers.
-- Future WebSocket events should invalidate or patch TanStack Query data, not bypass it with duplicated stores.
-- Future WebSocket events should patch the smallest granular cache: itinerary, notes, places, routes, collaborators, expenses, or trip metadata.
-- Future note events should patch matching `noteKeys.list(filters)` pages, not trip detail or entity-specific note caches.
-- Future reconnect/offline flows should catch up through `GET /trips/:tripId/mutation-events` using the latest trip revision from TanStack Query.
+- WebSocket, polling, reconnect, and future offline replay should all flow through `src/modules/sync/reconciliation`.
+- Mutation events should patch the smallest granular cache: itinerary, notes, places, routes, collaborators, expenses, or trip metadata.
+- Note events should patch matching `noteKeys.list(filters)` pages, not trip detail or entity-specific note caches.
+- Reconnect/offline flows should catch up through `GET /trips/:tripId/mutation-events` using the latest trip revision from TanStack Query.
 - Keep provider-specific logic isolated inside `src/modules/map/providers`.
 - Do not couple itinerary rendering to specific map providers.
 - Synchronize marker selection and itinerary selection through shared interaction state only.

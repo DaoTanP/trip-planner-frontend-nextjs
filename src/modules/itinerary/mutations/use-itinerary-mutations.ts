@@ -3,6 +3,7 @@
 import { type InfiniteData, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { placeKeys } from "@/modules/places/queries/place.queries";
+import { runQueuedMutation } from "@/modules/sync/runtime/sync-runtime";
 import { tripKeys } from "@/modules/trips/queries/trip.queries";
 import type { TripDetail } from "@/modules/trips/types/trip.types";
 
@@ -15,6 +16,7 @@ import {
 } from "../services/itinerary.service";
 import type {
   CreateItineraryItemPayload,
+  DeleteItineraryItemQuery,
   ItineraryItem,
   ItineraryItemsPage,
   ReorderItineraryItemsPayload,
@@ -91,15 +93,49 @@ const patchTripDetail = (
   patch: (trip: TripDetail) => TripDetail
 ) => (current ? patch(current) : current);
 
+const getTripRevision = (queryClient: ReturnType<typeof useQueryClient>, tripId: string) =>
+  queryClient.getQueryData<TripDetail>(tripKeys.detail(tripId))?.revision;
+
+const withItineraryMutationMeta = <
+  TPayload extends { clientMutationId?: string; expectedRevision?: string }
+>(
+  payload: TPayload,
+  queryClient: ReturnType<typeof useQueryClient>,
+  tripId: string
+): TPayload & { clientMutationId: string } => {
+  const nextPayload: TPayload & { clientMutationId: string } = {
+    ...payload,
+    clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
+  };
+  const expectedRevision = payload.expectedRevision ?? getTripRevision(queryClient, tripId);
+
+  if (expectedRevision !== undefined) {
+    nextPayload.expectedRevision = expectedRevision;
+  }
+
+  return nextPayload;
+};
+
+const normalizeDeleteInput = (
+  input: string | { itemId: string; params?: DeleteItineraryItemQuery }
+) => (typeof input === "string" ? { itemId: input } : input);
+
 export function useCreateItineraryItemMutation(tripId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: CreateItineraryItemPayload) =>
-      createItineraryItem(tripId, {
-        ...payload,
-        clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
-      }),
+    mutationFn: (payload: CreateItineraryItemPayload) => {
+      const nextPayload = withItineraryMutationMeta(payload, queryClient, tripId);
+
+      return runQueuedMutation({
+        tripId,
+        clientMutationId: nextPayload.clientMutationId,
+        entityType: "ITINERARY_ITEM",
+        operation: "ENTITY_CREATED",
+        payload: nextPayload as Record<string, unknown>,
+        mutationFn: () => createItineraryItem(tripId, nextPayload)
+      });
+    },
     onSuccess: (result) => {
       const item = result.item;
 
@@ -128,11 +164,19 @@ export function useUpdateItineraryItemMutation(tripId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ itemId, payload }: { itemId: string; payload: UpdateItineraryItemPayload }) =>
-      updateItineraryItem(itemId, {
-        ...payload,
-        clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
-      }),
+    mutationFn: ({ itemId, payload }: { itemId: string; payload: UpdateItineraryItemPayload }) => {
+      const nextPayload = withItineraryMutationMeta(payload, queryClient, tripId);
+
+      return runQueuedMutation({
+        tripId,
+        clientMutationId: nextPayload.clientMutationId,
+        entityType: "ITINERARY_ITEM",
+        entityId: itemId,
+        operation: "ENTITY_UPDATED",
+        payload: nextPayload as Record<string, unknown>,
+        mutationFn: () => updateItineraryItem(itemId, nextPayload)
+      });
+    },
     onMutate: async ({ itemId, payload }) => {
       await queryClient.cancelQueries({ queryKey: itineraryKeys.items(tripId) });
       const previousData = queryClient.getQueryData<ItineraryItemsInfiniteData>(
@@ -176,8 +220,22 @@ export function useDeleteItineraryItemMutation(tripId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (itemId: string) => deleteItineraryItem(itemId),
-    onMutate: async (itemId) => {
+    mutationFn: (input: string | { itemId: string; params?: DeleteItineraryItemQuery }) => {
+      const { itemId, params } = normalizeDeleteInput(input);
+      const nextParams = withItineraryMutationMeta(params ?? {}, queryClient, tripId);
+
+      return runQueuedMutation({
+        tripId,
+        clientMutationId: nextParams.clientMutationId,
+        entityType: "ITINERARY_ITEM",
+        entityId: itemId,
+        operation: "ENTITY_DELETED",
+        payload: nextParams as Record<string, unknown>,
+        mutationFn: () => deleteItineraryItem(itemId, nextParams)
+      });
+    },
+    onMutate: async (input) => {
+      const { itemId } = normalizeDeleteInput(input);
       await queryClient.cancelQueries({ queryKey: itineraryKeys.items(tripId) });
       const previousData = queryClient.getQueryData<ItineraryItemsInfiniteData>(
         itineraryKeys.items(tripId)
@@ -219,7 +277,19 @@ export function useReorderItineraryItemsMutation(tripId: string) {
     }: {
       payload: ReorderItineraryItemsPayload;
       optimisticItems: ItineraryItem[];
-    }) => reorderItineraryItems(tripId, payload),
+    }) => {
+      const nextPayload = withItineraryMutationMeta(payload, queryClient, tripId);
+
+      return runQueuedMutation({
+        tripId,
+        clientMutationId: nextPayload.clientMutationId,
+        entityType: "ITINERARY_ITEM",
+        entityId: nextPayload.itemId,
+        operation: "ENTITY_MOVED",
+        payload: nextPayload as Record<string, unknown>,
+        mutationFn: () => reorderItineraryItems(tripId, nextPayload)
+      });
+    },
     onMutate: async ({ optimisticItems }) => {
       await queryClient.cancelQueries({ queryKey: itineraryKeys.items(tripId) });
       const previousData = queryClient.getQueryData<ItineraryItemsInfiniteData>(

@@ -22,6 +22,8 @@ function withMutationEventParams(url: string, params?: ListMutationEventsQueryDt
   const searchParams = new URLSearchParams();
 
   if (params?.afterRevision) searchParams.set("afterRevision", params.afterRevision);
+  if (params?.sinceRevision) searchParams.set("sinceRevision", params.sinceRevision);
+  if (params?.cursor) searchParams.set("cursor", params.cursor);
   if (params?.limit) searchParams.set("limit", String(params.limit));
 
   const queryString = searchParams.toString();

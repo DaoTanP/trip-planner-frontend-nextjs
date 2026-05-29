@@ -85,6 +85,14 @@ The editor workflow is inspired by Wanderlog-style trip planning:
 - itinerary cards with optional presentation grouping
 - direct manipulation interactions
 
+The Phase 4 planner workspace keeps the editor product surface dense and operational rather than form-like:
+
+- trip header, timeline, filters, insights, and threaded notes live in the left planning workspace.
+- the map is a persistent right workspace on desktop and a bottom-sheet workspace on mobile.
+- quick add and place search are floating overlays, not embedded form sections.
+- selected itinerary-item notes use the unified notes module and the same `/notes` cache shape as trip notes.
+- trip end date, grouping labels, route gaps, idle gaps, and planning warnings are derived from normalized query data in the UI.
+
 ## Runtime and Docker
 
 Node.js `24.15.0` is the single runtime target.
@@ -338,6 +346,8 @@ The trip editor derives `MapMarker[]` and fallback route points from trip DTOs, 
 
 The editor now derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. `RouteSegment` queries provide cached encoded polylines keyed by provider, from/to place, travel mode, and route profile hash when available; provider route queries remain a fallback for routes that have not been cached yet.
 
+Timeline and map synchronization is ID-based. Timeline cards write selected and hovered item IDs to `use-planner-store`; map providers receive only selected/hovered marker IDs and callbacks. Selecting a timeline item moves the map viewport toward the item's normalized place, and selecting a marker selects the item and lets the timeline scroll the card into view. Providers do not know about notes, filters, reorder rules, or itinerary mutations.
+
 MapLibre renders normalized map contracts only:
 
 - `MapMarker[]` for marker positions and labels.
@@ -420,10 +430,10 @@ Optimistic mutation hooks enqueue the mutation intent in `src/modules/sync/queue
 
 Desktop uses two columns:
 
-- left planner: editable details, notes, search, itinerary timeline
-- right map: sticky viewport-height panel
+- left planner: compact trip header, filters/search, timeline, insights, and threaded notes
+- right map: sticky viewport-height workspace with route, marker, hover, selection, and fit controls
 
-Tablet and mobile collapse to a single column with the map below the planner. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.
+Tablet and mobile use a planner-first workflow with floating quick actions and a map bottom sheet. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.
 
 ## Future Realtime
 

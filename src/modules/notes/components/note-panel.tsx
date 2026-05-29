@@ -262,9 +262,9 @@ export function NotePanel(props: NotePanelProps) {
   return (
     <section className="rounded-md border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <NotebookPen className="size-4" aria-hidden="true" />
-          {props.title ?? t("title")}
+        <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+          <NotebookPen className="size-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">{props.title ?? t("title")}</span>
         </h2>
         <span className="text-xs text-muted-foreground">{notes.length}</span>
       </div>

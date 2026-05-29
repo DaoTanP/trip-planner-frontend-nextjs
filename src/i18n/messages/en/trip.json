@@ -49,6 +49,9 @@
     },
     "notes": {
       "title": "Notes",
+      "workspaceTitle": "Planning notes",
+      "tripTitle": "Trip notes",
+      "itemTitle": "Notes for {title}",
       "placeholder": "Write a planning note",
       "replyPlaceholder": "Write a reply",
       "add": "Add note",

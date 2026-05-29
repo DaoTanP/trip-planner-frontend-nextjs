@@ -16,7 +16,7 @@ import {
   Wifi
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -49,13 +49,14 @@ export function TripEditorHeader({
   const updateTrip = useUpdateTripMutation(trip.id);
   const setPlaceSearchOpen = usePlannerStore((state) => state.setPlaceSearchOpen);
   const setCommandPaletteOpen = usePlannerStore((state) => state.setCommandPaletteOpen);
-  const [title, setTitle] = useState(trip.title);
-  const [description, setDescription] = useState(trip.description ?? "");
-
-  useEffect(() => {
-    setTitle(trip.title);
-    setDescription(trip.description ?? "");
-  }, [trip.description, trip.title, trip.version]);
+  const [draft, setDraft] = useState(() => ({
+    version: trip.version,
+    title: trip.title,
+    description: trip.description ?? ""
+  }));
+  const isDraftCurrent = draft.version === trip.version;
+  const title = isDraftCurrent ? draft.title : trip.title;
+  const description = isDraftCurrent ? draft.description : (trip.description ?? "");
 
   const isDirty = title !== trip.title || description !== (trip.description ?? "");
   const lastEdited = useMemo(
@@ -114,14 +115,26 @@ export function TripEditorHeader({
           <div className="min-w-0">
             <input
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) =>
+                setDraft({
+                  version: trip.version,
+                  title: event.target.value,
+                  description
+                })
+              }
               aria-label={t("titleLabel")}
               placeholder={t("titlePlaceholder")}
               className="w-full rounded-sm bg-transparent text-xl font-semibold outline-none focus-visible:bg-muted sm:text-2xl"
             />
             <textarea
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) =>
+                setDraft({
+                  version: trip.version,
+                  title,
+                  description: event.target.value
+                })
+              }
               aria-label={t("descriptionLabel")}
               placeholder={t("descriptionPlaceholder")}
               className="mt-1 min-h-12 w-full resize-none rounded-sm bg-transparent text-sm text-muted-foreground outline-none focus-visible:bg-muted"
@@ -201,11 +214,19 @@ export function TripEditorHeader({
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
-          <HeaderStat icon={Route} label={t("header.stats.itinerary")} value={stats.itineraryCount} />
+          <HeaderStat
+            icon={Route}
+            label={t("header.stats.itinerary")}
+            value={stats.itineraryCount}
+          />
           <HeaderStat icon={MapPin} label={t("header.stats.places")} value={stats.placeCount} />
           <HeaderStat icon={Route} label={t("header.stats.distance")} value={distance} />
           <HeaderStat icon={Clock3} label={t("header.stats.travelTime")} value={travelTime} />
-          <HeaderStat icon={MessageSquare} label={t("header.stats.notes")} value={stats.noteCount} />
+          <HeaderStat
+            icon={MessageSquare}
+            label={t("header.stats.notes")}
+            value={stats.noteCount}
+          />
           <HeaderStat icon={WalletCards} label={t("header.stats.expenses")} value={totalExpenses} />
         </div>
 

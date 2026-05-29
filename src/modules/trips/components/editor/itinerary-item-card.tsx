@@ -18,7 +18,7 @@ import {
   Utensils
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -47,7 +47,9 @@ interface ItineraryItemCardProps {
   tripId: string;
   item: ItineraryItem;
   place?: PlaceDto | undefined;
-  routeSummary?: (RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never) | undefined;
+  routeSummary?:
+    | (RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never)
+    | undefined;
   syncState?: ItemSyncState | undefined;
 }
 
@@ -89,19 +91,20 @@ export function ItineraryItemCard({
   const setActiveRouteItemId = usePlannerStore((state) => state.setActiveRouteItemId);
   const updateItem = useUpdateItineraryItemMutation(tripId);
   const deleteItem = useDeleteItineraryItemMutation(tripId);
-  const [title, setTitle] = useState(item.title);
-  const [description, setDescription] = useState(item.description ?? "");
+  const [draft, setDraft] = useState(() => ({
+    version: item.version,
+    title: item.title,
+    description: item.description ?? ""
+  }));
+  const isDraftCurrent = draft.version === item.version;
+  const title = isDraftCurrent ? draft.title : item.title;
+  const description = isDraftCurrent ? draft.description : (item.description ?? "");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
     data: {
       type: "itinerary-item"
     }
   });
-
-  useEffect(() => {
-    setTitle(item.title);
-    setDescription(item.description ?? "");
-  }, [item.description, item.title, item.version]);
 
   const isSelected = selectedItemId === item.id;
   const isRouteActive = activeRouteItemId === item.id;
@@ -206,7 +209,13 @@ export function ItineraryItemCard({
 
           <input
             value={title}
-            onChange={(event) => setTitle(event.target.value)}
+            onChange={(event) =>
+              setDraft({
+                version: item.version,
+                title: event.target.value,
+                description
+              })
+            }
             onBlur={() => {
               const nextTitle = title.trim();
               if (nextTitle && nextTitle !== item.title) {
@@ -219,7 +228,13 @@ export function ItineraryItemCard({
           />
           <textarea
             value={description}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={(event) =>
+              setDraft({
+                version: item.version,
+                title,
+                description: event.target.value
+              })
+            }
             onBlur={() => {
               const nextDescription = description.trim();
               if (nextDescription !== (item.description ?? "")) {
@@ -242,8 +257,12 @@ export function ItineraryItemCard({
                 {timeLabel}
               </span>
             ) : null}
-            {item.isFlexibleTime ? <span className="rounded-md bg-muted px-1.5 py-0.5">{t("flexible")}</span> : null}
-            {item.isAllDay ? <span className="rounded-md bg-muted px-1.5 py-0.5">{t("allDay")}</span> : null}
+            {item.isFlexibleTime ? (
+              <span className="rounded-md bg-muted px-1.5 py-0.5">{t("flexible")}</span>
+            ) : null}
+            {item.isAllDay ? (
+              <span className="rounded-md bg-muted px-1.5 py-0.5">{t("allDay")}</span>
+            ) : null}
             {item.durationMinutes ? (
               <span className="rounded-md bg-muted px-1.5 py-0.5">
                 {t("duration", { minutes: item.durationMinutes })}
@@ -284,7 +303,9 @@ export function ItineraryItemCard({
                 {tag}
               </span>
             ))}
-            {bookingState ? <span className="rounded-md border px-1.5 py-0.5">{bookingState}</span> : null}
+            {bookingState ? (
+              <span className="rounded-md border px-1.5 py-0.5">{bookingState}</span>
+            ) : null}
             {reminder ? <span className="rounded-md border px-1.5 py-0.5">{reminder}</span> : null}
             {noteCount > 0 ? (
               <span className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5">
@@ -339,7 +360,7 @@ function formatTimeRange(item: ItineraryItem, locale: string) {
   const start = item.startTime ? formatter.format(new Date(item.startTime)) : null;
   const end = item.endTime ? formatter.format(new Date(item.endTime)) : null;
 
-  return start && end && start !== end ? `${start} - ${end}` : start ?? end;
+  return start && end && start !== end ? `${start} - ${end}` : (start ?? end);
 }
 
 function formatDistance(meters: number | null, locale: string) {

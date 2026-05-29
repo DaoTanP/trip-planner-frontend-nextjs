@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { Filter, ListOrdered, Plus, Search, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,10 +29,7 @@ import {
 } from "@/modules/itinerary/mutations/use-itinerary-mutations";
 import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
 import type { PlaceDto } from "@/services/api/contracts";
-import {
-  usePlannerStore,
-  type PlannerGroupingMode
-} from "@/stores/use-planner-store";
+import { usePlannerStore, type PlannerGroupingMode } from "@/stores/use-planner-store";
 
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import {
@@ -46,7 +43,11 @@ import {
   type TimelineGroup,
   type TimelineRow
 } from "../../utils/planner-workspace.utils";
-import { buildItineraryReorderIntent, getPlaceMap, orderStride } from "../../utils/trip-editor.utils";
+import {
+  buildItineraryReorderIntent,
+  getPlaceMap,
+  orderStride
+} from "../../utils/trip-editor.utils";
 import { ItineraryItemCard } from "./itinerary-item-card";
 
 interface TripItineraryPanelProps {
@@ -62,6 +63,7 @@ interface TripItineraryPanelProps {
 }
 
 const groupingModes: PlannerGroupingMode[] = ["day", "city", "type", "flat"];
+const timelineEstimateSize = 220;
 
 export function TripItineraryPanel({
   tripId,
@@ -81,6 +83,7 @@ export function TripItineraryPanel({
   const reorderItems = useReorderItineraryItemsMutation(tripId);
   const filters = usePlannerStore((state) => state.filters);
   const groupingMode = usePlannerStore((state) => state.groupingMode);
+  const selectedItemId = usePlannerStore((state) => state.selectedItemId);
   const setFilters = usePlannerStore((state) => state.setFilters);
   const clearFilters = usePlannerStore((state) => state.clearFilters);
   const setGroupingMode = usePlannerStore((state) => state.setGroupingMode);
@@ -105,13 +108,44 @@ export function TripItineraryPanel({
   const itemIds = useMemo(() => visibleItems.map((item) => item.id), [visibleItems]);
   const virtualWindow = useVirtualWindow({
     itemCount: rows.length,
-    estimateSize: 220,
+    estimateSize: timelineEstimateSize,
     overscan: 12,
     enabled: rows.length > 140
   });
   const { containerRef, isVirtualized, totalSize, virtualItems } = virtualWindow;
+  const selectedRowIndex = useMemo(
+    () =>
+      selectedItemId
+        ? rows.findIndex((row) => row.type === "item" && row.item.id === selectedItemId)
+        : -1,
+    [rows, selectedItemId]
+  );
   const hasActiveFilters =
     filters.query.trim().length > 0 || filters.type !== "ALL" || filters.status !== "ALL";
+
+  useEffect(() => {
+    if (!selectedItemId || selectedRowIndex < 0) {
+      return;
+    }
+
+    const timelineItemId = `timeline-item-${selectedItemId}`;
+
+    if (isVirtualized && containerRef.current) {
+      containerRef.current.scrollTo({
+        top: Math.max(0, selectedRowIndex * timelineEstimateSize - timelineEstimateSize),
+        behavior: "auto"
+      });
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(timelineItemId)?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth"
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [containerRef, isVirtualized, selectedItemId, selectedRowIndex]);
 
   function handleItemDragStart(event: DragStartEvent) {
     setActiveId(String(event.active.id));
@@ -241,7 +275,9 @@ export function TripItineraryPanel({
               type="button"
               className={cn(
                 "h-8 rounded-md px-2 text-xs font-medium hover:bg-muted focus-visible:outline-2",
-                groupingMode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                groupingMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground"
               )}
               onClick={() => setGroupingMode(mode)}
             >
@@ -399,8 +435,9 @@ function TimelineRowView({
 
   return (
     <div
+      id={`timeline-item-${item.id}`}
       className={cn(
-        "rounded-md",
+        "scroll-mt-24 rounded-md",
         overId === item.id && activeId !== item.id && "border-t-2 border-primary pt-2"
       )}
     >
@@ -427,7 +464,7 @@ function TimelineGroupHeader({
   const label =
     group.mode === "type"
       ? itemT(`types.${group.key as ItineraryItem["type"]}`)
-      : group.label ?? (group.fallbackKey ? t(`groups.${group.fallbackKey}`) : group.key);
+      : (group.label ?? (group.fallbackKey ? t(`groups.${group.fallbackKey}`) : group.key));
 
   return (
     <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-md border bg-card/95 px-3 py-2 text-xs font-semibold shadow-sm backdrop-blur">

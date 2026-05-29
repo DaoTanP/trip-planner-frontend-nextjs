@@ -17,7 +17,6 @@ import { getRouteRenderPoints } from "@/modules/map/services/routing/route-norma
 import type { MapMarker } from "@/modules/map/types/map.types";
 import { decodePolyline } from "@/modules/map/utils/polyline";
 import { itineraryInfiniteQueryOptions } from "@/modules/itinerary/queries/itinerary.queries";
-import { NotePanel } from "@/modules/notes/components/note-panel";
 import { tripPlacesQueryOptions } from "@/modules/places/queries/place.queries";
 import { useTripDeltaSync } from "@/modules/sync/hooks/use-trip-delta-sync";
 import { useSyncDebug } from "@/modules/sync/hooks/use-sync-debug";
@@ -43,6 +42,7 @@ import {
 } from "../../utils/planner-workspace.utils";
 import { PlannerFloatingActions } from "./planner-floating-actions";
 import { PlannerInsights } from "./planner-insights";
+import { PlannerNotesWorkspace } from "./planner-notes-workspace";
 import { PlaceSearchBox } from "./place-search-box";
 import { TripEditorHeader } from "./trip-editor-header";
 import { TripEditorSkeleton } from "./trip-editor-skeleton";
@@ -90,6 +90,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const routeSegments = useMemo(
     () => routeSegmentsQuery.data?.items ?? [],
     [routeSegmentsQuery.data]
+  );
+  const selectedItem = useMemo(
+    () => items.find((item) => item.id === selectedItemId),
+    [items, selectedItemId]
   );
   const markers = useMemo(() => getItineraryMapMarkers(items, places), [items, places]);
   const route = useMemo(() => getItineraryRoute(items, places), [items, places]);
@@ -280,14 +284,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
             isFetchingNextPage={itineraryQuery.isFetchingNextPage}
             onLoadMore={() => void itineraryQuery.fetchNextPage()}
           />
-          <NotePanel tripId={trip.id} targetEntityType="TRIP" targetEntityId={trip.id} />
+          <PlannerNotesWorkspace tripId={trip.id} selectedItem={selectedItem} />
         </motion.div>
 
-        <aside className="hidden lg:sticky lg:top-20 lg:block">
-          <div className="overflow-hidden rounded-md border bg-card shadow-sm">
-            {renderMapWorkspace()}
-          </div>
-        </aside>
+        <aside className="hidden lg:sticky lg:top-20 lg:block">{renderMapWorkspace()}</aside>
       </div>
 
       <PlaceSearchBox tripId={trip.id} items={items} />

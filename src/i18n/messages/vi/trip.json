@@ -49,6 +49,9 @@
     },
     "notes": {
       "title": "Ghi chú",
+      "workspaceTitle": "Ghi chú lập kế hoạch",
+      "tripTitle": "Ghi chú chuyến đi",
+      "itemTitle": "Ghi chú cho {title}",
       "placeholder": "Viết ghi chú lập kế hoạch",
       "replyPlaceholder": "Viết phản hồi",
       "add": "Thêm ghi chú",

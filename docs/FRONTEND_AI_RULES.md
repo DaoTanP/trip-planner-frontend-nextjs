@@ -128,6 +128,8 @@ Examples:
 - Keep trip editing flows fast and interaction-focused.
 - Prefer modular editor sections over giant editor screens.
 - Use Framer Motion subtly for interaction feedback, not decorative animations.
+- Planner editor changes must keep the timeline as the primary surface, the map as a persistent workspace, and quick add/search as overlays.
+- Do not reintroduce a form-first trip editor, editable planner end date, embedded place-search form, or backend-owned day grouping.
 
 ## Map and Collaboration Rules
 

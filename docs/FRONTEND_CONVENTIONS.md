@@ -20,6 +20,9 @@ These conventions keep the codebase predictable as it grows.
 - Itinerary items are a flat trip-scoped sequence. Do not model day ownership in frontend state or service contracts.
 - Date/day/location/custom grouping is presentation-only and must be computed from flat items.
 - Do not depend on `Destination` or `destinationNames`; derive display summaries from trip counts, places, and route segments.
+- The planner editor should read as a workspace, not an admin form: keep the trip header compact, keep the timeline primary, keep the map persistent, and move quick add/place search into overlays.
+- Trip end date display is derived from itinerary item timestamps. Do not add end-date editing back into the planner header.
+- Planning insights, date grouping, city grouping, type grouping, route gaps, idle gaps, and budget warnings are frontend-derived from granular query data.
 
 Do not place itinerary reorder logic inside map components. Do not place map projection logic inside itinerary cards.
 
@@ -100,6 +103,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Use query invalidation or targeted cache patching after successful itinerary mutations.
 - Do not store itinerary items, places, notes, route segments, collaborators, or expenses in Zustand.
 - Note panels may be reused by trips, itinerary items, expenses, places, and future route/collaboration surfaces. They must not duplicate note server state outside TanStack Query.
+- Selected item note panels must use `src/modules/notes`; do not add item-note state or note counts to Zustand.
 
 ## Forms
 
@@ -149,6 +153,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Provider SDK imports and script loaders must stay inside `src/modules/map/providers/<provider>`.
 - Route geometry, encoded polylines, distance, and duration must normalize to `MapRoute` before reaching editor UI.
 - Marker hover and selection sync through `use-planner-store`; fetched route/place data stays in TanStack Query.
+- Marker click should select the itinerary item, and timeline item click should move the map viewport through provider-neutral callbacks.
 - Markers are derived from itinerary item IDs plus normalized trip places. Itinerary item payloads must not duplicate place coordinates.
 - Cached route geometry comes from trip route segment queries; provider routing remains a fallback.
 - Treat route cache identity as provider, from place, to place, travel mode, route profile hash, departure/traffic settings, and alternate route index.

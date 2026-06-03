@@ -1,11 +1,23 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Check, MessageSquareReply, NotebookPen, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  getNoteThreadPresenceId,
+  useEntityPresenceEntries,
+  usePresenceSource,
+  useUniquePresenceUsers
+} from "@/modules/collaboration/hooks/use-presence";
+import type { PresenceEntry } from "@/modules/collaboration/types/presence.types";
+import { useSession } from "@/modules/auth/hooks/use-session";
+import {
+  tripCollaboratorsQueryOptions,
+  tripDetailQueryOptions
+} from "@/modules/trips/queries/trip.queries";
 
 import { useNoteFilters } from "../hooks/use-note-filters";
 import {
@@ -30,19 +42,50 @@ type NotePanelProps = {
   compact?: boolean | undefined;
 };
 
+type NotePermissionContext = {
+  currentUserId?: string | undefined;
+  currentUserRole?: string | undefined;
+  tripOwnerId?: string | undefined;
+  collaboratorRole?: string | undefined;
+};
+
+function getNotePermissions(note: CollaborativeNote, context: NotePermissionContext) {
+  const isMutable = note.deletedAt === null && !note.isPending;
+  const isAuthor = context.currentUserId !== undefined && note.authorId === context.currentUserId;
+  const canModerate =
+    context.currentUserRole === "ADMIN" ||
+    (context.currentUserId !== undefined && context.tripOwnerId === context.currentUserId) ||
+    context.collaboratorRole === "OWNER";
+  const canManage = isMutable && (isAuthor || canModerate);
+
+  return {
+    canReply: isMutable,
+    canEdit: canManage,
+    canDelete: canManage
+  };
+}
+
 function NoteComposer({
   filters,
   buttonLabel,
   placeholder,
+  onComposingChange,
   onCreated
 }: {
   filters: ListNotesQuery;
   buttonLabel: string;
   placeholder: string;
+  onComposingChange?: ((isComposing: boolean) => void) | undefined;
   onCreated?: (() => void) | undefined;
 }) {
   const createNote = useCreateNoteMutation(filters);
   const [body, setBody] = useState("");
+
+  useEffect(() => {
+    onComposingChange?.(body.trim().length > 0);
+  }, [body, onComposingChange]);
+
+  useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
   return (
     <div className="grid gap-3">
@@ -76,6 +119,7 @@ function NoteComposer({
           createNote.mutate(payload, {
             onSuccess: () => {
               setBody("");
+              onComposingChange?.(false);
               onCreated?.();
             }
           });
@@ -88,7 +132,15 @@ function NoteComposer({
   );
 }
 
-function NoteItem({ note, filters }: { note: CollaborativeNote; filters: ListNotesQuery }) {
+function NoteItem({
+  note,
+  filters,
+  permissionContext
+}: {
+  note: CollaborativeNote;
+  filters: ListNotesQuery;
+  permissionContext: NotePermissionContext;
+}) {
   const t = useTranslations("trip.editor.notes");
   const locale = useLocale();
   const updateNote = useUpdateNoteMutation();
@@ -98,6 +150,8 @@ function NoteItem({ note, filters }: { note: CollaborativeNote; filters: ListNot
   const [draft, setDraft] = useState(note.body);
   const isDeleted = note.deletedAt !== null;
   const isEdited = !isDeleted && note.updatedAt !== note.createdAt;
+  const permissions = getNotePermissions(note, permissionContext);
+  const hasActions = permissions.canReply || permissions.canEdit || permissions.canDelete;
   const displayName = note.author?.name ?? t("unknownAuthor");
   const timestamp = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
@@ -116,50 +170,56 @@ function NoteItem({ note, filters }: { note: CollaborativeNote; filters: ListNot
           </p>
         </div>
 
-        {!isDeleted && !note.isPending ? (
+        {hasActions ? (
           <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={t("reply")}
-              onClick={() => setIsReplying((current) => !current)}
-            >
-              <MessageSquareReply className="size-4" aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={t("edit")}
-              onClick={() => setIsEditing(true)}
-            >
-              <Pencil className="size-4" aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={t("delete")}
-              onClick={() =>
-                deleteNote.mutate({
-                  noteId: note.id,
-                  params: { clientMutationId: crypto.randomUUID() }
-                })
-              }
-            >
-              <Trash2 className="size-4" aria-hidden="true" />
-            </Button>
+            {permissions.canReply ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label={t("reply")}
+                onClick={() => setIsReplying((current) => !current)}
+              >
+                <MessageSquareReply className="size-4" aria-hidden="true" />
+              </Button>
+            ) : null}
+            {permissions.canEdit ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label={t("edit")}
+                onClick={() => setIsEditing(true)}
+              >
+                <Pencil className="size-4" aria-hidden="true" />
+              </Button>
+            ) : null}
+            {permissions.canDelete ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label={t("delete")}
+                onClick={() =>
+                  deleteNote.mutate({
+                    noteId: note.id,
+                    params: { clientMutationId: crypto.randomUUID() }
+                  })
+                }
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </div>
 
       {isDeleted ? (
         <p className="text-muted-foreground">{t("deleted")}</p>
-      ) : isEditing ? (
+      ) : isEditing && permissions.canEdit ? (
         <div className="grid gap-2">
           <textarea
             value={draft}
@@ -198,7 +258,7 @@ function NoteItem({ note, filters }: { note: CollaborativeNote; filters: ListNot
         <p className="whitespace-pre-wrap text-muted-foreground">{note.body}</p>
       )}
 
-      {isReplying && !isDeleted ? (
+      {isReplying && permissions.canReply ? (
         <div className="mt-3 border-l pl-3">
           <NotePanel
             tripId={filters.tripId}
@@ -216,24 +276,94 @@ function NoteItem({ note, filters }: { note: CollaborativeNote; filters: ListNot
 export function NotePanel(props: NotePanelProps) {
   const t = useTranslations("trip.editor.notes");
   const filters = useNoteFilters(props);
+  const tripId = filters.tripId;
+  const presenceTripId = tripId ?? "__note_panel_without_trip__";
+  const threadPresenceId = useMemo(
+    () =>
+      getNoteThreadPresenceId({
+        targetEntityType: filters.targetEntityType ?? props.targetEntityType,
+        targetEntityId: filters.targetEntityId ?? props.targetEntityId,
+        parentNoteId: filters.parentNoteId
+      }),
+    [
+      filters.parentNoteId,
+      filters.targetEntityId,
+      filters.targetEntityType,
+      props.targetEntityId,
+      props.targetEntityType
+    ]
+  );
+  const sessionQuery = useSession();
+  const [isComposing, setIsComposing] = useState(false);
+  const tripQuery = useQuery({
+    ...tripDetailQueryOptions(tripId ?? "__note_panel_without_trip__"),
+    enabled: tripId !== undefined
+  });
+  const collaboratorsQuery = useQuery({
+    ...tripCollaboratorsQueryOptions(tripId ?? "__note_panel_without_trip__"),
+    enabled: tripId !== undefined
+  });
   const notesQuery = useInfiniteQuery(notesInfiniteQueryOptions(filters));
   const notes = useMemo(
     () => notesQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [notesQuery.data]
   );
+  const currentUserId = sessionQuery.data?.user.id;
+  const currentUserRole = sessionQuery.data?.user.role;
+  const collaboratorRole = useMemo(() => {
+    if (!currentUserId) {
+      return undefined;
+    }
+
+    return collaboratorsQuery.data?.find((collaborator) => collaborator.user?.id === currentUserId)
+      ?.role;
+  }, [collaboratorsQuery.data, currentUserId]);
+  const permissionContext = useMemo<NotePermissionContext>(
+    () => ({
+      currentUserId,
+      currentUserRole,
+      tripOwnerId: tripQuery.data?.owner.id,
+      collaboratorRole
+    }),
+    [collaboratorRole, currentUserId, currentUserRole, tripQuery.data?.owner.id]
+  );
+  const threadPresenceEntries = useEntityPresenceEntries({
+    tripId: presenceTripId,
+    entityType: "NOTE",
+    entityId: threadPresenceId,
+    excludeUserId: currentUserId
+  });
+  const activeThreadPresence = useUniquePresenceUsers(threadPresenceEntries);
+  usePresenceSource({
+    tripId: presenceTripId,
+    entityType: "NOTE",
+    entityId: threadPresenceId,
+    state: isComposing ? "REPLYING" : "VIEWING",
+    priority: isComposing ? 4 : 3,
+    enabled: tripId !== undefined
+  });
 
   const content = (
     <>
+      {activeThreadPresence.length > 0 ? (
+        <NoteThreadPresenceIndicator entries={activeThreadPresence} />
+      ) : null}
       <NoteComposer
         filters={filters}
         buttonLabel={props.parentNoteId ? t("reply") : t("add")}
         placeholder={props.parentNoteId ? t("replyPlaceholder") : t("placeholder")}
+        onComposingChange={setIsComposing}
       />
 
       {notes.length > 0 ? (
         <div className="mt-4 grid gap-2">
           {notes.map((note) => (
-            <NoteItem key={note.id} note={note} filters={filters} />
+            <NoteItem
+              key={note.id}
+              note={note}
+              filters={filters}
+              permissionContext={permissionContext}
+            />
           ))}
         </div>
       ) : (
@@ -270,5 +400,31 @@ export function NotePanel(props: NotePanelProps) {
       </div>
       {content}
     </section>
+  );
+}
+
+function NoteThreadPresenceIndicator({ entries }: { entries: PresenceEntry[] }) {
+  const t = useTranslations("trip.editor.notes");
+  const primaryEntry = entries[0];
+
+  if (!primaryEntry) {
+    return null;
+  }
+
+  const remainingCount = Math.max(0, entries.length - 1);
+  const primaryLabel =
+    primaryEntry.state === "REPLYING"
+      ? t("presence.replying", { name: primaryEntry.userName })
+      : t("presence.viewing", { name: primaryEntry.userName });
+
+  return (
+    <div className="mb-3 inline-flex max-w-full items-center gap-1 rounded-md bg-accent/10 px-2 py-1 text-xs text-accent-foreground">
+      <span className="size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+      <span className="truncate">
+        {remainingCount > 0
+          ? `${primaryLabel} · ${t("presence.more", { count: remainingCount })}`
+          : primaryLabel}
+      </span>
+    </div>
   );
 }

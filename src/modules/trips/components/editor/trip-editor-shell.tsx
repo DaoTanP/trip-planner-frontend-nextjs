@@ -4,11 +4,17 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo } from "react";
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
+import { useSession } from "@/modules/auth/hooks/use-session";
+import {
+  usePresenceSource,
+  useTripPresenceConnection,
+  useTripPresenceEntries
+} from "@/modules/collaboration/hooks/use-presence";
 import {
   mapRouteQueryOptions,
   tripRouteSegmentsQueryOptions
@@ -22,28 +28,20 @@ import { useTripDeltaSync } from "@/modules/sync/hooks/use-trip-delta-sync";
 import { useSyncDebug } from "@/modules/sync/hooks/use-sync-debug";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
+import { tripDetailQueryOptions, tripExpensesQueryOptions } from "../../queries/trip.queries";
 import {
-  tripCollaboratorsQueryOptions,
-  tripDetailQueryOptions,
-  tripExpensesQueryOptions
-} from "../../queries/trip.queries";
-import {
-  getItemRoutePoints,
+  getAdjacentRouteSegmentIds,
   getCachedRoutePoints,
   getItineraryMapMarkers,
-  getItineraryRoute
+  getProviderRouteRequestPoints,
+  getRouteSegmentAdjacentItemIds,
+  getRouteSegmentPoints
 } from "../../utils/trip-editor.utils";
 import {
-  buildCollaboratorPresence,
   buildItemSyncStateMap,
-  buildPlannerInsights,
   buildPlannerStats,
   buildRouteSummaryByItem
 } from "../../utils/planner-workspace.utils";
-import { PlannerFloatingActions } from "./planner-floating-actions";
-import { PlannerInsights } from "./planner-insights";
-import { PlannerNotesWorkspace } from "./planner-notes-workspace";
-import { PlaceSearchBox } from "./place-search-box";
 import { TripEditorHeader } from "./trip-editor-header";
 import { TripEditorSkeleton } from "./trip-editor-skeleton";
 import { TripItineraryPanel } from "./trip-itinerary-panel";
@@ -67,20 +65,38 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const itineraryQuery = useInfiniteQuery(itineraryInfiniteQueryOptions(tripId));
   const placesQuery = useQuery(tripPlacesQueryOptions(tripId));
   const routeSegmentsQuery = useQuery(tripRouteSegmentsQueryOptions(tripId));
-  const collaboratorsQuery = useQuery(tripCollaboratorsQueryOptions(tripId));
   const expensesQuery = useQuery(tripExpensesQueryOptions(tripId));
+  const sessionQuery = useSession();
   const syncDebug = useSyncDebug(tripId);
   useTripDeltaSync(tripId);
   const viewport = usePlannerStore((state) => state.viewport);
   const selectedItemId = usePlannerStore((state) => state.selectedItemId);
   const hoveredItemId = usePlannerStore((state) => state.hoveredItemId);
-  const activeRouteItemId = usePlannerStore((state) => state.activeRouteItemId);
-  const isMobileMapOpen = usePlannerStore((state) => state.isMobileMapOpen);
+  const selectedRouteSegmentId = usePlannerStore((state) => state.selectedRouteSegmentId);
+  const hoveredRouteSegmentId = usePlannerStore((state) => state.hoveredRouteSegmentId);
   const setViewport = usePlannerStore((state) => state.setViewport);
   const selectItem = usePlannerStore((state) => state.selectItem);
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
-  const setMobileMapOpen = usePlannerStore((state) => state.setMobileMapOpen);
   const setSelectedTripId = usePlannerStore((state) => state.setSelectedTripId);
+  const currentUser = sessionQuery.data?.user;
+  useTripPresenceConnection({ tripId, user: currentUser });
+  usePresenceSource({
+    tripId,
+    entityType: "TRIP",
+    entityId: tripId,
+    state: "VIEWING",
+    priority: 0,
+    enabled: currentUser !== undefined
+  });
+  usePresenceSource({
+    tripId,
+    entityType: "ITINERARY_ITEM",
+    entityId: selectedItemId ?? "__no_selected_stop__",
+    state: "VIEWING",
+    priority: 1,
+    enabled: currentUser !== undefined && selectedItemId !== undefined
+  });
+  const presenceEntries = useTripPresenceEntries(tripId, currentUser?.id);
 
   const items = useMemo(
     () => itineraryQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -91,38 +107,47 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     () => routeSegmentsQuery.data?.items ?? [],
     [routeSegmentsQuery.data]
   );
-  const selectedItem = useMemo(
-    () => items.find((item) => item.id === selectedItemId),
-    [items, selectedItemId]
-  );
   const markers = useMemo(() => getItineraryMapMarkers(items, places), [items, places]);
-  const route = useMemo(() => getItineraryRoute(items, places), [items, places]);
+  const providerRouteRequestPoints = useMemo(
+    () => getProviderRouteRequestPoints(markers),
+    [markers]
+  );
   const cachedRoute = useMemo(
     () => getCachedRoutePoints(items, routeSegments, decodePolyline),
     [items, routeSegments]
   );
-  const activeRoute = useMemo(
+  const focusedRouteSegmentId = hoveredRouteSegmentId ?? selectedRouteSegmentId;
+  const focusedRouteItemIds = useMemo(
+    () => getRouteSegmentAdjacentItemIds(focusedRouteSegmentId, items),
+    [focusedRouteSegmentId, items]
+  );
+  const focusedMarkerIds = useMemo(
+    () => focusedRouteItemIds.map((itemId) => `item:${itemId}`),
+    [focusedRouteItemIds]
+  );
+  const activeRouteSegmentIds = useMemo(
     () =>
-      getItemRoutePoints(
-        activeRouteItemId ?? hoveredItemId ?? selectedItemId,
-        items,
-        routeSegments,
-        decodePolyline
-      ),
-    [activeRouteItemId, hoveredItemId, items, routeSegments, selectedItemId]
+      focusedRouteSegmentId
+        ? [focusedRouteSegmentId]
+        : getAdjacentRouteSegmentIds(selectedItemId, items),
+    [focusedRouteSegmentId, items, selectedItemId]
+  );
+  const activeRoute = useMemo(
+    () => getRouteSegmentPoints(activeRouteSegmentIds, routeSegments, decodePolyline),
+    [activeRouteSegmentIds, routeSegments]
   );
   const routeRequest = useMemo(
     () => ({
-      points: route,
+      points: providerRouteRequestPoints,
       travelMode: "driving" as const,
       language: locale
     }),
-    [locale, route]
+    [locale, providerRouteRequestPoints]
   );
   const routeQuery = useQuery(mapRouteQueryOptions(routeRequest));
   const renderedRoute = useMemo(
-    () => getRouteRenderPoints(routeQuery.data, cachedRoute.length > 0 ? cachedRoute : route),
-    [cachedRoute, route, routeQuery.data]
+    () => getRouteRenderPoints(routeQuery.data, cachedRoute),
+    [cachedRoute, routeQuery.data]
   );
   const selectedMarkerId = selectedItemId ? `item:${selectedItemId}` : undefined;
   const hoveredMarkerId = hoveredItemId ? `item:${hoveredItemId}` : undefined;
@@ -145,29 +170,6 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       }),
     [expensesQuery.data, items, places, routeSegments, tripQuery.data?.noteCount]
   );
-  const insights = useMemo(
-    () =>
-      buildPlannerInsights({
-        items,
-        places,
-        routeSegments,
-        expenses: expensesQuery.data
-      }),
-    [expensesQuery.data, items, places, routeSegments]
-  );
-  const collaboratorPresence = useMemo(
-    () => buildCollaboratorPresence(collaboratorsQuery.data),
-    [collaboratorsQuery.data]
-  );
-  const syncSummary = useMemo(
-    () => ({
-      latestRevision: syncDebug.latestRevision,
-      pendingCount: syncDebug.queuedMutationCount,
-      conflictCount: syncDebug.queueEntries.filter((entry) => entry.state === "conflicted").length
-    }),
-    [syncDebug.latestRevision, syncDebug.queueEntries, syncDebug.queuedMutationCount]
-  );
-
   useEffect(() => {
     setSelectedTripId(tripId);
 
@@ -252,6 +254,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       viewport={viewport}
       selectedMarkerId={selectedMarkerId}
       hoveredMarkerId={hoveredMarkerId}
+      focusedMarkerIds={focusedMarkerIds}
       onViewportChange={setViewport}
       onMarkerSelect={handleMarkerSelect}
       onMarkerHover={handleMarkerHover}
@@ -260,58 +263,31 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
 
   return (
     <div className="relative left-1/2 w-screen -translate-x-1/2 px-3 sm:px-4 lg:px-6">
-      <div className="mx-auto grid max-w-[104rem] gap-4 lg:grid-cols-[minmax(26rem,45rem)_minmax(28rem,1fr)] lg:items-start">
+      <div className="mx-auto grid max-w-[112rem] gap-3 lg:grid-cols-[minmax(0,7fr)_minmax(20rem,3fr)] lg:items-start">
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid gap-3"
+          className="grid gap-2"
         >
-          <TripEditorHeader
-            trip={trip}
-            stats={stats}
-            collaborators={collaboratorPresence}
-            syncSummary={syncSummary}
-          />
-          <PlannerInsights insights={insights} />
+          <TripEditorHeader trip={trip} stats={stats} presenceEntries={presenceEntries} />
           <TripItineraryPanel
             tripId={trip.id}
             tripTimezone={trip.timezone}
             items={items}
             places={places}
+            currentUserId={currentUser?.id}
             routeSummaryByItem={routeSummaryByItem}
+            focusedRouteItemIds={focusedRouteItemIds}
             syncStateByItem={syncStateByItem}
             hasNextPage={itineraryQuery.hasNextPage}
             isFetchingNextPage={itineraryQuery.isFetchingNextPage}
             onLoadMore={() => void itineraryQuery.fetchNextPage()}
           />
-          <PlannerNotesWorkspace tripId={trip.id} selectedItem={selectedItem} />
+          <div className="lg:hidden">{renderMapWorkspace()}</div>
         </motion.div>
 
         <aside className="hidden lg:sticky lg:top-20 lg:block">{renderMapWorkspace()}</aside>
       </div>
-
-      <PlaceSearchBox tripId={trip.id} items={items} />
-      <PlannerFloatingActions tripId={trip.id} items={items} />
-
-      {isMobileMapOpen ? (
-        <div className="fixed inset-0 z-50 bg-background/50 backdrop-blur-sm lg:hidden">
-          <section className="absolute inset-x-0 bottom-0 grid max-h-[82dvh] grid-rows-[auto_1fr] rounded-t-md border bg-card shadow-xl">
-            <div className="flex h-12 items-center justify-between gap-3 border-b px-3">
-              <h2 className="text-sm font-semibold">{t("map.label")}</h2>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                aria-label={t("map.close")}
-                onClick={() => setMobileMapOpen(false)}
-              >
-                <X aria-hidden="true" />
-              </Button>
-            </div>
-            <div className="min-h-[22rem]">{renderMapWorkspace()}</div>
-          </section>
-        </div>
-      ) : null}
     </div>
   );
 }

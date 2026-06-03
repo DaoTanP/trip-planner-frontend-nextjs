@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig, resolveTileUrl } from "@/modules/map/config/map.config";
-import type { MapMarker, TripMapProps } from "@/modules/map/types/map.types";
+import type { TripMapProps } from "@/modules/map/types/map.types";
 import {
   latitudeToWorldY,
   longitudeToWorldX,
@@ -24,16 +24,6 @@ function clampZoom(zoom: number) {
   return Math.min(mapConfig.maxZoom, Math.max(mapConfig.minZoom, zoom));
 }
 
-function markerInitials(marker: MapMarker) {
-  return marker.label
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
-
 export function OpenStreetMapProvider({
   markers,
   route,
@@ -42,6 +32,7 @@ export function OpenStreetMapProvider({
   viewport,
   selectedMarkerId,
   hoveredMarkerId,
+  focusedMarkerIds = [],
   onViewportChange,
   onMarkerSelect,
   onMarkerHover
@@ -52,6 +43,7 @@ export function OpenStreetMapProvider({
   const zoom = Math.round(clampZoom(viewport.zoom));
   const centerWorldX = longitudeToWorldX(viewport.longitude, zoom);
   const centerWorldY = latitudeToWorldY(viewport.latitude, zoom);
+  const focusedMarkerIdSet = useMemo(() => new Set(focusedMarkerIds), [focusedMarkerIds]);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -179,10 +171,10 @@ export function OpenStreetMapProvider({
         </svg>
       ) : null}
 
-      {markers.map((marker, index) => {
+      {markers.map((marker) => {
         const projected = projectPoint(marker, { ...viewport, zoom });
         const isActive = marker.id === selectedMarkerId;
-        const isHovered = marker.id === hoveredMarkerId;
+        const isHovered = marker.id === hoveredMarkerId || focusedMarkerIdSet.has(marker.id);
 
         return (
           <button
@@ -201,7 +193,7 @@ export function OpenStreetMapProvider({
             onMouseEnter={() => onMarkerHover?.(marker)}
             onMouseLeave={() => onMarkerHover?.(undefined)}
           >
-            {markerInitials(marker) || index + 1}
+            {marker.stopOrder}
           </button>
         );
       })}

@@ -18,33 +18,36 @@ export function getPlaceMap(places: PlaceDto[]) {
 export function getItineraryMapMarkers(items: ItineraryItem[], places: PlaceDto[]): MapMarker[] {
   const placeMap = getPlaceMap(places);
   const markers: MapMarker[] = [];
-
-  for (const item of [...items].sort((left, right) =>
+  const orderedItems = [...items].sort((left, right) =>
     left.sortOrder === right.sortOrder
       ? left.id.localeCompare(right.id)
       : left.sortOrder - right.sortOrder
-  )) {
+  );
+
+  orderedItems.forEach((item, index) => {
     const place = item.placeId ? placeMap.get(item.placeId) : undefined;
 
     if (typeof place?.latitude !== "number" || typeof place.longitude !== "number") {
-      continue;
+      return;
     }
 
     markers.push({
       id: getItemMarkerId(item),
+      stopId: item.id,
+      stopOrder: index + 1,
       itemId: item.id,
       placeId: place.id,
       label: place.name || item.title,
       latitude: place.latitude,
       longitude: place.longitude
     });
-  }
+  });
 
   return markers;
 }
 
-export function getItineraryRoute(items: ItineraryItem[], places: PlaceDto[]): MapRoutePoint[] {
-  return getItineraryMapMarkers(items, places).map((marker) => ({
+export function getProviderRouteRequestPoints(markers: MapMarker[]): MapRoutePoint[] {
+  return markers.map((marker) => ({
     latitude: marker.latitude,
     longitude: marker.longitude
   }));
@@ -132,6 +135,73 @@ export function getCachedRoutePoints(
 
       return segment ? decode(segment.polyline) : [];
     });
+}
+
+export function getAdjacentRouteSegmentIds(itemId: string | undefined, items: ItineraryItem[]) {
+  if (!itemId) {
+    return [];
+  }
+
+  const orderedItems = [...items].sort((left, right) =>
+    left.sortOrder === right.sortOrder
+      ? left.id.localeCompare(right.id)
+      : left.sortOrder - right.sortOrder
+  );
+  const itemIndex = orderedItems.findIndex((item) => item.id === itemId);
+
+  if (itemIndex < 0) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      [orderedItems[itemIndex]?.routeSegmentId, orderedItems[itemIndex + 1]?.routeSegmentId].filter(
+        (segmentId): segmentId is string => Boolean(segmentId)
+      )
+    )
+  );
+}
+
+export function getRouteSegmentAdjacentItemIds(
+  routeSegmentId: string | undefined,
+  items: ItineraryItem[]
+) {
+  if (!routeSegmentId) {
+    return [];
+  }
+
+  const orderedItems = [...items].sort((left, right) =>
+    left.sortOrder === right.sortOrder
+      ? left.id.localeCompare(right.id)
+      : left.sortOrder - right.sortOrder
+  );
+  const targetIndex = orderedItems.findIndex((item) => item.routeSegmentId === routeSegmentId);
+
+  if (targetIndex < 0) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      [orderedItems[targetIndex - 1]?.id, orderedItems[targetIndex]?.id].filter(
+        (itemId): itemId is string => Boolean(itemId)
+      )
+    )
+  );
+}
+
+export function getRouteSegmentPoints(
+  routeSegmentIds: string[],
+  routeSegments: RouteSegmentDto[],
+  decode: (polyline: string) => MapRoutePoint[]
+) {
+  const segmentById = new Map(routeSegments.map((segment) => [segment.id, segment]));
+
+  return routeSegmentIds.flatMap((segmentId) => {
+    const segment = segmentById.get(segmentId);
+
+    return segment ? decode(segment.polyline) : [];
+  });
 }
 
 export function getItemRoutePoints(

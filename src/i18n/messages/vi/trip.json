@@ -22,6 +22,7 @@
     "errorDescription": "Làm mới dữ liệu chuyến đi hoặc thử lại sau khi kiểm tra kết nối.",
     "header": {
       "search": "Tìm",
+      "filter": "Lọc",
       "quickAdd": "Thêm nhanh",
       "share": "Chia sẻ",
       "shareCopied": "Đã sao chép liên kết chia sẻ.",
@@ -45,6 +46,17 @@
         "travelTime": "Di chuyển",
         "notes": "Ghi chú",
         "expenses": "Chi phí"
+      },
+      "summary": {
+        "stops": "{count, plural, =0 {0 điểm dừng} other {# điểm dừng}}",
+        "places": "{count, plural, =0 {0 địa điểm} other {# địa điểm}}",
+        "notes": "{count, plural, =0 {0 ghi chú} other {# ghi chú}}",
+        "distance": "{value} km",
+        "expenses": "{value}"
+      },
+      "presence": {
+        "names": "{names} đang xem",
+        "withMore": "{names} +{count, plural, other {# đang xem}}"
       }
     },
     "notes": {
@@ -66,7 +78,12 @@
       "pending": "(đang chờ)",
       "unknownAuthor": "Cộng tác viên không xác định",
       "loadMore": "Tải thêm ghi chú",
-      "loadingMore": "Đang tải ghi chú"
+      "loadingMore": "Đang tải ghi chú",
+      "presence": {
+        "viewing": "{name} đang xem luồng này",
+        "replying": "{name} đang phản hồi...",
+        "more": "+{count, plural, other {# người khác}}"
+      }
     },
     "placeSearch": {
       "title": "Tìm địa điểm",
@@ -93,8 +110,15 @@
       "newItemType": "Loại mục mới",
       "addPlaceholder": "Thêm điểm dừng, hoạt động hoặc nhắc nhở",
       "add": "Thêm",
+      "cancel": "Hủy",
+      "inlineAdd": "Thêm điểm dừng",
+      "searchPlace": "Tim dia diem",
+      "placeSearchTitle": "Them dia diem tai day",
+      "placeSearchPlaceholder": "Tim dia diem cho diem dung nay",
+      "addPlaceHere": "Them {name} tai day",
       "loadMore": "Tải thêm điểm dừng",
       "loadingMore": "Đang tải điểm dừng",
+      "routeDistanceKilometers": "{value} km",
       "groupCount": "{count, plural, other {# mục}}",
       "grouping": {
         "day": "Ngày",
@@ -114,14 +138,30 @@
       "descriptionLabel": "Mô tả mục",
       "descriptionPlaceholder": "Ghi chú, thông tin đặt chỗ hoặc ý tưởng thời gian",
       "statusLabel": "Trạng thái mục",
+      "attachPlace": "Gan dia diem",
+      "changePlace": "Doi dia diem",
+      "removePlace": "Go dia diem",
+      "placeSearchPlaceholder": "Tim dia diem",
+      "attachPlaceTo": "Gan {name}",
+      "changePlaceTo": "Doi sang {name}",
       "duration": "{minutes} phút",
       "flexible": "Linh hoạt",
       "allDay": "Cả ngày",
+      "unscheduled": "Thời gian linh hoạt",
+      "expand": "Mở rộng điểm dừng",
+      "collapse": "Thu gọn điểm dừng",
       "routeSummary": "{mode}, {distance} km, {duration}",
       "routeDuration": "{minutes, plural, other {# phút}}",
       "notes": "{count, plural, other {# ghi chú}}",
+      "moreNotes": "+{count, plural, other {# ghi chú nữa}}",
+      "moreNotesUnknown": "Thêm ghi chú",
       "unresolved": "{count, plural, other {# chưa xử lý}}",
       "editedAt": "Sửa {value}",
+      "presence": {
+        "viewing": "{name} đang xem",
+        "editing": "{name} đang sửa",
+        "more": "+{count, plural, other {# người khác}}"
+      },
       "types": {
         "ACTIVITY": "Hoạt động",
         "PLACE": "Địa điểm",
@@ -190,6 +230,7 @@
       "fit": "Tập trung địa điểm đầu",
       "fitRoute": "Vừa tuyến đang chọn",
       "close": "Đóng bản đồ",
+      "empty": "Gan dia diem vao diem dung de hien tren ban do.",
       "loading": "Đang tải bản đồ...",
       "missingApiKey": "Chưa cấu hình Google Maps.",
       "loadError": "Không tải được bản đồ.",

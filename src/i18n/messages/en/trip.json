@@ -22,6 +22,7 @@
     "errorDescription": "Refresh the trip data or try again after checking your connection.",
     "header": {
       "search": "Search",
+      "filter": "Filter",
       "quickAdd": "Quick add",
       "share": "Share",
       "shareCopied": "Share link copied.",
@@ -45,6 +46,17 @@
         "travelTime": "Travel",
         "notes": "Notes",
         "expenses": "Expenses"
+      },
+      "summary": {
+        "stops": "{count, plural, =0 {0 Stops} =1 {# Stop} other {# Stops}}",
+        "places": "{count, plural, =0 {0 Places} =1 {# Place} other {# Places}}",
+        "notes": "{count, plural, =0 {0 Notes} =1 {# Note} other {# Notes}}",
+        "distance": "{value} km",
+        "expenses": "{value}"
+      },
+      "presence": {
+        "names": "{names} viewing",
+        "withMore": "{names} +{count, plural, =1 {# viewing} other {# viewing}}"
       }
     },
     "notes": {
@@ -66,7 +78,12 @@
       "pending": "(pending)",
       "unknownAuthor": "Unknown collaborator",
       "loadMore": "Load more notes",
-      "loadingMore": "Loading notes"
+      "loadingMore": "Loading notes",
+      "presence": {
+        "viewing": "{name} is viewing this thread",
+        "replying": "{name} is replying...",
+        "more": "+{count, plural, =1 {# more} other {# more}}"
+      }
     },
     "placeSearch": {
       "title": "Place search",
@@ -93,8 +110,15 @@
       "newItemType": "New item type",
       "addPlaceholder": "Add a stop, activity, or reminder",
       "add": "Add",
+      "cancel": "Cancel",
+      "inlineAdd": "Add stop",
+      "searchPlace": "Search place",
+      "placeSearchTitle": "Add place here",
+      "placeSearchPlaceholder": "Search a place for this stop",
+      "addPlaceHere": "Add {name} here",
       "loadMore": "Load more stops",
       "loadingMore": "Loading stops",
+      "routeDistanceKilometers": "{value} km",
       "groupCount": "{count, plural, =1 {# item} other {# items}}",
       "grouping": {
         "day": "Day",
@@ -114,14 +138,30 @@
       "descriptionLabel": "Item description",
       "descriptionPlaceholder": "Notes, booking details, or timing ideas",
       "statusLabel": "Item status",
+      "attachPlace": "Attach place",
+      "changePlace": "Change place",
+      "removePlace": "Remove place",
+      "placeSearchPlaceholder": "Search a place",
+      "attachPlaceTo": "Attach {name}",
+      "changePlaceTo": "Change to {name}",
       "duration": "{minutes} min",
       "flexible": "Flexible",
       "allDay": "All day",
+      "unscheduled": "Flexible time",
+      "expand": "Expand stop",
+      "collapse": "Collapse stop",
       "routeSummary": "{mode}, {distance} km, {duration}",
       "routeDuration": "{minutes, plural, =1 {# min} other {# min}}",
       "notes": "{count, plural, =1 {# note} other {# notes}}",
+      "moreNotes": "+{count, plural, =1 {# more note} other {# more notes}}",
+      "moreNotesUnknown": "More notes",
       "unresolved": "{count, plural, =1 {# unresolved} other {# unresolved}}",
       "editedAt": "Edited {value}",
+      "presence": {
+        "viewing": "{name} is viewing",
+        "editing": "{name} is editing",
+        "more": "+{count, plural, =1 {# more} other {# more}}"
+      },
       "types": {
         "ACTIVITY": "Activity",
         "PLACE": "Place",
@@ -190,6 +230,7 @@
       "fit": "Focus first place",
       "fitRoute": "Fit active route",
       "close": "Close map",
+      "empty": "Assign places to stops to show them on the map.",
       "loading": "Loading map...",
       "missingApiKey": "Google Maps is not configured.",
       "loadError": "Map could not be loaded.",

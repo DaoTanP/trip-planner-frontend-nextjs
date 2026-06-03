@@ -24,19 +24,9 @@ type LoadState = "idle" | "loading" | "ready" | "error";
 
 const markerPath = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z";
 
-function markerInitials(marker: MapMarker) {
-  return marker.label
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
-
-function createMarkerLabel(marker: MapMarker, index: number): GoogleMarkerLabel {
+function createMarkerLabel(marker: MapMarker): GoogleMarkerLabel {
   return {
-    text: markerInitials(marker) || String(index + 1),
+    text: String(marker.stopOrder),
     color: "#ffffff",
     fontSize: "11px",
     fontWeight: "700"
@@ -85,6 +75,7 @@ export function GoogleMapProvider({
   viewport,
   selectedMarkerId,
   hoveredMarkerId,
+  focusedMarkerIds = [],
   onViewportChange,
   onMarkerSelect,
   onMarkerHover
@@ -111,6 +102,7 @@ export function GoogleMapProvider({
   const displayLoadState = isMissingApiKey ? "error" : loadState;
   const displayErrorKey = isMissingApiKey ? "missingApiKey" : errorKey;
   const routePath = useMemo(() => resolveRoutePath(routeResult, route), [route, routeResult]);
+  const focusedMarkerIdSet = useMemo(() => new Set(focusedMarkerIds), [focusedMarkerIds]);
 
   useEffect(() => {
     onViewportChangeRef.current = onViewportChange;
@@ -242,14 +234,17 @@ export function GoogleMapProvider({
 
     const activeIds = new Set(markers.map((marker) => marker.id));
 
-    markers.forEach((marker, index) => {
-      const isActive = marker.id === selectedMarkerId || marker.id === hoveredMarkerId;
+    markers.forEach((marker) => {
+      const isActive =
+        marker.id === selectedMarkerId ||
+        marker.id === hoveredMarkerId ||
+        focusedMarkerIdSet.has(marker.id);
       const position = {
         lat: marker.latitude,
         lng: marker.longitude
       };
       const icon = createMarkerIcon(googleMaps, isActive ? "active" : "default");
-      const label = createMarkerLabel(marker, index);
+      const label = createMarkerLabel(marker);
       const existingMarker = markersRef.current.get(marker.id);
 
       if (existingMarker) {
@@ -295,7 +290,7 @@ export function GoogleMapProvider({
       marker.setMap(null);
       markersRef.current.delete(markerId);
     });
-  }, [hoveredMarkerId, loadState, markers, selectedMarkerId]);
+  }, [focusedMarkerIdSet, hoveredMarkerId, loadState, markers, selectedMarkerId]);
 
   useEffect(() => {
     const googleMaps = googleMapsRef.current;

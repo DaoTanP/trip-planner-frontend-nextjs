@@ -24,7 +24,7 @@ type MarkerFeature = {
     itemId: string | null;
     placeId: string | null;
     label: string;
-    sequence: number;
+    stopOrder: number;
     isActive: boolean;
   };
 };
@@ -38,6 +38,7 @@ interface MapLibreMarkerLayerProps {
   markers: MapMarker[];
   selectedMarkerId?: string | undefined;
   hoveredMarkerId?: string | undefined;
+  focusedMarkerIds?: string[] | undefined;
 }
 
 const clusterLayer: LayerProps = {
@@ -86,7 +87,7 @@ const markerLabelLayer: LayerProps = {
   source: markerSourceId,
   filter: ["!", ["has", "point_count"]],
   layout: {
-    "text-field": ["to-string", ["get", "sequence"]],
+    "text-field": ["to-string", ["get", "stopOrder"]],
     "text-size": 11,
     "text-allow-overlap": true,
     "text-ignore-placement": true
@@ -99,12 +100,14 @@ const markerLabelLayer: LayerProps = {
 export const MapLibreMarkerLayer = memo(function MapLibreMarkerLayer({
   markers,
   selectedMarkerId,
-  hoveredMarkerId
+  hoveredMarkerId,
+  focusedMarkerIds = []
 }: MapLibreMarkerLayerProps) {
+  const focusedMarkerIdSet = useMemo(() => new Set(focusedMarkerIds), [focusedMarkerIds]);
   const markerData = useMemo<MarkerFeatureCollection>(
     () => ({
       type: "FeatureCollection",
-      features: markers.map((marker, index) => ({
+      features: markers.map((marker) => ({
         type: "Feature",
         geometry: {
           type: "Point",
@@ -115,12 +118,15 @@ export const MapLibreMarkerLayer = memo(function MapLibreMarkerLayer({
           itemId: marker.itemId ?? null,
           placeId: marker.placeId ?? null,
           label: marker.label,
-          sequence: index + 1,
-          isActive: marker.id === selectedMarkerId || marker.id === hoveredMarkerId
+          stopOrder: marker.stopOrder,
+          isActive:
+            marker.id === selectedMarkerId ||
+            marker.id === hoveredMarkerId ||
+            focusedMarkerIdSet.has(marker.id)
         }
       }))
     }),
-    [hoveredMarkerId, markers, selectedMarkerId]
+    [focusedMarkerIdSet, hoveredMarkerId, markers, selectedMarkerId]
   );
 
   return (

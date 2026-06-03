@@ -25,6 +25,7 @@ export interface TripMapProps {
   viewport: MapViewport;
   selectedMarkerId?: string | undefined;
   hoveredMarkerId?: string | undefined;
+  focusedMarkerIds?: string[] | undefined;
   onViewportChange: (viewport: MapViewport) => void;
   onMarkerSelect: (marker: MapMarker) => void;
   onMarkerHover?: (marker?: MapMarker) => void;

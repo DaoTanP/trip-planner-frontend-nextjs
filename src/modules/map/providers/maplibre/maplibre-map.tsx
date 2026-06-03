@@ -32,6 +32,7 @@ export function MapLibreMap({
   viewport,
   selectedMarkerId,
   hoveredMarkerId,
+  focusedMarkerIds,
   onViewportChange,
   onMarkerSelect,
   onMarkerHover
@@ -234,6 +235,7 @@ export function MapLibreMap({
         <MapLibreMarkerLayer
           markers={markers}
           hoveredMarkerId={hoveredMarkerId}
+          focusedMarkerIds={focusedMarkerIds}
           selectedMarkerId={selectedMarkerId}
         />
       </ReactMap>

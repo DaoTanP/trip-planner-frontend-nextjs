@@ -52,7 +52,7 @@ const nonFinalSyncStates = new Set<SyncMutationState>([
   "conflicted"
 ]);
 
-export function sortTimelineItems(items: ItineraryItem[]) {
+export function sortStopSequence(items: ItineraryItem[]) {
   return [...items].sort((left, right) =>
     left.sortOrder === right.sortOrder
       ? left.id.localeCompare(right.id)
@@ -60,7 +60,7 @@ export function sortTimelineItems(items: ItineraryItem[]) {
   );
 }
 
-export function filterTimelineItems(
+export function filterStopSequence(
   items: ItineraryItem[],
   places: PlaceDto[],
   filters: PlannerFilters
@@ -68,7 +68,7 @@ export function filterTimelineItems(
   const placeMap = getPlaceMap(places);
   const normalizedQuery = filters.query.trim().toLowerCase();
 
-  return sortTimelineItems(items).filter((item) => {
+  return sortStopSequence(items).filter((item) => {
     if (filters.type !== "ALL" && !item.types.includes(filters.type as ItineraryItemTypeDto)) {
       return false;
     }

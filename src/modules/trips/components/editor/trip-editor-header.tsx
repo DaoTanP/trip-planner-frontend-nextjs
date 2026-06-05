@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Save, Search, Share2, SlidersHorizontal } from "lucide-react";
+import { CalendarRange, Save, Search, Share2, SlidersHorizontal } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -83,7 +83,7 @@ export function TripEditorHeader({ trip, stats, presenceEntries = [] }: TripEdit
           />
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex min-w-0 items-center gap-1">
-              <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
+              <CalendarRange className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{derivedDateRange}</span>
             </span>
             <span className="rounded-md bg-muted px-2 py-0.5 text-foreground">

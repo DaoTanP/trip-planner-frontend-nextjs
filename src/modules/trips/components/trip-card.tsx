@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  CalendarDays,
+  CalendarRange,
   CircleDollarSign,
   MapPinned,
   MessageSquare,
@@ -47,7 +47,7 @@ export function TripCard({ trip }: TripCardProps) {
 
       <div className="grid gap-2 text-sm text-muted-foreground">
         <p className="flex items-center gap-2">
-          <CalendarDays className="size-4" aria-hidden="true" />
+          <CalendarRange className="size-4" aria-hidden="true" />
           {startDate && endDate ? t("card.dateRange", { startDate, endDate }) : t("card.noDates")}
         </p>
         <p className="flex items-center gap-2">

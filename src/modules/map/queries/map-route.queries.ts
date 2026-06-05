@@ -14,6 +14,7 @@ export function mapRouteQueryOptions(request: MapRouteRequest) {
     queryKey: mapRouteKeys.route(request),
     queryFn: ({ signal }) => getMapRoute(request, signal),
     enabled: isGoogleMapsConfigured() && request.points.length >= 2,
+    retry: false,
     staleTime: 5 * 60 * 1000
   });
 }

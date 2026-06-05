@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Check, MessageSquare, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 
+import { FieldError } from "@/components/shared/field-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -60,6 +61,7 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
   const [expenseCategoryId, setExpenseCategoryId] = useState("");
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [expandedExpenseNotesId, setExpandedExpenseNotesId] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string | undefined>>({});
   const [expenseDraft, setExpenseDraft] = useState({
     title: "",
     amount: "",
@@ -101,18 +103,50 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
   const expenseCurrency = expenseCurrencyDraft ?? summary?.currency ?? "USD";
 
   function handleSaveBudget() {
-    const parsedLimit = budgetLimit.trim() ? Number(budgetLimit) : null;
+    const nextErrors: Record<string, string | undefined> = {};
+    const currency = budgetCurrency.trim().toUpperCase();
+    const limitText = budgetLimit.trim();
+    let parsedLimit: number | null = null;
+
+    if (!isValidCurrency(currency)) {
+      nextErrors.budgetCurrency = t("errors.currency");
+    }
+
+    if (limitText) {
+      const parsed = Number(limitText);
+
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        nextErrors.budgetLimit = t("errors.nonNegativeAmount");
+      } else {
+        parsedLimit = parsed;
+      }
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors((current) => ({ ...current, ...nextErrors }));
+      return;
+    }
+    setFormErrors((current) => ({
+      ...current,
+      budgetCurrency: undefined,
+      budgetLimit: undefined
+    }));
 
     upsertBudget.mutate(
       {
-        currency: budgetCurrency.trim() || summary?.currency || "USD",
-        totalLimit: Number.isFinite(parsedLimit) ? parsedLimit : null,
+        currency,
+        totalLimit: parsedLimit,
         clientMutationId: crypto.randomUUID()
       },
       {
         onSuccess: () => {
           setBudgetCurrencyDraft(null);
           setBudgetLimitDraft(null);
+          setFormErrors((current) => ({
+            ...current,
+            budgetCurrency: undefined,
+            budgetLimit: undefined
+          }));
         }
       }
     );
@@ -121,16 +155,35 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
   function handleCreateExpense() {
     const amount = Number(expenseAmount);
     const title = expenseTitle.trim();
+    const currency = expenseCurrency.trim().toUpperCase();
+    const nextErrors: Record<string, string | undefined> = {};
 
-    if (!title || !Number.isFinite(amount) || amount <= 0) {
+    if (!title) {
+      nextErrors.expenseTitle = t("errors.title");
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      nextErrors.expenseAmount = t("errors.positiveAmount");
+    }
+    if (!isValidCurrency(currency)) {
+      nextErrors.expenseCurrency = t("errors.currency");
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors((current) => ({ ...current, ...nextErrors }));
       return;
     }
+    setFormErrors((current) => ({
+      ...current,
+      expenseTitle: undefined,
+      expenseAmount: undefined,
+      expenseCurrency: undefined
+    }));
 
     createExpense.mutate(
       {
         title,
         amount,
-        currency: expenseCurrency.trim() || summary?.currency || "USD",
+        currency,
         categoryId: expenseCategoryId || null,
         itineraryItemId: expenseItemId || null,
         clientMutationId: crypto.randomUUID()
@@ -141,6 +194,13 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
           setExpenseAmount("");
           setExpenseItemId("");
           setExpenseCategoryId("");
+          setExpenseCurrencyDraft(null);
+          setFormErrors((current) => ({
+            ...current,
+            expenseTitle: undefined,
+            expenseAmount: undefined,
+            expenseCurrency: undefined
+          }));
         }
       }
     );
@@ -159,6 +219,12 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
 
   function cancelEditingExpense() {
     setEditingExpenseId(null);
+    setFormErrors((current) => ({
+      ...current,
+      editTitle: undefined,
+      editAmount: undefined,
+      editCurrency: undefined
+    }));
     setExpenseDraft({
       title: "",
       amount: "",
@@ -171,10 +237,29 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
   function handleUpdateExpense(expense: TripExpense) {
     const amount = Number(expenseDraft.amount);
     const title = expenseDraft.title.trim();
+    const currency = expenseDraft.currency.trim().toUpperCase();
+    const nextErrors: Record<string, string | undefined> = {};
 
-    if (!title || !Number.isFinite(amount) || amount <= 0) {
+    if (!title) {
+      nextErrors.editTitle = t("errors.title");
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      nextErrors.editAmount = t("errors.positiveAmount");
+    }
+    if (!isValidCurrency(currency)) {
+      nextErrors.editCurrency = t("errors.currency");
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors((current) => ({ ...current, ...nextErrors }));
       return;
     }
+    setFormErrors((current) => ({
+      ...current,
+      editTitle: undefined,
+      editAmount: undefined,
+      editCurrency: undefined
+    }));
 
     updateExpense.mutate(
       {
@@ -182,7 +267,7 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
         payload: {
           title,
           amount,
-          currency: expenseDraft.currency.trim() || expense.currency,
+          currency,
           categoryId: expenseDraft.categoryId || null,
           itineraryItemId: expenseDraft.itineraryItemId || null,
           expectedVersion: expense.version,
@@ -190,13 +275,55 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
         }
       },
       {
-        onSuccess: cancelEditingExpense
+        onSuccess: () => {
+          setFormErrors((current) => ({
+            ...current,
+            editTitle: undefined,
+            editAmount: undefined,
+            editCurrency: undefined
+          }));
+          cancelEditingExpense();
+        }
       }
     );
   }
 
   return (
     <section className="grid gap-3">
+      {budgetQuery.isLoading || expensesQuery.isLoading ? (
+        <div className="rounded-md border bg-card p-3 text-sm text-muted-foreground">
+          {t("loading")}
+        </div>
+      ) : null}
+
+      {budgetQuery.isError || expensesQuery.isError ? (
+        <div className="grid gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <span>{t("loadError")}</span>
+          <div className="flex flex-wrap gap-2">
+            {budgetQuery.isError ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => void budgetQuery.refetch()}
+              >
+                {t("retryBudget")}
+              </Button>
+            ) : null}
+            {expensesQuery.isError ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => void expensesQuery.refetch()}
+              >
+                {t("retryExpenses")}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid gap-2 rounded-md border bg-card p-3">
         <div className="grid gap-2 sm:grid-cols-4">
           <SummaryMetric
@@ -240,10 +367,13 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
               id="budget-currency"
               value={budgetCurrency}
               maxLength={3}
+              aria-invalid={Boolean(formErrors.budgetCurrency)}
+              aria-describedby="budget-currency-error"
               onChange={(event) => {
                 setBudgetCurrencyDraft(event.target.value.toUpperCase());
               }}
             />
+            <FieldError id="budget-currency-error" message={formErrors.budgetCurrency} />
           </div>
           <div className="grid gap-1">
             <Label htmlFor="budget-limit">{t("totalLimit")}</Label>
@@ -251,10 +381,13 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
               id="budget-limit"
               inputMode="decimal"
               value={budgetLimit}
+              aria-invalid={Boolean(formErrors.budgetLimit)}
+              aria-describedby="budget-limit-error"
               onChange={(event) => {
                 setBudgetLimitDraft(event.target.value);
               }}
             />
+            <FieldError id="budget-limit-error" message={formErrors.budgetLimit} />
           </div>
           <Button
             type="button"
@@ -275,8 +408,11 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
             <Input
               id="expense-title"
               value={expenseTitle}
+              aria-invalid={Boolean(formErrors.expenseTitle)}
+              aria-describedby="expense-title-error"
               onChange={(event) => setExpenseTitle(event.target.value)}
             />
+            <FieldError id="expense-title-error" message={formErrors.expenseTitle} />
           </div>
           <div className="grid gap-1">
             <Label htmlFor="expense-amount">{t("amount")}</Label>
@@ -284,8 +420,11 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
               id="expense-amount"
               inputMode="decimal"
               value={expenseAmount}
+              aria-invalid={Boolean(formErrors.expenseAmount)}
+              aria-describedby="expense-amount-error"
               onChange={(event) => setExpenseAmount(event.target.value)}
             />
+            <FieldError id="expense-amount-error" message={formErrors.expenseAmount} />
           </div>
           <div className="grid gap-1">
             <Label htmlFor="expense-currency">{t("currency")}</Label>
@@ -293,8 +432,11 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
               id="expense-currency"
               value={expenseCurrency}
               maxLength={3}
+              aria-invalid={Boolean(formErrors.expenseCurrency)}
+              aria-describedby="expense-currency-error"
               onChange={(event) => setExpenseCurrencyDraft(event.target.value.toUpperCase())}
             />
+            <FieldError id="expense-currency-error" message={formErrors.expenseCurrency} />
           </div>
           <div className="grid gap-1">
             <Label htmlFor="expense-stop">{t("linkedStop")}</Label>
@@ -360,12 +502,18 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
                     <Input
                       id={`expense-title-${expense.id}`}
                       value={expenseDraft.title}
+                      aria-invalid={Boolean(formErrors.editTitle)}
+                      aria-describedby={`expense-title-${expense.id}-error`}
                       onChange={(event) =>
                         setExpenseDraft((current) => ({
                           ...current,
                           title: event.target.value
                         }))
                       }
+                    />
+                    <FieldError
+                      id={`expense-title-${expense.id}-error`}
+                      message={formErrors.editTitle}
                     />
                   </div>
                   <div className="grid gap-1">
@@ -374,12 +522,18 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
                       id={`expense-amount-${expense.id}`}
                       inputMode="decimal"
                       value={expenseDraft.amount}
+                      aria-invalid={Boolean(formErrors.editAmount)}
+                      aria-describedby={`expense-amount-${expense.id}-error`}
                       onChange={(event) =>
                         setExpenseDraft((current) => ({
                           ...current,
                           amount: event.target.value
                         }))
                       }
+                    />
+                    <FieldError
+                      id={`expense-amount-${expense.id}-error`}
+                      message={formErrors.editAmount}
                     />
                   </div>
                   <div className="grid gap-1">
@@ -388,12 +542,18 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
                       id={`expense-currency-${expense.id}`}
                       value={expenseDraft.currency}
                       maxLength={3}
+                      aria-invalid={Boolean(formErrors.editCurrency)}
+                      aria-describedby={`expense-currency-${expense.id}-error`}
                       onChange={(event) =>
                         setExpenseDraft((current) => ({
                           ...current,
                           currency: event.target.value.toUpperCase()
                         }))
                       }
+                    />
+                    <FieldError
+                      id={`expense-currency-${expense.id}-error`}
+                      message={formErrors.editCurrency}
                     />
                   </div>
                   <div className="grid gap-1">
@@ -565,4 +725,8 @@ function formatMoney(amount: number, currency: string, locale: string) {
     maximumFractionDigits: 0,
     style: "currency"
   }).format(amount);
+}
+
+function isValidCurrency(value: string) {
+  return /^[A-Z]{3}$/.test(value);
 }

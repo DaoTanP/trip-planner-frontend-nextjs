@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/shared/empty-state";
@@ -42,18 +41,7 @@ export function TripList() {
   }
 
   if (tripsQuery.data.items.length === 0) {
-    return (
-      <EmptyState
-        title={tTrip("empty.title")}
-        description={tTrip("empty.description")}
-        action={
-          <Button type="button" variant="secondary">
-            <Plus aria-hidden="true" />
-            {tTrip("create")}
-          </Button>
-        }
-      />
-    );
+    return <EmptyState title={tTrip("empty.title")} description={tTrip("empty.description")} />;
   }
 
   return (

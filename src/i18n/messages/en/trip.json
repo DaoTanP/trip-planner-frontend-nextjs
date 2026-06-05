@@ -18,6 +18,7 @@
     "retry": "Retry",
     "errorTitle": "Trip editor could not load",
     "errorDescription": "Refresh the trip data or try again after checking your connection.",
+    "placesError": "Places could not be loaded. Stop titles, markers, and routes may be incomplete.",
     "tabs": {
       "stops": "Stops",
       "budget": "Budget",
@@ -68,7 +69,6 @@
       "title": "Notes",
       "workspaceTitle": "Planning notes",
       "tripTitle": "Trip notes",
-      "itemTitle": "Notes for {title}",
       "placeholder": "Write a planning note",
       "replyPlaceholder": "Write a reply",
       "add": "Add note",
@@ -77,6 +77,9 @@
       "delete": "Delete note",
       "save": "Save",
       "cancel": "Cancel",
+      "loading": "Loading notes...",
+      "error": "Notes could not be loaded.",
+      "retry": "Retry notes",
       "empty": "No notes yet",
       "deleted": "This note was deleted.",
       "edited": "(edited)",
@@ -94,10 +97,13 @@
       "title": "Place search",
       "placeholder": "Search places to add",
       "loading": "Searching places...",
+      "error": "Place search failed.",
+      "retry": "Retry search",
       "empty": "No places found",
       "noAddress": "Address not available",
       "addPlace": "Add {name}",
       "addManual": "Resolve \"{name}\" manually",
+      "duplicateStop": "This place is already in the stop sequence.",
       "close": "Close place search",
       "addError": "Place could not be added."
     },
@@ -113,7 +119,7 @@
       "allTypes": "All types",
       "allStatuses": "All statuses",
       "clear": "Clear",
-      "newItemType": "New item type",
+      "newItemType": "New stop type",
       "add": "Add",
       "cancel": "Cancel",
       "inlineAdd": "Add stop",
@@ -124,9 +130,9 @@
       "loadMore": "Load more stops",
       "loadingMore": "Loading stops",
       "routeDistanceKilometers": "{value} km",
-      "groupCount": "{count, plural, =1 {# item} other {# items}}",
+      "groupCount": "{count, plural, =1 {# stop} other {# stops}}",
       "grouping": {
-        "day": "Day",
+        "day": "Date",
         "city": "City",
         "type": "Type",
         "flat": "Flat"
@@ -194,6 +200,7 @@
       "zoomOut": "Zoom out",
       "fit": "Focus first place",
       "fitRoute": "Fit active route",
+      "jump": "Map",
       "close": "Close map",
       "empty": "Assign places to stops to show them on the map.",
       "loading": "Loading map...",
@@ -208,6 +215,8 @@
       "addStop": "Add to itinerary",
       "stopAdded": "Stop added.",
       "addStopFailed": "Stop could not be added.",
+      "routeError": "Route could not be calculated.",
+      "routeGapWarning": "{count, plural, =1 {# stop has no coordinates. Change its place to complete the route.} other {# stops have no coordinates. Change those places to complete the route.}}",
       "attribution": "OpenStreetMap",
       "attributionOsm": "OpenStreetMap",
       "attributionGoogle": "Google Maps",
@@ -218,6 +227,10 @@
     },
     "budget": {
       "spent": "Spent",
+      "loading": "Loading budget and expenses...",
+      "loadError": "Budget or expenses could not be loaded.",
+      "retryBudget": "Retry budget",
+      "retryExpenses": "Retry expenses",
       "limit": "Limit",
       "remaining": "Remaining",
       "usage": "Usage",
@@ -240,7 +253,13 @@
       "loadMore": "Load more expenses",
       "loadingMore": "Loading expenses",
       "cancel": "Cancel",
-      "emptyExpenses": "No expenses yet."
+      "emptyExpenses": "No expenses yet.",
+      "errors": {
+        "title": "Enter an expense title.",
+        "currency": "Use a 3-letter currency code.",
+        "positiveAmount": "Enter an amount greater than 0.",
+        "nonNegativeAmount": "Enter 0 or a greater amount."
+      }
     }
   },
   "empty": {
@@ -258,7 +277,7 @@
     "dateRange": "{startDate} - {endDate}",
     "noDates": "Dates not set",
     "collaborators": "{count, plural, =0 {No collaborators} =1 {# collaborator} other {# collaborators}}",
-    "items": "{count, plural, =0 {No itinerary stops} =1 {# itinerary stop} other {# itinerary stops}}",
+    "items": "{count, plural, =0 {No stops} =1 {# stop} other {# stops}}",
     "notes": "{count, plural, =0 {No notes} =1 {# note} other {# notes}}",
     "expenses": "{count, plural, =0 {No expenses} =1 {# expense} other {# expenses}}"
   },

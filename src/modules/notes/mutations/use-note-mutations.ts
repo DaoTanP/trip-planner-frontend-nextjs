@@ -8,6 +8,8 @@ import {
 } from "@tanstack/react-query";
 
 import type { TripDetailDto } from "@/services/api/contracts";
+import { itineraryKeys } from "@/modules/itinerary/queries/itinerary.queries";
+import type { ItineraryItem, ItineraryItemsPage } from "@/modules/itinerary/types/itinerary.types";
 import { runQueuedMutation } from "@/modules/sync/runtime/sync-runtime";
 import { tripKeys } from "@/modules/trips/queries/trip.queries";
 
@@ -23,6 +25,7 @@ import type {
 } from "../types/note.types";
 
 type NotesInfiniteData = InfiniteData<CursorPage<CollaborativeNote>, string | undefined>;
+type ItineraryInfiniteData = InfiniteData<ItineraryItemsPage, string | undefined>;
 
 const defaultNotesPagination = {
   limit: 50,
@@ -98,6 +101,42 @@ const patchTripRevision = (
         }
       : current
   );
+};
+
+const patchStopNoteCount = (queryClient: QueryClient, note: CollaborativeNote, delta: number) => {
+  if (!note.tripId || note.targetEntityType !== "ITINERARY_ITEM" || note.parentNoteId !== null) {
+    return;
+  }
+
+  queryClient.setQueryData<ItineraryInfiniteData>(itineraryKeys.items(note.tripId), (current) =>
+    current
+      ? {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            items: page.items.map((item) =>
+              item.id === note.targetEntityId ? patchItemNoteCount(item, delta) : item
+            )
+          }))
+        }
+      : current
+  );
+};
+
+const patchItemNoteCount = (item: ItineraryItem, delta: number): ItineraryItem => {
+  const metadata =
+    item.metadata && typeof item.metadata === "object" && !Array.isArray(item.metadata)
+      ? item.metadata
+      : {};
+  const currentCount = typeof metadata.noteCount === "number" ? metadata.noteCount : 0;
+
+  return {
+    ...item,
+    metadata: {
+      ...metadata,
+      noteCount: Math.max(0, currentCount + delta)
+    }
+  };
 };
 
 const getTripRevision = (queryClient: QueryClient, tripId: string | null) =>
@@ -219,6 +258,7 @@ export function useCreateNoteMutation(filters: ListNotesQuery) {
         replaceNote(current, result.note, context?.optimisticId)
       );
       patchTripRevision(queryClient, result.note.tripId, result.revision, 1);
+      patchStopNoteCount(queryClient, result.note, 1);
     }
   });
 }
@@ -334,6 +374,7 @@ export function useDeleteNoteMutation() {
         replaceNote(current, result.note)
       );
       patchTripRevision(queryClient, result.note.tripId, result.revision, -1);
+      patchStopNoteCount(queryClient, result.note, -1);
     }
   });
 }

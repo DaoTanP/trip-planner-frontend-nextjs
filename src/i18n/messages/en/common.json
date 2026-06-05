@@ -72,10 +72,10 @@
     "secondaryAction": "Log in",
     "mapTitle": "Hanoi to Da Nang",
     "mapSubtitle": "3 cities · 14 stops · 840 km",
-    "dayLabel": "Stop {day}",
+    "stopLabel": "Stop {stop}",
     "stats": {
+      "places": "Places",
       "stops": "Stops",
-      "days": "Stops",
       "distance": "km"
     },
     "workspace": {

@@ -435,7 +435,7 @@ Desktop uses two columns:
 - left planner: compact trip header, stop search/filters, budget, and threaded notes
 - right map: sticky viewport-height workspace with route, marker, hover, selection, and fit controls
 
-Tablet and mobile use a planner-first workflow with floating quick actions and a map bottom sheet. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.
+Tablet and mobile use a planner-first workflow with compact tab controls and a map quick-jump so the map remains reachable from secondary workflows. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.
 
 ## Future Realtime
 

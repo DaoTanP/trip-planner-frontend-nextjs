@@ -18,6 +18,7 @@
     "retry": "Thu lai",
     "errorTitle": "Khong tai duoc trinh sua chuyen di",
     "errorDescription": "Lam moi du lieu chuyen di hoac thu lai sau khi kiem tra ket noi.",
+    "placesError": "Khong tai duoc dia diem. Ten diem dung, ghim ban do va tuyen co the chua day du.",
     "tabs": {
       "stops": "Diem dung",
       "budget": "Ngan sach",
@@ -68,7 +69,6 @@
       "title": "Ghi chu",
       "workspaceTitle": "Ghi chu lap ke hoach",
       "tripTitle": "Ghi chu chuyen di",
-      "itemTitle": "Ghi chu cho {title}",
       "placeholder": "Viet ghi chu lap ke hoach",
       "replyPlaceholder": "Viet phan hoi",
       "add": "Them ghi chu",
@@ -77,6 +77,9 @@
       "delete": "Xoa ghi chu",
       "save": "Luu",
       "cancel": "Huy",
+      "loading": "Dang tai ghi chu...",
+      "error": "Khong tai duoc ghi chu.",
+      "retry": "Tai lai ghi chu",
       "empty": "Chua co ghi chu",
       "deleted": "Ghi chu nay da bi xoa.",
       "edited": "(da sua)",
@@ -94,10 +97,13 @@
       "title": "Tim dia diem",
       "placeholder": "Tim dia diem de them",
       "loading": "Dang tim dia diem...",
+      "error": "Tim dia diem that bai.",
+      "retry": "Tim lai",
       "empty": "Khong tim thay dia diem",
       "noAddress": "Chua co dia chi",
       "addPlace": "Them {name}",
       "addManual": "Tao dia diem thu cong \"{name}\"",
+      "duplicateStop": "Dia diem nay da co trong thu tu diem dung.",
       "close": "Dong tim dia diem",
       "addError": "Khong them duoc dia diem."
     },
@@ -124,9 +130,9 @@
       "loadMore": "Tai them diem dung",
       "loadingMore": "Dang tai diem dung",
       "routeDistanceKilometers": "{value} km",
-      "groupCount": "{count, plural, other {# muc}}",
+      "groupCount": "{count, plural, other {# diem dung}}",
       "grouping": {
-        "day": "Ngay",
+        "day": "Ngay xep lich",
         "city": "Thanh pho",
         "type": "Loai",
         "flat": "Phang"
@@ -194,6 +200,7 @@
       "zoomOut": "Thu nho",
       "fit": "Tap trung dia diem dau",
       "fitRoute": "Vua tuyen dang chon",
+      "jump": "Ban do",
       "close": "Dong ban do",
       "empty": "Them dia diem vao diem dung de hien tren ban do.",
       "loading": "Dang tai ban do...",
@@ -208,6 +215,8 @@
       "addStop": "Them vao lich trinh",
       "stopAdded": "Da them diem dung.",
       "addStopFailed": "Khong them duoc diem dung.",
+      "routeError": "Khong tinh duoc tuyen.",
+      "routeGapWarning": "{count, plural, other {# diem dung chua co toa do. Doi dia diem de hoan tat tuyen.}}",
       "attribution": "OpenStreetMap",
       "attributionOsm": "OpenStreetMap",
       "attributionGoogle": "Google Maps",
@@ -218,6 +227,10 @@
     },
     "budget": {
       "spent": "Da chi",
+      "loading": "Dang tai ngan sach va chi phi...",
+      "loadError": "Khong tai duoc ngan sach hoac chi phi.",
+      "retryBudget": "Tai lai ngan sach",
+      "retryExpenses": "Tai lai chi phi",
       "limit": "Gioi han",
       "remaining": "Con lai",
       "usage": "Su dung",
@@ -240,7 +253,13 @@
       "loadMore": "Tai them chi phi",
       "loadingMore": "Dang tai chi phi",
       "cancel": "Huy",
-      "emptyExpenses": "Chua co chi phi."
+      "emptyExpenses": "Chua co chi phi.",
+      "errors": {
+        "title": "Nhap ten chi phi.",
+        "currency": "Dung ma tien te gom 3 chu cai.",
+        "positiveAmount": "Nhap so tien lon hon 0.",
+        "nonNegativeAmount": "Nhap so tien tu 0 tro len."
+      }
     }
   },
   "empty": {

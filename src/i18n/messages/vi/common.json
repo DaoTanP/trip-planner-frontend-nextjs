@@ -72,10 +72,10 @@
     "secondaryAction": "Đăng nhập",
     "mapTitle": "Hà Nội đến Đà Nẵng",
     "mapSubtitle": "3 thành phố · 14 điểm dừng · 840 km",
-    "dayLabel": "Điểm dừng {day}",
+    "stopLabel": "Điểm dừng {stop}",
     "stats": {
+      "places": "Địa điểm",
       "stops": "Điểm dừng",
-      "days": "Điểm dừng",
       "distance": "km"
     },
     "workspace": {

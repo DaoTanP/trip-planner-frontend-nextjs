@@ -10,6 +10,8 @@ import { FieldError } from "@/components/shared/field-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { routes } from "@/constants/routes";
+import { useRouter } from "@/i18n/routing";
 
 import { useCreateTripMutation } from "../mutations/use-create-trip-mutation";
 import { createTripSchema, type CreateTripFormValues } from "../schemas/trip.schemas";
@@ -18,6 +20,7 @@ import type { CreateTripPayload } from "../types/trip.types";
 export function CreateTripForm() {
   const tTrip = useTranslations("trip");
   const tValidation = useTranslations("validation");
+  const router = useRouter();
   const createMutation = useCreateTripMutation();
   const schema = useMemo(() => createTripSchema(tValidation), [tValidation]);
 
@@ -41,7 +44,11 @@ export function CreateTripForm() {
         if (values.startDate) payload.startDate = values.startDate;
         if (values.endDate) payload.endDate = values.endDate;
 
-        createMutation.mutate(payload);
+        createMutation.mutate(payload, {
+          onSuccess: (trip) => {
+            router.push(routes.tripEdit(trip.id));
+          }
+        });
       })}
     >
       <div className="grid gap-2">

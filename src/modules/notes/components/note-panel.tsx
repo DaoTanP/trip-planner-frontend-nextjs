@@ -40,6 +40,7 @@ type NotePanelProps = {
   parentNoteId?: string | undefined;
   title?: string | undefined;
   compact?: boolean | undefined;
+  permissionContext?: NotePermissionContext | undefined;
 };
 
 type NotePermissionContext = {
@@ -266,6 +267,7 @@ function NoteItem({
             targetEntityId={filters.targetEntityId ?? note.targetEntityId}
             parentNoteId={note.id}
             compact
+            permissionContext={permissionContext}
           />
         </div>
       ) : null}
@@ -297,35 +299,45 @@ export function NotePanel(props: NotePanelProps) {
   const [isComposing, setIsComposing] = useState(false);
   const tripQuery = useQuery({
     ...tripDetailQueryOptions(tripId ?? "__note_panel_without_trip__"),
-    enabled: tripId !== undefined
+    enabled: tripId !== undefined && props.permissionContext === undefined
   });
   const collaboratorsQuery = useQuery({
     ...tripCollaboratorsQueryOptions(tripId ?? "__note_panel_without_trip__"),
-    enabled: tripId !== undefined
+    enabled: tripId !== undefined && props.permissionContext === undefined
   });
   const notesQuery = useInfiniteQuery(notesInfiniteQueryOptions(filters));
   const notes = useMemo(
     () => notesQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [notesQuery.data]
   );
-  const currentUserId = sessionQuery.data?.user.id;
-  const currentUserRole = sessionQuery.data?.user.role;
+  const currentUserId = props.permissionContext?.currentUserId ?? sessionQuery.data?.user.id;
+  const currentUserRole = props.permissionContext?.currentUserRole ?? sessionQuery.data?.user.role;
   const collaboratorRole = useMemo(() => {
+    if (props.permissionContext?.collaboratorRole !== undefined) {
+      return props.permissionContext.collaboratorRole;
+    }
     if (!currentUserId) {
       return undefined;
     }
 
     return collaboratorsQuery.data?.find((collaborator) => collaborator.user?.id === currentUserId)
       ?.role;
-  }, [collaboratorsQuery.data, currentUserId]);
+  }, [collaboratorsQuery.data, currentUserId, props.permissionContext?.collaboratorRole]);
   const permissionContext = useMemo<NotePermissionContext>(
-    () => ({
+    () =>
+      props.permissionContext ?? {
+        currentUserId,
+        currentUserRole,
+        tripOwnerId: tripQuery.data?.owner.id,
+        collaboratorRole
+      },
+    [
+      collaboratorRole,
       currentUserId,
       currentUserRole,
-      tripOwnerId: tripQuery.data?.owner.id,
-      collaboratorRole
-    }),
-    [collaboratorRole, currentUserId, currentUserRole, tripQuery.data?.owner.id]
+      props.permissionContext,
+      tripQuery.data?.owner.id
+    ]
   );
   const threadPresenceEntries = useEntityPresenceEntries({
     tripId: presenceTripId,
@@ -355,7 +367,26 @@ export function NotePanel(props: NotePanelProps) {
         onComposingChange={setIsComposing}
       />
 
-      {notes.length > 0 ? (
+      {notesQuery.isLoading ? (
+        <p className="mt-4 text-sm text-muted-foreground">{t("loading")}</p>
+      ) : null}
+
+      {notesQuery.isError ? (
+        <div className="mt-4 grid gap-2 rounded-md bg-muted p-3 text-sm text-muted-foreground">
+          <span>{t("error")}</span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-fit"
+            onClick={() => void notesQuery.refetch()}
+          >
+            {t("retry")}
+          </Button>
+        </div>
+      ) : null}
+
+      {!notesQuery.isLoading && !notesQuery.isError && notes.length > 0 ? (
         <div className="mt-4 grid gap-2">
           {notes.map((note) => (
             <NoteItem
@@ -366,9 +397,11 @@ export function NotePanel(props: NotePanelProps) {
             />
           ))}
         </div>
-      ) : (
+      ) : null}
+
+      {!notesQuery.isLoading && !notesQuery.isError && notes.length === 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">{t("empty")}</p>
-      )}
+      ) : null}
 
       {notesQuery.hasNextPage ? (
         <Button

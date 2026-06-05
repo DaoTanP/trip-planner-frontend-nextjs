@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, MapPinned, Route } from "lucide-react";
+import { ArrowRight, ListOrdered, MapPinned, Route } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 
 import { LocaleSwitcher } from "@/components/shared/locale-switcher";
@@ -64,9 +64,9 @@ export default async function HomePage() {
             <div className="absolute left-[48%] top-[54%] size-4 rounded-full bg-accent shadow-[0_0_0_6px_color-mix(in_oklab,var(--accent)_25%,transparent)]" />
             <div className="absolute right-[18%] top-[32%] size-4 rounded-full bg-primary shadow-[0_0_0_6px_color-mix(in_oklab,var(--primary)_20%,transparent)]" />
             <div className="absolute bottom-4 left-4 right-4 grid gap-3 sm:grid-cols-3">
-              {[1, 2, 3].map((day) => (
-                <div key={day} className="rounded-md border bg-background/90 p-3 backdrop-blur">
-                  <p className="text-xs text-muted-foreground">{t("home.dayLabel", { day })}</p>
+              {[1, 2, 3].map((stop) => (
+                <div key={stop} className="rounded-md border bg-background/90 p-3 backdrop-blur">
+                  <p className="text-xs text-muted-foreground">{t("home.stopLabel", { stop })}</p>
                   <p className="text-sm font-medium">{t("home.workspace.title")}</p>
                 </div>
               ))}
@@ -77,12 +77,12 @@ export default async function HomePage() {
             <Metric
               icon={<MapPinned className="size-4" aria-hidden="true" />}
               value="18"
-              label={t("home.stats.stops")}
+              label={t("home.stats.places")}
             />
             <Metric
-              icon={<CalendarDays className="size-4" aria-hidden="true" />}
-              value="7"
-              label={t("home.stats.days")}
+              icon={<ListOrdered className="size-4" aria-hidden="true" />}
+              value="14"
+              label={t("home.stats.stops")}
             />
             <Metric
               icon={<Route className="size-4" aria-hidden="true" />}

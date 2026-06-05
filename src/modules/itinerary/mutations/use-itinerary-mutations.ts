@@ -96,6 +96,16 @@ const patchTripDetail = (
 const getTripRevision = (queryClient: ReturnType<typeof useQueryClient>, tripId: string) =>
   queryClient.getQueryData<TripDetail>(tripKeys.detail(tripId))?.revision;
 
+const getUsableTripRevision = (queryClient: ReturnType<typeof useQueryClient>, tripId: string) => {
+  const queryState = queryClient.getQueryState<TripDetail>(tripKeys.detail(tripId));
+
+  if (queryState?.isInvalidated || queryState?.fetchStatus === "fetching") {
+    return undefined;
+  }
+
+  return getTripRevision(queryClient, tripId);
+};
+
 const withItineraryMutationMeta = <
   TPayload extends { clientMutationId?: string; expectedRevision?: string }
 >(
@@ -107,7 +117,7 @@ const withItineraryMutationMeta = <
     ...payload,
     clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
   };
-  const expectedRevision = payload.expectedRevision ?? getTripRevision(queryClient, tripId);
+  const expectedRevision = payload.expectedRevision ?? getUsableTripRevision(queryClient, tripId);
 
   if (expectedRevision !== undefined) {
     nextPayload.expectedRevision = expectedRevision;
@@ -263,6 +273,8 @@ export function useDeleteItineraryItemMutation(tripId: string) {
       }
     },
     onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      void queryClient.invalidateQueries({ queryKey: itineraryKeys.items(tripId) });
       void queryClient.invalidateQueries({ queryKey: placeKeys.byTrip(tripId) });
     }
   });
@@ -306,6 +318,8 @@ export function useReorderItineraryItemsMutation(tripId: string) {
       if (context?.previousData) {
         queryClient.setQueryData(itineraryKeys.items(tripId), context.previousData);
       }
+      void queryClient.invalidateQueries({ queryKey: itineraryKeys.items(tripId) });
+      void queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
     },
     onSuccess: ({ affectedItems, item, revision }) => {
       const serverItems = affectedItems && affectedItems.length > 0 ? affectedItems : [item];

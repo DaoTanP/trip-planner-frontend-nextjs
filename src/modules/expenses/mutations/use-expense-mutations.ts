@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  type InfiniteData,
+  useMutation,
+  useQueryClient,
+  type QueryClient
+} from "@tanstack/react-query";
 
 import { runQueuedMutation } from "@/modules/sync/runtime/sync-runtime";
 import { tripKeys } from "@/modules/trips/queries/trip.queries";
@@ -26,6 +31,16 @@ import type {
 const getTripRevision = (queryClient: QueryClient, tripId: string) =>
   queryClient.getQueryData<TripDetail>(tripKeys.detail(tripId))?.revision;
 
+const getUsableTripRevision = (queryClient: QueryClient, tripId: string) => {
+  const queryState = queryClient.getQueryState<TripDetail>(tripKeys.detail(tripId));
+
+  if (queryState?.isInvalidated || queryState?.fetchStatus === "fetching") {
+    return undefined;
+  }
+
+  return getTripRevision(queryClient, tripId);
+};
+
 const withMutationMeta = <
   TPayload extends { clientMutationId?: string; expectedRevision?: string }
 >(
@@ -37,7 +52,7 @@ const withMutationMeta = <
     ...payload,
     clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
   };
-  const expectedRevision = payload.expectedRevision ?? getTripRevision(queryClient, tripId);
+  const expectedRevision = payload.expectedRevision ?? getUsableTripRevision(queryClient, tripId);
 
   if (expectedRevision !== undefined) {
     nextPayload.expectedRevision = expectedRevision;
@@ -57,6 +72,15 @@ const patchTrip = (
 };
 
 const expenseListQueryPrefix = (tripId: string) => [...expenseKeys.byTrip(tripId), "list"] as const;
+const expenseInfiniteListQueryPrefix = (tripId: string) =>
+  [...expenseKeys.byTrip(tripId), "infinite-list"] as const;
+
+type TripExpensesInfiniteData = InfiniteData<TripExpenses, string | undefined>;
+
+const upsertExpense = (expenses: TripExpense[], expense: TripExpense) => [
+  expense,
+  ...expenses.filter((candidate) => candidate.id !== expense.id)
+];
 
 const upsertExpenseInLists = (queryClient: QueryClient, tripId: string, expense: TripExpense) => {
   queryClient.setQueriesData<TripExpenses>(
@@ -65,10 +89,27 @@ const upsertExpenseInLists = (queryClient: QueryClient, tripId: string, expense:
       current
         ? {
             ...current,
-            expenses: [
-              expense,
-              ...current.expenses.filter((candidate) => candidate.id !== expense.id)
-            ]
+            expenses: upsertExpense(current.expenses, expense)
+          }
+        : current
+  );
+  queryClient.setQueriesData<TripExpensesInfiniteData>(
+    { queryKey: expenseInfiniteListQueryPrefix(tripId) },
+    (current) =>
+      current
+        ? {
+            ...current,
+            pages: current.pages.map((page, index) =>
+              index === 0
+                ? {
+                    ...page,
+                    expenses: upsertExpense(page.expenses, expense)
+                  }
+                : {
+                    ...page,
+                    expenses: page.expenses.filter((candidate) => candidate.id !== expense.id)
+                  }
+            )
           }
         : current
   );
@@ -82,6 +123,19 @@ const removeExpenseFromLists = (queryClient: QueryClient, tripId: string, expens
         ? {
             ...current,
             expenses: current.expenses.filter((expense) => expense.id !== expenseId)
+          }
+        : current
+  );
+  queryClient.setQueriesData<TripExpensesInfiniteData>(
+    { queryKey: expenseInfiniteListQueryPrefix(tripId) },
+    (current) =>
+      current
+        ? {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              expenses: page.expenses.filter((expense) => expense.id !== expenseId)
+            }))
           }
         : current
   );
@@ -111,7 +165,6 @@ export function useCreateExpenseMutation(tripId: string) {
         expenseCount: trip.expenseCount + 1
       }));
       void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
-      void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
       void queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
     }
   });
@@ -138,7 +191,6 @@ export function useUpdateExpenseMutation(tripId: string) {
       upsertExpenseInLists(queryClient, tripId, result.expense);
       patchTrip(queryClient, tripId, (trip) => ({ ...trip, revision: result.revision }));
       void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
-      void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
     }
   });
 }
@@ -167,7 +219,6 @@ export function useDeleteExpenseMutation(tripId: string) {
         expenseCount: Math.max(0, trip.expenseCount - 1)
       }));
       void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
-      void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
       void queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
     }
   });
@@ -201,7 +252,6 @@ export function useUpsertBudgetMutation(tripId: string) {
 
       queryClient.setQueryData<TripBudgetSummary>(expenseKeys.budget(tripId), summary);
       patchTrip(queryClient, tripId, (trip) => ({ ...trip, revision: result.revision }));
-      void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
     }
   });
 }

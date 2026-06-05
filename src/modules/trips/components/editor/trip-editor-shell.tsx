@@ -1,10 +1,10 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MapPinPlus, RefreshCw, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AlertTriangle, Map as MapIcon, MapPinPlus, RefreshCw, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 
@@ -17,10 +17,7 @@ import {
   useTripPresenceConnection,
   useTripPresenceEntries
 } from "@/modules/collaboration/hooks/use-presence";
-import {
-  tripBudgetQueryOptions,
-  tripExpensesQueryOptions
-} from "@/modules/expenses/queries/expense.queries";
+import { tripBudgetQueryOptions } from "@/modules/expenses/queries/expense.queries";
 import { useCreateItineraryItemMutation } from "@/modules/itinerary/mutations/use-itinerary-mutations";
 import { mapRouteQueryOptions } from "@/modules/map/queries/map-route.queries";
 import { getRouteRenderPoints } from "@/modules/map/services/routing/route-normalizer";
@@ -28,7 +25,7 @@ import type { MapMarker } from "@/modules/map/types/map.types";
 import { itineraryInfiniteQueryOptions } from "@/modules/itinerary/queries/itinerary.queries";
 import { NotePanel } from "@/modules/notes/components/note-panel";
 import { useResolvePlaceMutation } from "@/modules/places/mutations/use-place-mutations";
-import { tripPlacesQueryOptions } from "@/modules/places/queries/place.queries";
+import { placeKeys, tripPlacesQueryOptions } from "@/modules/places/queries/place.queries";
 import { reverseGeocodePlaces } from "@/modules/places/services/places.service";
 import type { ReverseGeocodeResult } from "@/modules/places/types/place.types";
 import { useTripDeltaSync } from "@/modules/sync/hooks/use-trip-delta-sync";
@@ -75,13 +72,13 @@ type EditorTab = "stops" | "budget" | "notes";
 export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const locale = useLocale();
   const t = useTranslations("trip.editor");
+  const queryClient = useQueryClient();
   const tripQuery = useQuery(tripDetailQueryOptions(tripId));
   const itineraryQuery = useInfiniteQuery(itineraryInfiniteQueryOptions(tripId));
   const placesQuery = useQuery(tripPlacesQueryOptions(tripId));
-  const expensesQuery = useQuery(tripExpensesQueryOptions(tripId));
   const budgetQuery = useQuery(tripBudgetQueryOptions(tripId));
   const createItem = useCreateItineraryItemMutation(tripId);
-  const resolvePlace = useResolvePlaceMutation();
+  const resolvePlace = useResolvePlaceMutation(tripId);
   const sessionQuery = useSession();
   const syncDebug = useSyncDebug(tripId);
   useTripDeltaSync(tripId);
@@ -92,6 +89,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const hoveredRouteLegId = usePlannerStore((state) => state.hoveredRouteLegId);
   const setViewport = usePlannerStore((state) => state.setViewport);
   const selectItem = usePlannerStore((state) => state.selectItem);
+  const selectRouteLeg = usePlannerStore((state) => state.selectRouteLeg);
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
   const setSelectedTripId = usePlannerStore((state) => state.setSelectedTripId);
   const [mapStopCandidate, setMapStopCandidate] = useState<MapStopCandidate | null>(null);
@@ -147,6 +145,23 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     () => buildDerivedRouteLegs(items, places, routeQuery.data),
     [items, places, routeQuery.data]
   );
+  const routeGapCount = useMemo(() => {
+    if (placesQuery.isError) {
+      return 0;
+    }
+
+    const placeById = new Map(places.map((place) => [place.id, place]));
+
+    return items.filter((item) => {
+      const place = placeById.get(item.placeId);
+
+      if (!place) {
+        return true;
+      }
+
+      return typeof place.latitude !== "number" || typeof place.longitude !== "number";
+    }).length;
+  }, [items, places, placesQuery.isError]);
   const focusedRouteLegId = hoveredRouteLegId ?? selectedRouteLegId;
   const focusedRouteItemIds = useMemo(
     () => getRouteLegAdjacentItemIds(focusedRouteLegId, routeLegs),
@@ -181,12 +196,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         places,
         route: routeQuery.data,
         routeLegs,
-        expenses: expensesQuery.data,
         budgetSummary: budgetQuery.data
       }),
     [
       budgetQuery.data,
-      expensesQuery.data,
       items,
       places,
       routeLegs,
@@ -200,6 +213,22 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
 
     return () => setSelectedTripId(undefined);
   }, [setSelectedTripId, tripId]);
+
+  useEffect(() => {
+    if (!selectedItemId || items.some((item) => item.id === selectedItemId)) {
+      return;
+    }
+
+    selectItem(undefined, undefined);
+  }, [items, selectItem, selectedItemId]);
+
+  useEffect(() => {
+    if (!selectedRouteLegId || routeLegs.some((routeLeg) => routeLeg.id === selectedRouteLegId)) {
+      return;
+    }
+
+    selectRouteLeg(undefined);
+  }, [routeLegs, selectRouteLeg, selectedRouteLegId]);
 
   useEffect(
     () => () => {
@@ -309,6 +338,11 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
 
     try {
       const place = await resolvePlace.mutateAsync(candidate.place);
+      if (items.some((item) => item.placeId === place.id)) {
+        toast.error(t("placeSearch.duplicateStop"));
+        return;
+      }
+
       const payload = {
         placeId: place.id,
         types: ["ACTIVITY"],
@@ -321,6 +355,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       setMapStopCandidate(null);
       toast.success(t("map.stopAdded"));
     } catch {
+      void queryClient.invalidateQueries({ queryKey: placeKeys.byTrip(tripId) });
       toast.error(t("map.addStopFailed"));
     } finally {
       setIsAddingMapStop(false);
@@ -347,8 +382,14 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   }
 
   const trip = tripQuery.data;
-  const renderMapWorkspace = () => (
-    <div className="relative">
+  const handleJumpToMap = () => {
+    document.getElementById("trip-editor-mobile-map")?.scrollIntoView({
+      block: "start",
+      behavior: "smooth"
+    });
+  };
+  const renderMapWorkspace = (mapId?: string) => (
+    <div id={mapId} className="relative scroll-mt-20">
       <LazyTripMap
         markers={markers}
         route={renderedRoute}
@@ -363,6 +404,27 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         onMarkerHover={handleMarkerHover}
         onMapClick={(point) => void handleMapClick(point)}
       />
+      {routeQuery.isError && !isReverseGeocoding ? (
+        <MapNotice>
+          <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1">{t("map.routeError")}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => void routeQuery.refetch()}
+          >
+            <RefreshCw aria-hidden="true" />
+            {t("retry")}
+          </Button>
+        </MapNotice>
+      ) : null}
+      {routeGapCount > 0 && !routeQuery.isError && !isReverseGeocoding ? (
+        <MapNotice>
+          <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+          <span>{t("map.routeGapWarning", { count: routeGapCount })}</span>
+        </MapNotice>
+      ) : null}
       {isReverseGeocoding ? (
         <div className="absolute left-3 top-3 z-40 flex items-center gap-2 rounded-md bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow-sm">
           <span>{t("map.reverseGeocoding")}</span>
@@ -430,6 +492,21 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           className="grid gap-2"
         >
           <TripEditorHeader trip={trip} stats={stats} presenceEntries={presenceEntries} />
+          {placesQuery.isError ? (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">{t("placesError")}</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => void placesQuery.refetch()}
+              >
+                <RefreshCw aria-hidden="true" />
+                {t("retry")}
+              </Button>
+            </div>
+          ) : null}
           <div className="flex gap-1 rounded-md border bg-card p-1">
             {(["stops", "budget", "notes"] as const).map((tab) => (
               <Button
@@ -443,6 +520,16 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
                 {t(`tabs.${tab}`)}
               </Button>
             ))}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="ml-auto lg:hidden"
+              onClick={handleJumpToMap}
+            >
+              <MapIcon aria-hidden="true" />
+              {t("map.jump")}
+            </Button>
           </div>
           {activeTab === "stops" ? (
             <TripItineraryPanel
@@ -469,11 +556,19 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
               title={t("notes.tripTitle")}
             />
           ) : null}
-          <div className="lg:hidden">{renderMapWorkspace()}</div>
+          <div className="lg:hidden">{renderMapWorkspace("trip-editor-mobile-map")}</div>
         </motion.div>
 
         <aside className="hidden lg:sticky lg:top-20 lg:block">{renderMapWorkspace()}</aside>
       </div>
+    </div>
+  );
+}
+
+function MapNotice({ children }: { children: ReactNode }) {
+  return (
+    <div className="absolute left-3 right-3 top-3 z-40 flex items-center gap-2 rounded-md bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+      {children}
     </div>
   );
 }

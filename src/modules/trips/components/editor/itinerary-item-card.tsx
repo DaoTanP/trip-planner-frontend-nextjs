@@ -234,6 +234,7 @@ export function ItineraryItemCard({
             <div className="mt-3" onClick={(event) => event.stopPropagation()}>
               <PlaceSearchBox
                 title={t("changePlace")}
+                tripId={tripId}
                 placeholder={t("placeSearchPlaceholder")}
                 className="border-dashed shadow-none"
                 actionLabel={(candidate) => t("changePlaceTo", { name: candidate.name })}

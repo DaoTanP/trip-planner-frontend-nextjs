@@ -14,7 +14,10 @@ import type { EntityPatchPayload, TripMutationEvent } from "../types/sync.types"
 
 type ItineraryInfiniteData = InfiniteData<ItineraryItemsPage, string | undefined>;
 type NotesInfiniteData = InfiniteData<CursorPage<CollaborativeNote>, string | undefined>;
+type ExpenseInfiniteData = InfiniteData<TripExpensesPage, string | undefined>;
 const expenseListQueryPrefix = (tripId: string) => [...expenseKeys.byTrip(tripId), "list"] as const;
+const expenseInfiniteListQueryPrefix = (tripId: string) =>
+  [...expenseKeys.byTrip(tripId), "infinite-list"] as const;
 
 const sortItineraryItems = (items: ItineraryItem[]) =>
   [...items].sort((left, right) =>
@@ -185,34 +188,46 @@ export function patchNote(queryClient: QueryClient, patch: EntityPatchPayload) {
 }
 
 export function patchExpense(queryClient: QueryClient, tripId: string, patch: EntityPatchPayload) {
-  queryClient.setQueriesData<TripExpensesPage>(
-    { queryKey: expenseListQueryPrefix(tripId) },
-    (current) => {
-      if (!current) {
-        return current;
-      }
+  const patchPage = (current: TripExpensesPage | undefined) => {
+    if (!current) {
+      return current;
+    }
 
-      if (patch.patchType === "ENTITY_DELETED") {
-        return {
-          ...current,
-          expenses: current.expenses.filter((expense) => expense.id !== patch.entityId)
-        };
-      }
-
-      if (!patch.fields) {
-        return current;
-      }
-
-      const nextExpense = {
-        ...(current.expenses.find((expense) => expense.id === patch.entityId) ?? {}),
-        ...patch.fields
-      } as TripExpensesPage["expenses"][number];
-
+    if (patch.patchType === "ENTITY_DELETED") {
       return {
         ...current,
-        expenses: upsertById(current.expenses, nextExpense)
+        expenses: current.expenses.filter((expense) => expense.id !== patch.entityId)
       };
     }
+
+    if (!patch.fields) {
+      return current;
+    }
+
+    const nextExpense = {
+      ...(current.expenses.find((expense) => expense.id === patch.entityId) ?? {}),
+      ...patch.fields
+    } as TripExpensesPage["expenses"][number];
+
+    return {
+      ...current,
+      expenses: upsertById(current.expenses, nextExpense)
+    };
+  };
+
+  queryClient.setQueriesData<TripExpensesPage>(
+    { queryKey: expenseListQueryPrefix(tripId) },
+    patchPage
+  );
+  queryClient.setQueriesData<ExpenseInfiniteData>(
+    { queryKey: expenseInfiniteListQueryPrefix(tripId) },
+    (current) =>
+      current
+        ? {
+            ...current,
+            pages: current.pages.map((page) => patchPage(page) ?? page)
+          }
+        : current
   );
   void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
 }
@@ -220,7 +235,6 @@ export function patchExpense(queryClient: QueryClient, tripId: string, patch: En
 export function patchBudget(queryClient: QueryClient, tripId: string, patch: EntityPatchPayload) {
   if (!patch.fields) {
     void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
-    void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
     return;
   }
 
@@ -242,7 +256,6 @@ export function patchBudget(queryClient: QueryClient, tripId: string, patch: Ent
       : current;
   });
   void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
-  void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
 }
 
 function invalidateTripResources(queryClient: QueryClient, tripId: string) {

@@ -37,11 +37,11 @@ import {
 } from "../../hooks/use-itinerary-note-previews";
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import {
-  filterTimelineItems,
+  filterStopSequence,
   getItemMetadataNumber,
   itineraryItemStatuses,
   itineraryItemTypes,
-  sortTimelineItems,
+  sortStopSequence,
   type ItemSyncState,
   type RouteSummaryByItem
 } from "../../utils/planner-workspace.utils";
@@ -64,7 +64,7 @@ interface TripItineraryPanelProps {
 
 type InsertionAnchor = "start" | string;
 
-const timelineEstimateSize = 250;
+const stopSequenceEstimateSize = 250;
 
 export function TripItineraryPanel({
   tripId,
@@ -100,9 +100,9 @@ export function TripItineraryPanel({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
-  const orderedItems = useMemo(() => sortTimelineItems(items), [items]);
+  const orderedItems = useMemo(() => sortStopSequence(items), [items]);
   const visibleItems = useMemo(
-    () => filterTimelineItems(items, places, filters),
+    () => filterStopSequence(items, places, filters),
     [filters, items, places]
   );
   const placeMap = useMemo(() => getPlaceMap(places), [places]);
@@ -118,7 +118,7 @@ export function TripItineraryPanel({
   const focusedRouteItemIdSet = useMemo(() => new Set(focusedRouteItemIds), [focusedRouteItemIds]);
   const virtualWindow = useVirtualWindow({
     itemCount: visibleItems.length,
-    estimateSize: timelineEstimateSize,
+    estimateSize: stopSequenceEstimateSize,
     overscan: 10,
     enabled: visibleItems.length > 140
   });
@@ -136,9 +136,7 @@ export function TripItineraryPanel({
     }));
   }, [isVirtualized, virtualItems, visibleItems]);
   const { previewsByItem: notePreviewsByItem } = useItineraryNotePreviews({
-    tripId,
-    visibleStops: visibleStopsForNotePreview,
-    previewLimit: 4
+    visibleStops: visibleStopsForNotePreview
   });
   const selectedRowIndex = useMemo(
     () => (selectedItemId ? visibleItems.findIndex((item) => item.id === selectedItemId) : -1),
@@ -152,17 +150,17 @@ export function TripItineraryPanel({
       return;
     }
 
-    const timelineItemId = `timeline-item-${selectedItemId}`;
+    const stopSequenceItemId = `stop-sequence-item-${selectedItemId}`;
 
     if (isVirtualized && containerRef.current) {
       containerRef.current.scrollTo({
-        top: Math.max(0, selectedRowIndex * timelineEstimateSize - timelineEstimateSize),
+        top: Math.max(0, selectedRowIndex * stopSequenceEstimateSize - stopSequenceEstimateSize),
         behavior: "auto"
       });
     }
 
     const frame = window.requestAnimationFrame(() => {
-      document.getElementById(timelineItemId)?.scrollIntoView({
+      document.getElementById(stopSequenceItemId)?.scrollIntoView({
         block: "nearest",
         behavior: "smooth"
       });
@@ -235,7 +233,7 @@ export function TripItineraryPanel({
     const insertionAnchor = item.id;
 
     return (
-      <TimelineStopRow
+      <StopSequenceRow
         key={item.id}
         tripId={tripId}
         item={item}
@@ -259,6 +257,9 @@ export function TripItineraryPanel({
         onRouteLegHover={setHoveredRouteLegId}
         onNewItemTypeChange={setNewItemType}
         onSubmitPlaceInsertion={(place) => handleSubmitPlace(insertionAnchor, place)}
+        isPlaceAlreadyAdded={(placeId) =>
+          orderedItems.some((candidate) => candidate.placeId === placeId)
+        }
         t={t}
         itemT={itemT}
       />
@@ -372,12 +373,16 @@ export function TripItineraryPanel({
           <p>{hasActiveFilters ? t("filteredEmpty") : t("empty")}</p>
           {!hasActiveFilters ? (
             <InlineAddStop
+              tripId={tripId}
               anchor="start"
               activeInsertion={activeInsertion}
               newItemType={newItemType}
               onInsertionChange={handleInsertionChange}
               onNewItemTypeChange={setNewItemType}
               onSubmitPlace={(place) => handleSubmitPlace("start", place)}
+              isPlaceAlreadyAdded={(placeId) =>
+                orderedItems.some((candidate) => candidate.placeId === placeId)
+              }
               t={t}
               itemT={itemT}
             />
@@ -399,7 +404,7 @@ export function TripItineraryPanel({
   );
 }
 
-function TimelineStopRow({
+function StopSequenceRow({
   tripId,
   item,
   place,
@@ -422,6 +427,7 @@ function TimelineStopRow({
   onRouteLegHover,
   onNewItemTypeChange,
   onSubmitPlaceInsertion,
+  isPlaceAlreadyAdded,
   t,
   itemT
 }: {
@@ -449,12 +455,13 @@ function TimelineStopRow({
   onRouteLegHover: (routeLegId?: string) => void;
   onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlaceInsertion: (place: PlaceDto) => Promise<void>;
+  isPlaceAlreadyAdded: (placeId: string) => boolean;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
 }) {
   return (
     <div
-      id={`timeline-item-${item.id}`}
+      id={`stop-sequence-item-${item.id}`}
       className={cn(
         "scroll-mt-24",
         overId === item.id && activeId !== item.id && "border-t-2 border-primary pt-2"
@@ -486,12 +493,14 @@ function TimelineStopRow({
       />
 
       <InlineAddStop
+        tripId={tripId}
         anchor={item.id}
         activeInsertion={activeInsertion}
         newItemType={newItemType}
         onInsertionChange={onInsertionChange}
         onNewItemTypeChange={onNewItemTypeChange}
         onSubmitPlace={onSubmitPlaceInsertion}
+        isPlaceAlreadyAdded={isPlaceAlreadyAdded}
         t={t}
         itemT={itemT}
       />
@@ -561,21 +570,25 @@ function RouteLegSeparator({
 }
 
 function InlineAddStop({
+  tripId,
   anchor,
   activeInsertion,
   newItemType,
   onInsertionChange,
   onNewItemTypeChange,
   onSubmitPlace,
+  isPlaceAlreadyAdded,
   t,
   itemT
 }: {
+  tripId: string;
   anchor: InsertionAnchor;
   activeInsertion: InsertionAnchor | null;
   newItemType: ItineraryItem["types"][number];
   onInsertionChange: (anchor: InsertionAnchor | null) => void;
   onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlace: (place: PlaceDto) => Promise<void>;
+  isPlaceAlreadyAdded: (placeId: string) => boolean;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
 }) {
@@ -622,9 +635,11 @@ function InlineAddStop({
 
       <PlaceSearchBox
         title={t("placeSearchTitle")}
+        tripId={tripId}
         placeholder={t("placeSearchPlaceholder")}
         className="border-0 bg-transparent p-0 shadow-none"
         actionLabel={(place) => t("addPlaceHere", { name: place.name })}
+        isPlaceAlreadyAdded={isPlaceAlreadyAdded}
         onClose={() => onInsertionChange(null)}
         onPlaceSelected={onSubmitPlace}
       />

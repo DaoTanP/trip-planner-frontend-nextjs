@@ -7,16 +7,10 @@ import type {
   Trip,
   TripCollaborator,
   TripDetail,
-  TripExpenses,
-  TripExpensesPage,
   TripMutationEventsPage,
   TripsListMeta
 } from "../types/trip.types";
-import type {
-  CursorPaginationMeta,
-  ListMutationEventsQueryDto,
-  UpdateTripRequestDto
-} from "@/services/api/contracts";
+import type { ListMutationEventsQueryDto, UpdateTripRequestDto } from "@/services/api/contracts";
 
 function withMutationEventParams(url: string, params?: ListMutationEventsQueryDto) {
   const searchParams = new URLSearchParams();
@@ -76,17 +70,6 @@ export async function getTripCollaborators(tripId: string, signal?: AbortSignal)
   );
 
   return response.data.collaborators;
-}
-
-export async function getTripExpenses(tripId: string, signal?: AbortSignal) {
-  const response = await apiGet<
-    ApiSuccessResponse<TripExpenses, { pagination: CursorPaginationMeta }>
-  >(apiEndpoints.trips.expenses(tripId), signal);
-
-  return {
-    ...response.data,
-    pagination: response.meta.pagination
-  } satisfies TripExpensesPage;
 }
 
 export async function getTripMutationEvents(

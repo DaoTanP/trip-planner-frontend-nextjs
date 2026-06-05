@@ -14,7 +14,7 @@ AI agents extending the trip editor must preserve:
 - clean frontend/backend contracts
 - modular map abstractions
 - predictable server-state management
-- flat timeline-first itinerary data flow
+- flat stop-sequence itinerary data flow
 
 ## Before Editing
 
@@ -40,7 +40,7 @@ AI agents extending the trip editor must preserve:
 - Keep map provider code isolated in `src/modules/map`.
 - Keep itinerary mutation logic isolated in `src/modules/itinerary`.
 - Keep unified collaborative note services, queries, mutations, hooks, and panels isolated in `src/modules/notes`.
-- Keep itinerary items, places, notes, routes, collaborators, and expenses in granular TanStack Query caches.
+- Keep itinerary items, places, notes, collaborators, expenses, budgets, and provider route query results in granular TanStack Query caches.
 - Keep trip revisions in TanStack Query and use `src/modules/sync` for mutation-event catch-up, reconciliation, and debug utilities.
 - Keep mutation queue lifecycle state in `src/modules/sync/queue`; do not add Redux or another global state library.
 - Use dnd-kit for drag interactions.
@@ -52,9 +52,9 @@ AI agents extending the trip editor must preserve:
 ## AI Agents Must Not
 
 - Put Prisma/backend-shaped assumptions directly into UI components.
-- Store trip detail, itinerary items, places, routes, expenses, or notes in Zustand.
+- Store trip detail, itinerary items, places, provider route results, expenses, budgets, or notes in Zustand.
 - Recreate day-grouped server state in Zustand or component-local caches.
-- Recreate destination-based trip summaries when places and route segments are the source data.
+- Recreate destination-based trip summaries. Use backend counts, place-backed stops, and dynamic route legs instead.
 - Fetch provider map data inside itinerary cards.
 - Hardcode visible editor copy.
 - Add a second drag library.
@@ -128,7 +128,7 @@ Examples:
 - Keep trip editing flows fast and interaction-focused.
 - Prefer modular editor sections over giant editor screens.
 - Use Framer Motion subtly for interaction feedback, not decorative animations.
-- Planner editor changes must keep the timeline as the primary surface, the map as a persistent workspace, and quick add/search as overlays.
+- Planner editor changes must keep stops as the primary planning surface, the map as a persistent workspace, and place search/map-click creation as stop creation flows.
 - Do not reintroduce a form-first trip editor, editable planner end date, embedded place-search form, or backend-owned day grouping.
 
 ## Map and Collaboration Rules
@@ -138,9 +138,9 @@ Examples:
 - Keep Google Maps, Mapbox, OSM, and HERE SDK access inside provider modules.
 - Keep viewport, filters, selected places, and temporary drag state in client stores.
 - Keep persisted trips, stops, and places in TanStack Query.
-- Keep place autocomplete, place details, geocoding, reverse geocoding, route, and distance/duration requests in service/query layers.
+- Keep place autocomplete, place details, backend reverse geocoding, route, and distance/duration requests in service/query layers.
 - WebSocket, polling, reconnect, and future offline replay should all flow through `src/modules/sync/reconciliation`.
-- Mutation events should patch the smallest granular cache: itinerary, notes, places, routes, collaborators, expenses, or trip metadata.
+- Mutation events should patch the smallest granular cache: itinerary, notes, expenses, budget, or trip metadata. Unknown future entity events should invalidate scoped trip resources.
 - Note events should patch matching `noteKeys.list(filters)` pages, not trip detail or entity-specific note caches.
 - Reconnect/offline flows should catch up through `GET /trips/:tripId/mutation-events` using the latest trip revision from TanStack Query.
 - Keep provider-specific logic isolated inside `src/modules/map/providers`.
@@ -173,10 +173,11 @@ Use TanStack Query for:
 - trip details
 - itinerary items
 - places
-- routes
+- provider route query results
 - notes
 - collaborators
 - expenses
+- budgets
 - persisted planner state
 - authenticated user state
 

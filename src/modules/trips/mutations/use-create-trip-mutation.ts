@@ -25,7 +25,6 @@ export function useCreateTripMutation() {
       const optimisticTrip: Trip = {
         id: `optimistic-${Date.now()}`,
         title: payload.title,
-        description: payload.description ?? null,
         startDate: payload.startDate ?? null,
         endDate: payload.endDate ?? null,
         timezone: payload.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -35,7 +34,7 @@ export function useCreateTripMutation() {
         collaboratorCount: 0,
         itineraryItemCount: 0,
         noteCount: 0,
-        routeSegmentCount: 0,
+        expenseCount: 0,
         version: 1,
         revision: "0",
         createdAt: new Date().toISOString(),

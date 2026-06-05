@@ -6,7 +6,6 @@ import type {
   ListMutationEventsResponseDto,
   MutationEventDto,
   PaginationMeta,
-  RouteSegmentDto,
   TripCollaboratorDto,
   TripDetailDto,
   TripExpensesDto,
@@ -15,7 +14,6 @@ import type {
 
 export type Trip = TripSummaryDto;
 export type TripDetail = TripDetailDto;
-export type TripRouteSegment = RouteSegmentDto;
 export type TripCollaborator = TripCollaboratorDto;
 export type TripExpense = ExpenseDto;
 export type TripExpenseCategory = ExpenseCategoryDto;

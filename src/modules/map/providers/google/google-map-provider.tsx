@@ -18,7 +18,7 @@ import type {
   GoogleMarkerLabel,
   GooglePolyline
 } from "./google-map.types";
-import { toGoogleLatLngLiteral } from "./google-map.types";
+import { fromGoogleLatLng, toGoogleLatLngLiteral } from "./google-map.types";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -78,7 +78,8 @@ export function GoogleMapProvider({
   focusedMarkerIds = [],
   onViewportChange,
   onMarkerSelect,
-  onMarkerHover
+  onMarkerHover,
+  onMapClick
 }: TripMapProps) {
   const locale = useLocale();
   const t = useTranslations("trip.editor.map");
@@ -93,6 +94,7 @@ export function GoogleMapProvider({
   const onViewportChangeRef = useRef(onViewportChange);
   const onMarkerSelectRef = useRef(onMarkerSelect);
   const onMarkerHoverRef = useRef(onMarkerHover);
+  const onMapClickRef = useRef(onMapClick);
   const [loadState, setLoadState] = useState<LoadState>(
     mapConfig.googleMapsApiKey ? "loading" : "idle"
   );
@@ -115,6 +117,10 @@ export function GoogleMapProvider({
   useEffect(() => {
     onMarkerHoverRef.current = onMarkerHover;
   }, [onMarkerHover]);
+
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
 
   useEffect(() => {
     markerDataRef.current = new Map(markers.map((marker) => [marker.id, marker]));
@@ -178,6 +184,11 @@ export function GoogleMapProvider({
             longitude: center.lng(),
             zoom
           });
+        });
+        map.addListener("click", (event) => {
+          if (event?.latLng) {
+            onMapClickRef.current?.(fromGoogleLatLng(event.latLng));
+          }
         });
         setLoadState("ready");
       })

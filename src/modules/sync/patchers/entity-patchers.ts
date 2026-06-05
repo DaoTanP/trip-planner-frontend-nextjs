@@ -1,27 +1,20 @@
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
 
+import { expenseKeys } from "@/modules/expenses/queries/expense.queries";
+import type { TripBudgetSummary } from "@/modules/expenses/types/expense.types";
 import { itineraryKeys } from "@/modules/itinerary/queries/itinerary.queries";
 import type { ItineraryItem, ItineraryItemsPage } from "@/modules/itinerary/types/itinerary.types";
-import { mapRouteKeys } from "@/modules/map/queries/map-route.queries";
 import type { CollaborativeNote, CursorPage } from "@/modules/notes/types/note.types";
 import { noteKeys } from "@/modules/notes/queries/note.queries";
 import { tripKeys } from "@/modules/trips/queries/trip.queries";
-import type {
-  TripCollaborator,
-  TripDetail,
-  TripExpensesPage,
-  TripRouteSegment
-} from "@/modules/trips/types/trip.types";
+import type { TripDetail, TripExpensesPage } from "@/modules/trips/types/trip.types";
 
 import { patchInfiniteItems, upsertById } from "./infinite-page-patcher";
 import type { EntityPatchPayload, TripMutationEvent } from "../types/sync.types";
 
 type ItineraryInfiniteData = InfiniteData<ItineraryItemsPage, string | undefined>;
 type NotesInfiniteData = InfiniteData<CursorPage<CollaborativeNote>, string | undefined>;
-type RouteSegmentsPage = {
-  items: TripRouteSegment[];
-  pagination: TripExpensesPage["pagination"];
-};
+const expenseListQueryPrefix = (tripId: string) => [...expenseKeys.byTrip(tripId), "list"] as const;
 
 const sortItineraryItems = (items: ItineraryItem[]) =>
   [...items].sort((left, right) =>
@@ -192,92 +185,71 @@ export function patchNote(queryClient: QueryClient, patch: EntityPatchPayload) {
 }
 
 export function patchExpense(queryClient: QueryClient, tripId: string, patch: EntityPatchPayload) {
-  queryClient.setQueryData<TripExpensesPage>(tripKeys.expenses(tripId), (current) => {
-    if (!current) {
-      return current;
-    }
+  queryClient.setQueriesData<TripExpensesPage>(
+    { queryKey: expenseListQueryPrefix(tripId) },
+    (current) => {
+      if (!current) {
+        return current;
+      }
 
-    if (patch.patchType === "ENTITY_DELETED") {
+      if (patch.patchType === "ENTITY_DELETED") {
+        return {
+          ...current,
+          expenses: current.expenses.filter((expense) => expense.id !== patch.entityId)
+        };
+      }
+
+      if (!patch.fields) {
+        return current;
+      }
+
+      const nextExpense = {
+        ...(current.expenses.find((expense) => expense.id === patch.entityId) ?? {}),
+        ...patch.fields
+      } as TripExpensesPage["expenses"][number];
+
       return {
         ...current,
-        expenses: current.expenses.filter((expense) => expense.id !== patch.entityId)
+        expenses: upsertById(current.expenses, nextExpense)
       };
     }
-
-    if (!patch.fields) {
-      return current;
-    }
-
-    const nextExpense = {
-      ...(current.expenses.find((expense) => expense.id === patch.entityId) ?? {}),
-      ...patch.fields
-    } as TripExpensesPage["expenses"][number];
-
-    return {
-      ...current,
-      expenses: upsertById(current.expenses, nextExpense)
-    };
-  });
+  );
+  void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
 }
 
-export function patchCollaborator(
-  queryClient: QueryClient,
-  tripId: string,
-  patch: EntityPatchPayload
-) {
-  queryClient.setQueryData<TripCollaborator[]>(tripKeys.collaborators(tripId), (current) => {
-    if (!current) {
-      return current;
-    }
+export function patchBudget(queryClient: QueryClient, tripId: string, patch: EntityPatchPayload) {
+  if (!patch.fields) {
+    void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
+    void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
+    return;
+  }
 
-    if (patch.patchType === "ENTITY_DELETED") {
-      return current.filter((collaborator) => collaborator.id !== patch.entityId);
-    }
+  queryClient.setQueryData<TripBudgetSummary>(expenseKeys.budget(tripId), (current) => {
+    const currentBudget = current?.budget ?? null;
+    const nextBudget =
+      patch.patchType === "ENTITY_DELETED"
+        ? null
+        : ({
+            ...(currentBudget ?? {}),
+            ...patch.fields
+          } as NonNullable<TripBudgetSummary["budget"]>);
 
-    if (!patch.fields) {
-      return current;
-    }
-
-    const nextCollaborator = {
-      ...(current.find((collaborator) => collaborator.id === patch.entityId) ?? {}),
-      ...patch.fields
-    } as TripCollaborator;
-
-    return upsertById(current, nextCollaborator);
+    return current
+      ? {
+          ...current,
+          budget: nextBudget
+        }
+      : current;
   });
+  void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
+  void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
 }
 
-export function patchRouteSegment(
-  queryClient: QueryClient,
-  tripId: string,
-  patch: EntityPatchPayload
-) {
-  queryClient.setQueryData<RouteSegmentsPage>(mapRouteKeys.byTrip(tripId), (current) => {
-    if (!current) {
-      return current;
-    }
-
-    if (patch.patchType === "ENTITY_DELETED") {
-      return {
-        ...current,
-        items: current.items.filter((route) => route.id !== patch.entityId)
-      };
-    }
-
-    if (!patch.fields) {
-      return current;
-    }
-
-    const nextRoute = {
-      ...(current.items.find((route) => route.id === patch.entityId) ?? {}),
-      ...patch.fields
-    } as TripRouteSegment;
-
-    return {
-      ...current,
-      items: upsertById(current.items, nextRoute)
-    };
-  });
+function invalidateTripResources(queryClient: QueryClient, tripId: string) {
+  void queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+  void queryClient.invalidateQueries({ queryKey: itineraryKeys.byTrip(tripId) });
+  void queryClient.invalidateQueries({ queryKey: expenseKeys.byTrip(tripId) });
+  void queryClient.invalidateQueries({ queryKey: noteKeys.lists() });
 }
 
 export function applyEntityPatch(
@@ -298,14 +270,11 @@ export function applyEntityPatch(
     case "EXPENSE":
       patchExpense(queryClient, tripId, patch);
       break;
-    case "COLLABORATOR":
-    case "TRIP_COLLABORATOR":
-      patchCollaborator(queryClient, tripId, patch);
-      break;
-    case "ROUTE_SEGMENT":
-      patchRouteSegment(queryClient, tripId, patch);
+    case "BUDGET":
+      patchBudget(queryClient, tripId, patch);
       break;
     default:
+      invalidateTripResources(queryClient, tripId);
       break;
   }
 }

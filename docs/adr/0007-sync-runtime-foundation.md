@@ -24,4 +24,4 @@ Feature mutation hooks keep owning optimistic UI patches, but replayable mutatio
 - Server entities remain in TanStack Query; Zustand remains UI-only.
 - Websocket transport can later feed the same reconciliation functions.
 - Offline persistence can later replace the in-memory queue without changing feature query boundaries.
-- Cache updates stay granular for large itineraries, notes, routes, expenses, and collaborators.
+- Cache updates stay granular for large itineraries, notes, expenses, budgets, and collaborator views.

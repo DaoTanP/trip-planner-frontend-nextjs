@@ -35,7 +35,8 @@ export function MapLibreMap({
   focusedMarkerIds,
   onViewportChange,
   onMarkerSelect,
-  onMarkerHover
+  onMarkerHover,
+  onMapClick
 }: TripMapProps) {
   const t = useTranslations("trip.editor.map");
   const { mapRef, setMapInstance } = useMapInstance<MapLibreMapRef>();
@@ -133,9 +134,15 @@ export function MapLibreMap({
 
       if (marker) {
         handleMarkerSelect(marker);
+        return;
       }
+
+      onMapClick?.({
+        latitude: event.lngLat.lat,
+        longitude: event.lngLat.lng
+      });
     },
-    [getMarkerFromEvent, handleMarkerSelect]
+    [getMarkerFromEvent, handleMarkerSelect, onMapClick]
   );
 
   const handleMapMouseMove = useCallback(

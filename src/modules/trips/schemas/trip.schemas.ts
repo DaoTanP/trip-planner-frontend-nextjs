@@ -10,10 +10,6 @@ export function createTripSchema(t: ValidationT) {
         .string()
         .min(1, t("required"))
         .max(180, t("maxLength", { max: 180 })),
-      description: z
-        .string()
-        .max(5000, t("maxLength", { max: 5000 }))
-        .optional(),
       startDate: z.string().optional(),
       endDate: z.string().optional()
     })

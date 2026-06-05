@@ -16,7 +16,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy
 } from "@dnd-kit/sortable";
-import { ArrowDown, Filter, MapPin, Plus, Search, X } from "lucide-react";
+import { ArrowDown, Filter, Plus, Search, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
@@ -45,17 +45,12 @@ import {
   type ItemSyncState,
   type RouteSummaryByItem
 } from "../../utils/planner-workspace.utils";
-import {
-  buildItineraryReorderIntent,
-  getPlaceMap,
-  orderStride
-} from "../../utils/trip-editor.utils";
+import { buildItineraryReorderIntent, getPlaceMap } from "../../utils/trip-editor.utils";
 import { ItineraryItemCard } from "./itinerary-item-card";
 import { PlaceSearchBox } from "./place-search-box";
 
 interface TripItineraryPanelProps {
   tripId: string;
-  tripTimezone: string;
   items: ItineraryItem[];
   places: PlaceDto[];
   currentUserId?: string | undefined;
@@ -91,16 +86,14 @@ export function TripItineraryPanel({
   const filters = usePlannerStore((state) => state.filters);
   const isFilterBarOpen = usePlannerStore((state) => state.isFilterBarOpen);
   const selectedItemId = usePlannerStore((state) => state.selectedItemId);
-  const selectedRouteSegmentId = usePlannerStore((state) => state.selectedRouteSegmentId);
-  const hoveredRouteSegmentId = usePlannerStore((state) => state.hoveredRouteSegmentId);
-  const selectRouteSegment = usePlannerStore((state) => state.selectRouteSegment);
-  const setHoveredRouteSegmentId = usePlannerStore((state) => state.setHoveredRouteSegmentId);
+  const selectedRouteLegId = usePlannerStore((state) => state.selectedRouteLegId);
+  const hoveredRouteLegId = usePlannerStore((state) => state.hoveredRouteLegId);
+  const selectRouteLeg = usePlannerStore((state) => state.selectRouteLeg);
+  const setHoveredRouteLegId = usePlannerStore((state) => state.setHoveredRouteLegId);
   const setFilters = usePlannerStore((state) => state.setFilters);
   const clearFilters = usePlannerStore((state) => state.clearFilters);
-  const [newItemTitle, setNewItemTitle] = useState("");
-  const [newItemType, setNewItemType] = useState<ItineraryItem["type"]>("PLACE");
+  const [newItemType, setNewItemType] = useState<ItineraryItem["types"][number]>("ACTIVITY");
   const [activeInsertion, setActiveInsertion] = useState<InsertionAnchor | null>(null);
-  const [activePlaceInsertion, setActivePlaceInsertion] = useState<InsertionAnchor | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -212,58 +205,33 @@ export function TripItineraryPanel({
     });
   }
 
-  function handleSubmit(anchor: InsertionAnchor) {
-    const title = newItemTitle.trim();
-
-    if (!title) {
-      return;
-    }
-
-    const afterItemId = anchor === "start" ? undefined : anchor;
-
-    createItem.mutate(
-      {
-        title,
-        type: newItemType,
-        clientMutationId: crypto.randomUUID(),
-        sortOrder: getInsertionSortOrder(orderedItems, afterItemId)
-      },
-      {
-        onSuccess: () => {
-          setNewItemTitle("");
-          setActiveInsertion(null);
-        }
-      }
-    );
-  }
-
   async function handleSubmitPlace(anchor: InsertionAnchor, place: PlaceDto) {
+    const payload = {
+      placeId: place.id,
+      types: [newItemType],
+      clientMutationId: crypto.randomUUID()
+    } satisfies Parameters<typeof createItem.mutateAsync>[0];
+    const beforeItemId = anchor === "start" ? orderedItems[0]?.id : undefined;
     const afterItemId = anchor === "start" ? undefined : anchor;
 
     await createItem.mutateAsync({
-      placeId: place.id,
-      title: place.name,
-      type: "PLACE",
-      clientMutationId: crypto.randomUUID(),
-      sortOrder: getInsertionSortOrder(orderedItems, afterItemId)
+      ...payload,
+      ...(beforeItemId ? { beforeItemId } : {}),
+      ...(afterItemId ? { afterItemId } : {})
     });
     setActiveInsertion(null);
-    setActivePlaceInsertion(null);
   }
 
   function handleInsertionChange(anchor: InsertionAnchor | null) {
     setActiveInsertion(anchor);
-    setActivePlaceInsertion(null);
   }
 
   const renderStop = (item: ItineraryItem) => {
     const routeSummary = routeSummaryByItem.get(item.id);
     const itemIndex = orderedIndexByItem.get(item.id) ?? 0;
-    const shouldShowRouteSegment = itemIndex > 0 && Boolean(routeSummary);
-    const isRouteSegmentSelected =
-      routeSummary !== undefined && selectedRouteSegmentId === routeSummary.id;
-    const isRouteSegmentHovered =
-      routeSummary !== undefined && hoveredRouteSegmentId === routeSummary.id;
+    const shouldShowRouteLeg = itemIndex > 0 && Boolean(routeSummary);
+    const isRouteLegSelected = routeSummary !== undefined && selectedRouteLegId === routeSummary.id;
+    const isRouteLegHovered = routeSummary !== undefined && hoveredRouteLegId === routeSummary.id;
     const insertionAnchor = item.id;
 
     return (
@@ -274,9 +242,9 @@ export function TripItineraryPanel({
         place={item.placeId ? placeMap.get(item.placeId) : undefined}
         currentUserId={currentUserId}
         routeSummary={routeSummary}
-        showRouteSegment={shouldShowRouteSegment}
-        isRouteSegmentSelected={isRouteSegmentSelected}
-        isRouteSegmentHovered={isRouteSegmentHovered}
+        showRouteLeg={shouldShowRouteLeg}
+        isRouteLegSelected={isRouteLegSelected}
+        isRouteLegHovered={isRouteLegHovered}
         isRouteFocused={focusedRouteItemIdSet.has(item.id)}
         sequence={sequenceByItem.get(item.id) ?? itemIndex + 1}
         syncState={syncStateByItem.get(item.id)}
@@ -285,17 +253,11 @@ export function TripItineraryPanel({
         overId={overId}
         locale={locale}
         activeInsertion={activeInsertion}
-        activePlaceInsertion={activePlaceInsertion}
-        newItemTitle={newItemTitle}
         newItemType={newItemType}
-        isCreatingItem={createItem.isPending}
         onInsertionChange={handleInsertionChange}
-        onPlaceInsertionChange={setActivePlaceInsertion}
-        onRouteSegmentSelect={selectRouteSegment}
-        onRouteSegmentHover={setHoveredRouteSegmentId}
-        onNewItemTitleChange={setNewItemTitle}
+        onRouteLegSelect={selectRouteLeg}
+        onRouteLegHover={setHoveredRouteLegId}
         onNewItemTypeChange={setNewItemType}
-        onSubmitInsertion={() => handleSubmit(insertionAnchor)}
         onSubmitPlaceInsertion={(place) => handleSubmitPlace(insertionAnchor, place)}
         t={t}
         itemT={itemT}
@@ -412,15 +374,9 @@ export function TripItineraryPanel({
             <InlineAddStop
               anchor="start"
               activeInsertion={activeInsertion}
-              activePlaceInsertion={activePlaceInsertion}
-              newItemTitle={newItemTitle}
               newItemType={newItemType}
-              isPending={createItem.isPending}
               onInsertionChange={handleInsertionChange}
-              onPlaceInsertionChange={setActivePlaceInsertion}
-              onNewItemTitleChange={setNewItemTitle}
               onNewItemTypeChange={setNewItemType}
-              onSubmit={() => handleSubmit("start")}
               onSubmitPlace={(place) => handleSubmitPlace("start", place)}
               t={t}
               itemT={itemT}
@@ -449,9 +405,9 @@ function TimelineStopRow({
   place,
   currentUserId,
   routeSummary,
-  showRouteSegment,
-  isRouteSegmentSelected,
-  isRouteSegmentHovered,
+  showRouteLeg,
+  isRouteLegSelected,
+  isRouteLegHovered,
   isRouteFocused,
   sequence,
   syncState,
@@ -460,17 +416,11 @@ function TimelineStopRow({
   overId,
   locale,
   activeInsertion,
-  activePlaceInsertion,
-  newItemTitle,
   newItemType,
-  isCreatingItem,
   onInsertionChange,
-  onPlaceInsertionChange,
-  onRouteSegmentSelect,
-  onRouteSegmentHover,
-  onNewItemTitleChange,
+  onRouteLegSelect,
+  onRouteLegHover,
   onNewItemTypeChange,
-  onSubmitInsertion,
   onSubmitPlaceInsertion,
   t,
   itemT
@@ -482,9 +432,9 @@ function TimelineStopRow({
   routeSummary?:
     | (RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never)
     | undefined;
-  showRouteSegment: boolean;
-  isRouteSegmentSelected: boolean;
-  isRouteSegmentHovered: boolean;
+  showRouteLeg: boolean;
+  isRouteLegSelected: boolean;
+  isRouteLegHovered: boolean;
   isRouteFocused: boolean;
   sequence: number;
   syncState?: ItemSyncState | undefined;
@@ -493,17 +443,11 @@ function TimelineStopRow({
   overId: string | null;
   locale: string;
   activeInsertion: InsertionAnchor | null;
-  activePlaceInsertion: InsertionAnchor | null;
-  newItemTitle: string;
-  newItemType: ItineraryItem["type"];
-  isCreatingItem: boolean;
+  newItemType: ItineraryItem["types"][number];
   onInsertionChange: (anchor: InsertionAnchor | null) => void;
-  onPlaceInsertionChange: (anchor: InsertionAnchor | null) => void;
-  onRouteSegmentSelect: (routeSegmentId?: string) => void;
-  onRouteSegmentHover: (routeSegmentId?: string) => void;
-  onNewItemTitleChange: (title: string) => void;
-  onNewItemTypeChange: (type: ItineraryItem["type"]) => void;
-  onSubmitInsertion: () => void;
+  onRouteLegSelect: (routeLegId?: string) => void;
+  onRouteLegHover: (routeLegId?: string) => void;
+  onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlaceInsertion: (place: PlaceDto) => Promise<void>;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
@@ -516,14 +460,14 @@ function TimelineStopRow({
         overId === item.id && activeId !== item.id && "border-t-2 border-primary pt-2"
       )}
     >
-      {showRouteSegment && routeSummary ? (
-        <RouteSegmentSeparator
+      {showRouteLeg && routeSummary ? (
+        <RouteLegSeparator
           routeSummary={routeSummary}
           locale={locale}
-          isSelected={isRouteSegmentSelected}
-          isHovered={isRouteSegmentHovered}
-          onSelect={onRouteSegmentSelect}
-          onHover={onRouteSegmentHover}
+          isSelected={isRouteLegSelected}
+          isHovered={isRouteLegHovered}
+          onSelect={onRouteLegSelect}
+          onHover={onRouteLegHover}
           t={t}
           itemT={itemT}
         />
@@ -544,15 +488,9 @@ function TimelineStopRow({
       <InlineAddStop
         anchor={item.id}
         activeInsertion={activeInsertion}
-        activePlaceInsertion={activePlaceInsertion}
-        newItemTitle={newItemTitle}
         newItemType={newItemType}
-        isPending={isCreatingItem}
         onInsertionChange={onInsertionChange}
-        onPlaceInsertionChange={onPlaceInsertionChange}
-        onNewItemTitleChange={onNewItemTitleChange}
         onNewItemTypeChange={onNewItemTypeChange}
-        onSubmit={onSubmitInsertion}
         onSubmitPlace={onSubmitPlaceInsertion}
         t={t}
         itemT={itemT}
@@ -561,7 +499,7 @@ function TimelineStopRow({
   );
 }
 
-function RouteSegmentSeparator({
+function RouteLegSeparator({
   routeSummary,
   locale,
   isSelected,
@@ -575,8 +513,8 @@ function RouteSegmentSeparator({
   locale: string;
   isSelected: boolean;
   isHovered: boolean;
-  onSelect: (routeSegmentId?: string) => void;
-  onHover: (routeSegmentId?: string) => void;
+  onSelect: (routeLegId?: string) => void;
+  onHover: (routeLegId?: string) => void;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
 }) {
@@ -625,36 +563,23 @@ function RouteSegmentSeparator({
 function InlineAddStop({
   anchor,
   activeInsertion,
-  activePlaceInsertion,
-  newItemTitle,
   newItemType,
-  isPending,
   onInsertionChange,
-  onPlaceInsertionChange,
-  onNewItemTitleChange,
   onNewItemTypeChange,
-  onSubmit,
   onSubmitPlace,
   t,
   itemT
 }: {
   anchor: InsertionAnchor;
   activeInsertion: InsertionAnchor | null;
-  activePlaceInsertion: InsertionAnchor | null;
-  newItemTitle: string;
-  newItemType: ItineraryItem["type"];
-  isPending: boolean;
+  newItemType: ItineraryItem["types"][number];
   onInsertionChange: (anchor: InsertionAnchor | null) => void;
-  onPlaceInsertionChange: (anchor: InsertionAnchor | null) => void;
-  onNewItemTitleChange: (title: string) => void;
-  onNewItemTypeChange: (type: ItineraryItem["type"]) => void;
-  onSubmit: () => void;
+  onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlace: (place: PlaceDto) => Promise<void>;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
 }) {
   const isActive = activeInsertion === anchor;
-  const isPlaceSearchActive = activePlaceInsertion === anchor;
 
   if (!isActive) {
     return (
@@ -671,18 +596,14 @@ function InlineAddStop({
 
   return (
     <div className="ml-11 grid gap-2 rounded-md border border-dashed bg-background p-2">
-      <form
-        className="grid gap-2 sm:grid-cols-[auto_1fr_auto_auto_auto]"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-      >
+      <div className="grid gap-2 sm:grid-cols-[auto_1fr_auto]">
         <select
           value={newItemType}
           aria-label={t("newItemType")}
           className="h-9 rounded-md border bg-background px-2 text-sm"
-          onChange={(event) => onNewItemTypeChange(event.target.value as ItineraryItem["type"])}
+          onChange={(event) =>
+            onNewItemTypeChange(event.target.value as ItineraryItem["types"][number])
+          }
         >
           {itineraryItemTypes.map((type) => (
             <option key={type} value={type}>
@@ -690,60 +611,25 @@ function InlineAddStop({
             </option>
           ))}
         </select>
-        <Input
-          value={newItemTitle}
-          onChange={(event) => onNewItemTitleChange(event.target.value)}
-          placeholder={t("addPlaceholder")}
-          className="h-9"
-        />
-        <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
-          <Plus aria-hidden="true" />
-          {t("add")}
-        </Button>
-        <Button
-          type="button"
-          variant={isPlaceSearchActive ? "secondary" : "outline"}
-          size="sm"
-          onClick={() => onPlaceInsertionChange(isPlaceSearchActive ? null : anchor)}
-        >
-          <MapPin aria-hidden="true" />
-          {t("searchPlace")}
-        </Button>
+        <span className="flex min-h-9 items-center text-sm text-muted-foreground">
+          {t("placeFirstHint")}
+        </span>
         <Button type="button" variant="ghost" size="sm" onClick={() => onInsertionChange(null)}>
           <X aria-hidden="true" />
           {t("cancel")}
         </Button>
-      </form>
+      </div>
 
-      {isPlaceSearchActive ? (
-        <PlaceSearchBox
-          title={t("placeSearchTitle")}
-          placeholder={t("placeSearchPlaceholder")}
-          className="border-0 bg-transparent p-0 shadow-none"
-          actionLabel={(place) => t("addPlaceHere", { name: place.name })}
-          onClose={() => onPlaceInsertionChange(null)}
-          onPlaceSelected={onSubmitPlace}
-        />
-      ) : null}
+      <PlaceSearchBox
+        title={t("placeSearchTitle")}
+        placeholder={t("placeSearchPlaceholder")}
+        className="border-0 bg-transparent p-0 shadow-none"
+        actionLabel={(place) => t("addPlaceHere", { name: place.name })}
+        onClose={() => onInsertionChange(null)}
+        onPlaceSelected={onSubmitPlace}
+      />
     </div>
   );
-}
-
-function getInsertionSortOrder(items: ItineraryItem[], afterItemId?: string) {
-  const previousIndex = afterItemId
-    ? Math.max(
-        -1,
-        items.findIndex((item) => item.id === afterItemId)
-      )
-    : -1;
-  const previousItem = previousIndex >= 0 ? items[previousIndex] : undefined;
-  const nextItem = items[previousIndex + 1];
-  const lowerSortOrder = previousItem?.sortOrder ?? 0;
-  const upperSortOrder = nextItem?.sortOrder ?? lowerSortOrder + orderStride * 2;
-
-  return upperSortOrder - lowerSortOrder > 1
-    ? lowerSortOrder + Math.floor((upperSortOrder - lowerSortOrder) / 2)
-    : (previousIndex + 2) * orderStride;
 }
 
 function formatDistance(meters: number, locale: string) {

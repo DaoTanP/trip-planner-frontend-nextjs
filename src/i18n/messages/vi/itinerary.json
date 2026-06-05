@@ -1,17 +1,17 @@
 {
-  "title": "Lịch trình",
-  "description": "Sắp xếp ngày, điểm dừng, tuyến đường và thời gian di chuyển.",
+  "title": "Lich trinh",
+  "description": "Sap xep cac diem dung gan voi dia diem va ngu canh di chuyen dong.",
   "empty": {
-    "title": "Chưa có điểm dừng",
-    "description": "Thêm địa điểm để bắt đầu xây dựng chuyến đi."
+    "title": "Chua co diem dung",
+    "description": "Them dia diem de bat dau xay dung chuyen di."
   },
   "map": {
-    "label": "Bản đồ chuyến đi",
-    "placeholder": "Khu vực tích hợp bản đồ"
+    "label": "Ban do chuyen di",
+    "placeholder": "Khu vuc ban do"
   },
   "stop": {
-    "arrival": "Đến",
-    "departure": "Rời đi",
-    "notes": "Ghi chú"
+    "arrival": "Den",
+    "departure": "Roi di",
+    "notes": "Ghi chu"
   }
 }

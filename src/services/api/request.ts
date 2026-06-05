@@ -22,6 +22,16 @@ export async function apiPost<TResponse, TBody = unknown>(
   return response.data;
 }
 
+export async function apiPut<TResponse, TBody = unknown>(
+  url: string,
+  body?: TBody,
+  signal?: AbortSignal
+): Promise<TResponse> {
+  const response = await apiClient.put<TResponse>(url, body, withSignal(signal));
+
+  return response.data;
+}
+
 export async function apiPatch<TResponse, TBody = unknown>(
   url: string,
   body?: TBody,

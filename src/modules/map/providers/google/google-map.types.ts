@@ -14,8 +14,15 @@ export interface GoogleMapsEventListener {
   remove: () => void;
 }
 
+export interface GoogleMapMouseEvent {
+  latLng?: GoogleLatLng;
+}
+
 export interface GoogleMap {
-  addListener: (eventName: string, handler: () => void) => GoogleMapsEventListener;
+  addListener: (
+    eventName: string,
+    handler: (event?: GoogleMapMouseEvent) => void
+  ) => GoogleMapsEventListener;
   fitBounds: (bounds: GoogleLatLngBounds) => void;
   getCenter: () => GoogleLatLng | undefined;
   getZoom: () => number | undefined;

@@ -1,11 +1,13 @@
 import type {
+  BudgetSummaryDto,
   ItineraryItemStatusDto,
   ItineraryItemTypeDto,
+  PlaceDto,
   TripExpensesDto
 } from "@/services/api/contracts";
 import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
+import type { DerivedRouteLeg, MapRoute } from "@/modules/map/types/map.types";
 import type { SyncMutationQueueEntry, SyncMutationState } from "@/modules/sync/types/sync.types";
-import type { PlaceDto, RouteSegmentDto } from "@/services/api/contracts";
 import type { PlannerFilters } from "@/stores/use-planner-store";
 
 import { getPlaceMap } from "./trip-editor.utils";
@@ -22,6 +24,9 @@ export type PlannerStats = {
   expenseCurrency: string | null;
   derivedStartDate: string | null;
   derivedEndDate: string | null;
+  budgetLimit: number | null;
+  remainingBudget: number | null;
+  budgetUsagePercentage: number | null;
 };
 
 export type RouteSummaryByItem = Map<
@@ -64,7 +69,7 @@ export function filterTimelineItems(
   const normalizedQuery = filters.query.trim().toLowerCase();
 
   return sortTimelineItems(items).filter((item) => {
-    if (filters.type !== "ALL" && item.type !== filters.type) {
+    if (filters.type !== "ALL" && !item.types.includes(filters.type as ItineraryItemTypeDto)) {
       return false;
     }
     if (filters.status !== "ALL" && item.status !== filters.status) {
@@ -77,9 +82,8 @@ export function filterTimelineItems(
 
     const place = item.placeId ? placeMap.get(item.placeId) : undefined;
     const haystack = [
-      item.title,
-      item.description,
-      item.type,
+      item.summary,
+      item.types.join(" "),
       item.status,
       item.timezone,
       place?.name,
@@ -96,76 +100,71 @@ export function filterTimelineItems(
 
 export function buildPlannerStats({
   tripNoteCount,
+  tripExpenseCount,
   items,
   places,
-  routeSegments,
-  expenses
+  route,
+  routeLegs,
+  expenses,
+  budgetSummary
 }: {
   tripNoteCount: number;
+  tripExpenseCount?: number | undefined;
   items: ItineraryItem[];
   places: PlaceDto[];
-  routeSegments: RouteSegmentDto[];
+  route?: MapRoute | undefined;
+  routeLegs: DerivedRouteLeg[];
   expenses?: TripExpensesDto | undefined;
+  budgetSummary?: BudgetSummaryDto | undefined;
 }): PlannerStats {
-  const totalRouteDistanceMeters = routeSegments.reduce(
-    (total, route) => total + (route.distanceMeters ?? 0),
-    0
-  );
-  const totalRouteDurationSeconds = routeSegments.reduce(
-    (total, route) => total + (route.durationSeconds ?? 0),
-    0
-  );
+  const totalRouteDistanceMeters =
+    route?.distanceMeters ??
+    routeLegs.reduce((total, routeLeg) => total + (routeLeg.distanceMeters ?? 0), 0);
+  const totalRouteDurationSeconds =
+    route?.durationSeconds ??
+    routeLegs.reduce((total, routeLeg) => total + (routeLeg.durationSeconds ?? 0), 0);
+  const summary = budgetSummary ?? expenses?.summary;
   const expenseItems = expenses?.expenses ?? [];
-  const currency = expenseItems.find((expense) => expense.currency)?.currency ?? null;
-  const totalExpenses = expenseItems.reduce((total, expense) => total + expense.amount, 0);
   const itemNoteCount = items.reduce(
     (total, item) => total + (getItemMetadataNumber(item, "noteCount") ?? 0),
     0
   );
   const itemDates = items
-    .flatMap((item) => [item.startTime, item.endTime])
+    .flatMap((item) => getItemDateBounds(item))
     .filter((value): value is string => Boolean(value))
     .sort();
 
   return {
     itineraryCount: items.length,
     placeCount: places.length,
-    routeCount: routeSegments.length,
+    routeCount: routeLegs.length,
     totalRouteDistanceMeters,
     totalRouteDurationSeconds,
     noteCount: tripNoteCount + itemNoteCount,
-    expenseCount: expenseItems.length,
-    totalExpenses,
-    expenseCurrency: currency,
+    expenseCount: tripExpenseCount ?? expenseItems.length,
+    totalExpenses:
+      summary?.spentAmount ?? expenseItems.reduce((total, expense) => total + expense.amount, 0),
+    expenseCurrency:
+      summary?.currency ?? expenseItems.find((expense) => expense.currency)?.currency ?? null,
     derivedStartDate: itemDates[0] ?? null,
-    derivedEndDate: itemDates[itemDates.length - 1] ?? null
+    derivedEndDate: itemDates[itemDates.length - 1] ?? null,
+    budgetLimit: summary?.budgetLimit ?? null,
+    remainingBudget: summary?.remainingAmount ?? null,
+    budgetUsagePercentage: summary?.usagePercentage ?? null
   };
 }
 
-export function buildRouteSummaryByItem(
-  items: ItineraryItem[],
-  routeSegments: RouteSegmentDto[]
-): RouteSummaryByItem {
-  const segmentById = new Map(routeSegments.map((segment) => [segment.id, segment]));
-
+export function buildRouteSummaryByItem(routeLegs: DerivedRouteLeg[]): RouteSummaryByItem {
   return new Map(
-    items.flatMap((item) => {
-      const route = item.routeSegmentId ? segmentById.get(item.routeSegmentId) : undefined;
-
-      return route
-        ? [
-            [
-              item.id,
-              {
-                id: route.id,
-                travelMode: route.travelMode,
-                distanceMeters: route.distanceMeters,
-                durationSeconds: route.durationSeconds
-              }
-            ] as const
-          ]
-        : [];
-    })
+    routeLegs.map((routeLeg) => [
+      routeLeg.toItemId,
+      {
+        id: routeLeg.id,
+        travelMode: "route",
+        distanceMeters: routeLeg.distanceMeters ?? null,
+        durationSeconds: routeLeg.durationSeconds ?? null
+      }
+    ])
   );
 }
 
@@ -222,13 +221,11 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 export const itineraryItemTypes: ItineraryItemTypeDto[] = [
   "ACTIVITY",
-  "PLACE",
   "LODGING",
-  "TRANSPORT",
   "FOOD",
-  "NOTE",
-  "TASK",
-  "CUSTOM"
+  "SHOPPING",
+  "TRANSPORTATION",
+  "OTHER"
 ];
 
 export const itineraryItemStatuses: ItineraryItemStatusDto[] = [
@@ -237,3 +234,18 @@ export const itineraryItemStatuses: ItineraryItemStatusDto[] = [
   "COMPLETED",
   "CANCELLED"
 ];
+
+function getItemDateBounds(item: ItineraryItem) {
+  if (!item.startsAt) {
+    return [];
+  }
+
+  const start = new Date(item.startsAt);
+  const bounds = [start.toISOString()];
+
+  if (item.durationMinutes !== null) {
+    bounds.push(new Date(start.getTime() + item.durationMinutes * 60_000).toISOString());
+  }
+
+  return bounds;
+}

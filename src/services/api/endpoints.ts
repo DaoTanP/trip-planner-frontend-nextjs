@@ -13,13 +13,16 @@ export const apiEndpoints = {
     itinerary: (tripId: string) => `/trips/${tripId}/itinerary`,
     reorderItinerary: (tripId: string) => `/trips/${tripId}/itinerary/reorder`,
     places: (tripId: string) => `/trips/${tripId}/places`,
-    routes: (tripId: string) => `/trips/${tripId}/routes`,
     collaborators: (tripId: string) => `/trips/${tripId}/collaborators`,
     expenses: (tripId: string) => `/trips/${tripId}/expenses`,
+    budget: (tripId: string) => `/trips/${tripId}/budget`,
     mutationEvents: (tripId: string) => `/trips/${tripId}/mutation-events`
   },
   itinerary: {
     item: (itemId: string) => `/itinerary-items/${itemId}`
+  },
+  expenses: {
+    detail: (expenseId: string) => `/expenses/${expenseId}`
   },
   notes: {
     list: "/notes",
@@ -28,6 +31,8 @@ export const apiEndpoints = {
   places: {
     list: "/places",
     search: "/places/search",
+    resolve: "/places/resolve",
+    reverseGeocode: "/places/reverse-geocode",
     detail: (placeId: string) => `/places/${placeId}`
   },
   users: {

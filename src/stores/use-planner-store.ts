@@ -17,16 +17,16 @@ interface PlannerState {
   selectedItemId: string | undefined;
   selectedPlaceId: string | undefined;
   hoveredItemId: string | undefined;
-  selectedRouteSegmentId: string | undefined;
-  hoveredRouteSegmentId: string | undefined;
+  selectedRouteLegId: string | undefined;
+  hoveredRouteLegId: string | undefined;
   filters: PlannerFilters;
   viewport: MapViewport;
   isFilterBarOpen: boolean;
   setSelectedTripId: (tripId?: string) => void;
   selectItem: (itemId?: string, placeId?: string) => void;
   setHoveredItemId: (itemId?: string) => void;
-  selectRouteSegment: (routeSegmentId?: string) => void;
-  setHoveredRouteSegmentId: (routeSegmentId?: string) => void;
+  selectRouteLeg: (routeLegId?: string) => void;
+  setHoveredRouteLegId: (routeLegId?: string) => void;
   setFilters: (filters: Partial<PlannerFilters>) => void;
   clearFilters: () => void;
   setViewport: (viewport: MapViewport) => void;
@@ -52,8 +52,8 @@ export const usePlannerStore = create<PlannerState>()(
       selectedItemId: undefined,
       selectedPlaceId: undefined,
       hoveredItemId: undefined,
-      selectedRouteSegmentId: undefined,
-      hoveredRouteSegmentId: undefined,
+      selectedRouteLegId: undefined,
+      hoveredRouteLegId: undefined,
       filters: defaultFilters,
       viewport: defaultViewport,
       isFilterBarOpen: false,
@@ -66,16 +66,16 @@ export const usePlannerStore = create<PlannerState>()(
                 selectedItemId: undefined,
                 selectedPlaceId: undefined,
                 hoveredItemId: undefined,
-                selectedRouteSegmentId: undefined,
-                hoveredRouteSegmentId: undefined
+                selectedRouteLegId: undefined,
+                hoveredRouteLegId: undefined
               }
         ),
       selectItem: (selectedItemId, selectedPlaceId) =>
-        set({ selectedItemId, selectedPlaceId, selectedRouteSegmentId: undefined }),
+        set({ selectedItemId, selectedPlaceId, selectedRouteLegId: undefined }),
       setHoveredItemId: (hoveredItemId) => set({ hoveredItemId }),
-      selectRouteSegment: (selectedRouteSegmentId) =>
-        set({ selectedRouteSegmentId, selectedItemId: undefined, selectedPlaceId: undefined }),
-      setHoveredRouteSegmentId: (hoveredRouteSegmentId) => set({ hoveredRouteSegmentId }),
+      selectRouteLeg: (selectedRouteLegId) =>
+        set({ selectedRouteLegId, selectedItemId: undefined, selectedPlaceId: undefined }),
+      setHoveredRouteLegId: (hoveredRouteLegId) => set({ hoveredRouteLegId }),
       setFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
       clearFilters: () => set({ filters: defaultFilters }),
       setViewport: (viewport) => set({ viewport }),

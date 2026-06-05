@@ -18,6 +18,9 @@ export const mapConfig = {
   googleMapId: process.env.NEXT_PUBLIC_GOOGLE_MAP_ID ?? "",
   googleMapsRegion: process.env.NEXT_PUBLIC_GOOGLE_MAPS_REGION ?? "",
   googleMapsLanguage: process.env.NEXT_PUBLIC_GOOGLE_MAPS_LANGUAGE ?? "",
+  mapboxAccessToken: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "",
+  nominatimSearchUrl:
+    process.env.NEXT_PUBLIC_NOMINATIM_SEARCH_URL ?? "https://nominatim.openstreetmap.org/search",
   minZoom: 3,
   maxZoom: 18
 } as const;

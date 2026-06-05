@@ -25,6 +25,7 @@ export function TripEditorHeader({ trip, stats, presenceEntries = [] }: TripEdit
   const locale = useLocale();
   const t = useTranslations("trip.editor");
   const statusT = useTranslations("trip.status");
+  const visibilityT = useTranslations("trip.visibility");
   const updateTrip = useUpdateTripMutation(trip.id);
   const isFilterBarOpen = usePlannerStore((state) => state.isFilterBarOpen);
   const setFilterBarOpen = usePlannerStore((state) => state.setFilterBarOpen);
@@ -49,18 +50,10 @@ export function TripEditorHeader({ trip, stats, presenceEntries = [] }: TripEdit
       }),
       t("header.summary.expenses", {
         value: formatMoney(stats.totalExpenses, stats.expenseCurrency, locale)
-      })
+      }),
+      formatBudgetSummary(stats, locale, t)
     ],
-    [
-      locale,
-      stats.expenseCurrency,
-      stats.itineraryCount,
-      stats.noteCount,
-      stats.placeCount,
-      stats.totalExpenses,
-      stats.totalRouteDistanceMeters,
-      t
-    ]
+    [locale, stats, t]
   );
 
   async function handleShare() {
@@ -95,6 +88,9 @@ export function TripEditorHeader({ trip, stats, presenceEntries = [] }: TripEdit
             </span>
             <span className="rounded-md bg-muted px-2 py-0.5 text-foreground">
               {statusT(trip.status)}
+            </span>
+            <span className="rounded-md bg-muted px-2 py-0.5 text-foreground">
+              {visibilityT(trip.visibility)}
             </span>
             <span className="min-w-0 truncate">{summaryParts.join(" / ")}</span>
           </div>
@@ -187,4 +183,23 @@ function formatMoney(amount: number, currency: string | null, locale: string) {
     maximumFractionDigits: 0,
     style: "currency"
   }).format(amount);
+}
+
+function formatBudgetSummary(
+  stats: PlannerStats,
+  locale: string,
+  t: ReturnType<typeof useTranslations>
+) {
+  if (stats.budgetLimit === null) {
+    return t("header.summary.noBudget");
+  }
+
+  const currency = stats.expenseCurrency;
+  const limit = formatMoney(stats.budgetLimit, currency, locale);
+  const remaining =
+    stats.remainingBudget === null ? null : formatMoney(stats.remainingBudget, currency, locale);
+
+  return remaining
+    ? t("header.summary.budgetWithRemaining", { limit, remaining })
+    : t("header.summary.budget", { limit });
 }

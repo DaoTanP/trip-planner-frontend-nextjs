@@ -19,6 +19,17 @@ export function worldYToTileY(worldY: number) {
   return Math.floor(worldY / tileSize);
 }
 
+export function worldXToLongitude(worldX: number, zoom: number) {
+  return (worldX / (tileSize * 2 ** zoom)) * 360 - 180;
+}
+
+export function worldYToLatitude(worldY: number, zoom: number) {
+  const normalized = 1 - (2 * worldY) / (tileSize * 2 ** zoom);
+  const radians = Math.atan(Math.sinh(Math.PI * normalized));
+
+  return (radians * 180) / Math.PI;
+}
+
 export function projectPoint(
   point: { latitude: number; longitude: number },
   center: { latitude: number; longitude: number; zoom: number }

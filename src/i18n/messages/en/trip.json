@@ -11,8 +11,6 @@
     "metadataTitle": "Trip editor",
     "titleLabel": "Trip title",
     "titlePlaceholder": "Da Nang guide",
-    "descriptionLabel": "Description",
-    "descriptionPlaceholder": "Add overview notes, planning context, booking reminders, or collaborator guidance.",
     "startDateLabel": "Start date",
     "endDateLabel": "End date",
     "save": "Save",
@@ -20,14 +18,18 @@
     "retry": "Retry",
     "errorTitle": "Trip editor could not load",
     "errorDescription": "Refresh the trip data or try again after checking your connection.",
+    "tabs": {
+      "stops": "Stops",
+      "budget": "Budget",
+      "notes": "Notes"
+    },
     "header": {
       "search": "Search",
       "filter": "Filter",
-      "quickAdd": "Quick add",
       "share": "Share",
       "shareCopied": "Share link copied.",
       "shareFailed": "Share link could not be copied.",
-      "noDerivedDates": "Dates derived from timeline",
+      "noDerivedDates": "Dates derived from stops",
       "lastEdited": "Edited {value}",
       "revision": "Revision {value}",
       "distanceKilometers": "{value} km",
@@ -40,7 +42,7 @@
         "conflict": "Conflict"
       },
       "stats": {
-        "itinerary": "Timeline",
+        "itinerary": "Stops",
         "places": "Places",
         "distance": "Distance",
         "travelTime": "Travel",
@@ -52,7 +54,10 @@
         "places": "{count, plural, =0 {0 Places} =1 {# Place} other {# Places}}",
         "notes": "{count, plural, =0 {0 Notes} =1 {# Note} other {# Notes}}",
         "distance": "{value} km",
-        "expenses": "{value}"
+        "expenses": "{value}",
+        "noBudget": "No budget",
+        "budget": "Budget {limit}",
+        "budgetWithRemaining": "{remaining} left of {limit}"
       },
       "presence": {
         "names": "{names} viewing",
@@ -92,27 +97,27 @@
       "empty": "No places found",
       "noAddress": "Address not available",
       "addPlace": "Add {name}",
+      "addManual": "Resolve \"{name}\" manually",
       "close": "Close place search",
       "addError": "Place could not be added."
     },
     "itinerary": {
-      "title": "Timeline",
+      "title": "Stops",
       "items": "{count, plural, =0 {No stops} =1 {# stop} other {# stops}}",
       "visibleItems": "{visible} of {total} visible",
-      "empty": "Add places, activities, reminders, or flexible ideas to start shaping the route.",
-      "filteredEmpty": "No timeline items match the current filters.",
-      "searchPlaceholder": "Filter timeline",
+      "empty": "Search for a place to create the first itinerary stop.",
+      "filteredEmpty": "No stops match the current filters.",
+      "searchPlaceholder": "Filter stops",
       "typeFilter": "Filter by type",
       "statusFilter": "Filter by status",
       "allTypes": "All types",
       "allStatuses": "All statuses",
       "clear": "Clear",
       "newItemType": "New item type",
-      "addPlaceholder": "Add a stop, activity, or reminder",
       "add": "Add",
       "cancel": "Cancel",
       "inlineAdd": "Add stop",
-      "searchPlace": "Search place",
+      "placeFirstHint": "Choose a place to create this stop.",
       "placeSearchTitle": "Add place here",
       "placeSearchPlaceholder": "Search a place for this stop",
       "addPlaceHere": "Add {name} here",
@@ -132,22 +137,20 @@
       }
     },
     "item": {
-      "drag": "Reorder itinerary item",
-      "delete": "Remove itinerary item",
-      "titleLabel": "Item title",
-      "descriptionLabel": "Item description",
-      "descriptionPlaceholder": "Notes, booking details, or timing ideas",
-      "statusLabel": "Item status",
-      "attachPlace": "Attach place",
+      "drag": "Reorder stop",
+      "delete": "Remove stop",
+      "unknownPlace": "Unknown place",
+      "stopNotes": "Stop notes",
+      "placeNotes": "Place notes",
+      "summaryLabel": "Summary",
+      "summaryPlaceholder": "Planning notes, booking details, or timing ideas",
+      "typeLabel": "Stop type",
+      "statusLabel": "Stop status",
       "changePlace": "Change place",
-      "removePlace": "Remove place",
       "placeSearchPlaceholder": "Search a place",
-      "attachPlaceTo": "Attach {name}",
       "changePlaceTo": "Change to {name}",
       "duration": "{minutes} min",
-      "flexible": "Flexible",
-      "allDay": "All day",
-      "unscheduled": "Flexible time",
+      "unscheduled": "Unscheduled",
       "expand": "Expand stop",
       "collapse": "Collapse stop",
       "routeSummary": "{mode}, {distance} km, {duration}",
@@ -164,13 +167,11 @@
       },
       "types": {
         "ACTIVITY": "Activity",
-        "PLACE": "Place",
         "LODGING": "Lodging",
-        "TRANSPORT": "Transport",
         "FOOD": "Food",
-        "NOTE": "Note",
-        "TASK": "Task",
-        "CUSTOM": "Custom"
+        "SHOPPING": "Shopping",
+        "TRANSPORTATION": "Transportation",
+        "OTHER": "Other"
       },
       "statuses": {
         "PLANNED": "Planned",
@@ -186,42 +187,6 @@
         "conflicted": "Conflict"
       }
     },
-    "insights": {
-      "title": "Planning insights",
-      "count": "{count, plural, =0 {Clear} =1 {# signal} other {# signals}}",
-      "empty": "No planning issues detected.",
-      "items": {
-        "missingRoutes": "{count, plural, =1 {# route connector is missing} other {# route connectors are missing}}",
-        "overlap": "{count, plural, =1 {# event overlaps another item} other {# events overlap other items}}",
-        "impossibleTravel": "{count, plural, =1 {# travel gap is too tight} other {# travel gaps are too tight}}",
-        "emptyDays": "{count, plural, =1 {# empty day in the plan} other {# empty days in the plan}}",
-        "longIdle": "{count, plural, =1 {# long idle gap} other {# long idle gaps}} over {minutes} minutes",
-        "budget": "Budget is over by {amount}"
-      }
-    },
-    "quickAdd": {
-      "button": "Add",
-      "openCommand": "Open command palette",
-      "openSearch": "Open place search",
-      "openMap": "Open map",
-      "paletteTitle": "Quick planner actions",
-      "close": "Close quick actions",
-      "actions": {
-        "place": "Add place",
-        "activity": "Add activity",
-        "note": "Add note",
-        "transport": "Add transport",
-        "lodging": "Add lodging",
-        "expense": "Add expense"
-      },
-      "defaults": {
-        "activity": "New activity",
-        "note": "Planning note",
-        "transport": "Transport",
-        "lodging": "Lodging",
-        "expense": "Expense"
-      }
-    },
     "map": {
       "label": "Trip map",
       "marker": "Select {name}",
@@ -234,6 +199,15 @@
       "loading": "Loading map...",
       "missingApiKey": "Google Maps is not configured.",
       "loadError": "Map could not be loaded.",
+      "reverseGeocoding": "Finding this location...",
+      "reverseGeocodeFailed": "Location lookup failed.",
+      "unknownPlace": "Selected location",
+      "coordinates": "{lat}, {lng}",
+      "cancelLookup": "Cancel location lookup",
+      "dismissCandidate": "Dismiss selected location",
+      "addStop": "Add to itinerary",
+      "stopAdded": "Stop added.",
+      "addStopFailed": "Stop could not be added.",
       "attribution": "OpenStreetMap",
       "attributionOsm": "OpenStreetMap",
       "attributionGoogle": "Google Maps",
@@ -241,6 +215,32 @@
       "routeDistanceKilometers": "{kilometers} km",
       "routeDurationMinutes": "{minutes, plural, =1 {# min} other {# min}}",
       "routeSummary": "{distance}, {duration}"
+    },
+    "budget": {
+      "spent": "Spent",
+      "limit": "Limit",
+      "remaining": "Remaining",
+      "usage": "Usage",
+      "notSet": "Not set",
+      "currency": "Currency",
+      "category": "Category",
+      "uncategorized": "Uncategorized",
+      "totalLimit": "Total limit",
+      "saveBudget": "Save budget",
+      "expenseTitle": "Expense title",
+      "amount": "Amount",
+      "linkedStop": "Linked stop",
+      "tripLevel": "Trip-level",
+      "unknownStop": "Unknown stop",
+      "addExpense": "Add expense",
+      "editExpense": "Edit expense",
+      "saveExpense": "Save expense",
+      "deleteExpense": "Delete expense",
+      "expenseNotes": "Expense notes",
+      "loadMore": "Load more expenses",
+      "loadingMore": "Loading expenses",
+      "cancel": "Cancel",
+      "emptyExpenses": "No expenses yet."
     }
   },
   "empty": {
@@ -250,8 +250,6 @@
   "form": {
     "titleLabel": "Trip title",
     "titlePlaceholder": "Northern Vietnam getaway",
-    "descriptionLabel": "Description",
-    "descriptionPlaceholder": "Optional planning notes",
     "startDateLabel": "Start date",
     "endDateLabel": "End date",
     "submit": "Create trip"
@@ -259,9 +257,10 @@
   "card": {
     "dateRange": "{startDate} - {endDate}",
     "noDates": "Dates not set",
-    "timelineSummary": "{itemCount, plural, =0 {No stops} =1 {# stop} other {# stops}}, {routeCount, plural, =0 {no routes} =1 {# route} other {# routes}}",
     "collaborators": "{count, plural, =0 {No collaborators} =1 {# collaborator} other {# collaborators}}",
-    "items": "{count, plural, =0 {No itinerary stops} =1 {# itinerary stop} other {# itinerary stops}}"
+    "items": "{count, plural, =0 {No itinerary stops} =1 {# itinerary stop} other {# itinerary stops}}",
+    "notes": "{count, plural, =0 {No notes} =1 {# note} other {# notes}}",
+    "expenses": "{count, plural, =0 {No expenses} =1 {# expense} other {# expenses}}"
   },
   "status": {
     "DRAFT": "Draft",
@@ -269,6 +268,11 @@
     "ACTIVE": "Active",
     "COMPLETED": "Completed",
     "ARCHIVED": "Archived"
+  },
+  "visibility": {
+    "PRIVATE": "Private",
+    "SHARED": "Shared",
+    "PUBLIC": "Public"
   },
   "toast": {
     "created": "Trip created.",

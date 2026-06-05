@@ -47,6 +47,7 @@ src/
     itinerary/
     places/
     profile/
+    expenses/
     map/
     sync/
   providers/
@@ -71,6 +72,7 @@ and composes feature code from:
 - `src/modules/trips` for trip detail, editor shell composition, and trip-level mutations.
 - `src/modules/notes` for unified collaborative note services, infinite queries, optimistic mutations, and reusable note panels.
 - `src/modules/itinerary` for itinerary item services and optimistic mutations.
+- `src/modules/expenses` for expense cursor queries, budget summary queries, mutations, and trip-scoped budget UI.
 - `src/modules/places` for place search.
 - `src/modules/map` for provider-shaped map rendering and map math.
 - `src/modules/sync` for mutation queue state, revision catch-up, entity patchers, and reconciliation utilities.
@@ -81,16 +83,16 @@ The editor workflow is inspired by Wanderlog-style trip planning:
 - editable planner on the left
 - interactive map on the right
 - synchronized selection
-- flat timeline sequence
-- itinerary cards with optional presentation grouping
+- flat stop sequence
+- stop cards with optional presentation grouping
 - direct manipulation interactions
 
 The Phase 4 planner workspace keeps the editor product surface dense and operational rather than form-like:
 
-- trip header, timeline, filters, insights, and threaded notes live in the left planning workspace.
-- the map is a persistent right workspace on desktop and a bottom-sheet workspace on mobile.
-- quick add and place search are floating overlays, not embedded form sections.
-- selected itinerary-item notes use the unified notes module and the same `/notes` cache shape as trip notes.
+- trip header, stop filters/search, budget, and threaded notes live in the left planning workspace.
+- the map is a persistent right workspace on desktop and remains visible alongside secondary tabs.
+- place search and map-click creation resolve backend places before creating stops.
+- trip, itinerary-item, expense, and place notes use the unified notes module and the same `/notes` cache shape.
 - trip end date, grouping labels, route gaps, idle gaps, and planning warnings are derived from normalized query data in the UI.
 
 ## Runtime and Docker
@@ -260,8 +262,8 @@ TanStack Query owns server state:
 - places.
 - flat itinerary item cursor pages.
 - generic note cursor pages.
-- route segment cursor pages.
-- collaborators and expenses.
+- provider route query results derived from ordered stop coordinates.
+- collaborators, expenses, and budget summaries.
 - future realtime invalidation.
 - trip detail: `tripKeys.detail(tripId)`
 - trip list: `tripKeys.list()`
@@ -285,14 +287,14 @@ Do not store server records in Zustand.
 
 Server state must not be copied into Zustand. Components read trip data from React Query and write UI-only selection state to the planner store.
 
-Trip summary DTOs do not include `Destination` or `destinationNames`. Cards and editor summaries should derive useful location/timeline labels from itinerary counts, flat items, places, and route segments.
+Trip summary DTOs do not include `Destination`, `destinationNames`, routes, or embedded itinerary records. Cards and editor summaries should derive useful stop/place labels from backend counts, flat items, places, expenses, and notes.
 
 Trip revisions are server state. The latest revision comes from trip detail and mutation responses, stays in TanStack Query, and is used as the future reconnect/offline catch-up boundary rather than duplicated into Zustand.
 
 `src/modules/sync` is a runtime adapter over TanStack Query, not a new state store. It owns:
 
 - an in-memory mutation queue with `queued`, `sending`, `acknowledged`, `failed`, `retrying`, and `conflicted` states.
-- entity patchers for trip, itinerary item, note, expense, collaborator, and route segment caches.
+- entity patchers for trip, itinerary item, note, expense, and budget caches.
 - revision-gap reconciliation through `GET /trips/:tripId/mutation-events`.
 - development-only sync diagnostics.
 
@@ -331,22 +333,22 @@ The editor intentionally full-bleeds from the normal app shell using a `w-screen
 
 Map-specific concepts are isolated in `modules/places`, `modules/map`, and `stores/use-planner-store.ts`.
 
-`src/modules/map` owns provider rendering, routing DTOs, provider errors, and provider math. `src/modules/places` owns provider-backed place search, place details, geocoding, reverse geocoding, and mapping those results into backend place creation payloads. Itinerary and trip editor components consume normalized contracts only.
+`src/modules/map` owns provider rendering, routing DTOs, provider errors, and provider math. `src/modules/places` owns provider-backed place search, backend place search fallback, place details, backend reverse geocoding, and mapping those results into backend place resolution payloads. Itinerary and trip editor components consume normalized contracts only.
 
 The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL JS is the default rendering engine, Google Maps remains a provider adapter for Google-backed rendering and routing, and the OSM raster renderer remains available as a lightweight fallback path. Provider-specific code lives under:
 
 - `src/modules/map/providers/maplibre` for MapLibre GL JS and `react-map-gl` rendering, markers, viewport sync, and route layers.
 - `src/modules/map/providers/google` for Maps JavaScript loading, rendering, markers, polylines, and directions.
 - `src/modules/map/providers/osm` for the OSM tile renderer and Web Mercator projection.
-- `src/modules/places/services/google-places.service.ts` for Google Places autocomplete, details, geocoding, and reverse geocoding.
+- `src/modules/places/services/google-places.service.ts` for Google Places autocomplete and details.
 - `src/modules/map/services/map-route.service.ts` and `src/modules/map/queries/map-route.queries.ts` for provider-neutral routing.
 - `src/modules/map/providers/shared` for provider-independent marker, route, viewport, and bounds contracts.
 
 The trip editor derives `MapMarker[]` and fallback route points from trip DTOs, then asks TanStack Query for provider route geometry when the active provider supports routing. The map receives provider-ready props and emits only viewport, marker select, and marker hover callbacks. Business logic stays outside map components.
 
-The editor now derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. `RouteSegment` queries provide cached encoded polylines keyed by provider, from/to place, travel mode, and route profile hash when available; provider route queries remain a fallback for routes that have not been cached yet.
+The editor derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. Route visualization is generated dynamically from ordered marker coordinates through provider-neutral route queries; no route geometry is persisted or synchronized.
 
-Timeline and map synchronization is ID-based. Timeline cards write selected and hovered item IDs to `use-planner-store`; map providers receive only selected/hovered marker IDs and callbacks. Selecting a timeline item moves the map viewport toward the item's normalized place, and selecting a marker selects the item and lets the timeline scroll the card into view. Providers do not know about notes, filters, reorder rules, or itinerary mutations.
+Stop list and map synchronization is ID-based. Stop cards write selected and hovered item IDs to `use-planner-store`; map providers receive only selected/hovered marker IDs and callbacks. Selecting a stop card moves the map viewport toward the item's normalized place, and selecting a marker selects the item and lets the stop list scroll the card into view. Providers do not know about notes, filters, reorder rules, or itinerary mutations.
 
 MapLibre renders normalized map contracts only:
 
@@ -359,21 +361,21 @@ MapLibre does not own itinerary logic, trip records, place normalization, or rou
 
 MapLibre markers are rendered through a GeoJSON source and layers rather than one React marker component per itinerary item. This keeps marker rendering scalable, enables clustering, and leaves hover/selection as lightweight layer interactions mapped back to normalized `MapMarker` IDs.
 
-Marker and route derivation is deterministic from flat itinerary order. The editor sorts by `(sortOrder, id)`, derives markers from normalized places, and renders cached `RouteSegment` polylines when they are loaded. Route segment loading can stay partial; provider routing remains a fallback until the backend route cache is hydrated.
+Marker and route derivation is deterministic from flat itinerary order. The editor sorts by `(sortOrder, id)`, derives markers from normalized places, and renders provider route results when available. When routing is unavailable, the map falls back to ordered stop coordinates and route-gap UI rather than backend writes.
 
-Google route results normalize to provider-independent route DTOs:
+Provider route results normalize to provider-independent route DTOs:
 
 - decoded route points for polyline rendering.
-- encoded polyline for future persistence/caching.
+- encoded polyline for rendering/provider diagnostics only, not backend persistence.
 - route legs for multi-stop expansion.
 - distance and duration totals for estimation.
 
 Place results normalize before reaching UI:
 
 - autocomplete results use provider-safe IDs and labels.
-- place details map to backend `CreatePlaceRequestDto` fields.
+- place details map to backend `ResolvePlaceRequestDto` fields.
 - raw Google responses are not exposed to trip, itinerary, or card components.
-- adding a Google result first creates or resolves a backend place, then creates the itinerary item.
+- adding a provider result first resolves a backend place, then creates the itinerary item.
 
 Map rendering remains client-only. The trip editor dynamically imports the map with `ssr: false`; MapLibre, Google Maps, and other provider SDKs are loaded lazily only when a map route actually renders. Server Components never import map SDKs and do not include provider payloads in the server render.
 
@@ -396,12 +398,12 @@ Google Maps Platform setup requires these APIs enabled on the browser API key:
 
 dnd-kit is the standard drag layer for editor planning.
 
-- The timeline uses one sortable context for flat itinerary items.
+- The stop list uses one sortable context for flat itinerary items.
 - Drag handles use keyboard and pointer sensors.
 - Reorder mutations are intent based: the UI sends the moved `itemId`, optional `beforeItemId`, optional `afterItemId`, `expectedVersion`, and `clientMutationId`.
 - Date, location, time-of-day, and custom grouping are presentation-only and must not change the reorder contract or introduce day IDs.
 
-Large timelines use a virtualization-compatible render path. Small and medium trips render the full sortable list for best drag behavior; very large loaded lists switch to a windowed item renderer so the DOM does not grow with every cursor page. Item cards stay isolated so this can move to a dedicated virtualization package later without changing backend contracts.
+Large stop lists use a virtualization-compatible render path. Small and medium trips render the full sortable list for best drag behavior; very large loaded lists switch to a windowed item renderer so the DOM does not grow with every cursor page. Stop cards stay isolated so this can move to a dedicated virtualization package later without changing backend contracts.
 
 ## Optimistic Updates
 
@@ -422,7 +424,7 @@ Reorder hooks:
 
 `clientMutationId` is sent with replayable mutations so future realtime fanout can ignore a client's own echoed mutation. Item `version`/`expectedVersion` fields are used for stale entity detection, and `expectedRevision` is sent when the mutation depends on the current trip revision. `REVISION_CONFLICT` responses are handled as sync conflicts, not generic form failures. Mutation responses include the latest trip revision; mutation hooks patch `tripKeys.detail(tripId)` rather than refetching the whole editor. The frontend does not send full reordered arrays.
 
-Itinerary and notes use `useInfiniteQuery` over cursor APIs. Note queries are keyed by normalized filters such as `tripId`, `targetEntityType`, `targetEntityId`, and `parentNoteId`, so trip notes, itinerary item notes, expense notes, place notes, and replies reuse the same cache shape. Services preserve `meta.pagination`, query options use `nextCursor`, and mutation hooks patch loaded pages surgically. This is mobile/offline friendly because the client can hydrate partial resources, preserve scroll stability, and catch up later by revision.
+Itinerary, notes, and expenses use `useInfiniteQuery` over cursor APIs when rendering growing editor lists. Note queries are keyed by normalized filters such as `tripId`, `targetEntityType`, `targetEntityId`, and `parentNoteId`, so trip notes, itinerary item notes, expense notes, place notes, and replies reuse the same cache shape. Services preserve `meta.pagination`, query options use `nextCursor`, and mutation hooks patch or invalidate loaded pages without introducing Zustand server caches. This is mobile/offline friendly because the client can hydrate partial resources, preserve scroll stability, and catch up later by revision.
 
 Optimistic mutation hooks enqueue the mutation intent in `src/modules/sync/queue`, apply the local cache patch, send the API request with the same `clientMutationId`, then acknowledge, fail, or mark the queue entry conflicted. The queue is intentionally lightweight and in-memory for now; it defines the lifecycle needed by a future persisted offline queue without replacing TanStack Query.
 
@@ -430,7 +432,7 @@ Optimistic mutation hooks enqueue the mutation intent in `src/modules/sync/queue
 
 Desktop uses two columns:
 
-- left planner: compact trip header, filters/search, timeline, insights, and threaded notes
+- left planner: compact trip header, stop search/filters, budget, and threaded notes
 - right map: sticky viewport-height workspace with route, marker, hover, selection, and fit controls
 
 Tablet and mobile use a planner-first workflow with floating quick actions and a map bottom sheet. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.

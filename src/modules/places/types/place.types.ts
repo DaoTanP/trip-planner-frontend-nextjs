@@ -1,11 +1,13 @@
 import type {
-  CreatePlaceRequestDto,
   PlaceDto,
+  PlaceProviderDto,
+  ReverseGeocodePlaceDto,
+  ResolvePlaceRequestDto,
   PlaceSourceDto,
   SearchPlacesQueryDto
 } from "@/services/api/contracts";
 
-export type PlaceProvider = "google" | "mapbox" | "openStreetMap" | "here" | "internal";
+export type PlaceSearchProvider = "google" | "mapbox" | "openStreetMap" | "internal";
 
 export interface GeoPoint {
   latitude: number;
@@ -16,13 +18,13 @@ export type Place = PlaceDto;
 export type PlaceSearchParams = SearchPlacesQueryDto & {
   near?: GeoPoint;
   language?: string;
-  provider?: PlaceProvider;
+  provider?: PlaceSearchProvider;
   region?: string;
 };
 
 export interface NormalizedPlace {
   id: string;
-  provider: PlaceProvider;
+  provider: PlaceSearchProvider;
   source: PlaceSourceDto;
   storedPlaceId?: string | undefined;
   providerPlaceId?: string | undefined;
@@ -40,13 +42,13 @@ export interface NormalizedPlace {
 export type PlaceSearchResult = NormalizedPlace;
 
 export interface PlaceDetails extends NormalizedPlace {
-  sourcePayload?: CreatePlaceRequestDto["sourcePayload"] | undefined;
-  metadata?: CreatePlaceRequestDto["metadata"] | undefined;
+  sourcePayload?: ResolvePlaceRequestDto["sourcePayload"] | undefined;
+  metadata?: ResolvePlaceRequestDto["metadata"] | undefined;
 }
 
 export interface PlaceDetailsParams {
   placeId: string;
-  provider: PlaceProvider;
+  provider: PlaceSearchProvider;
   storedPlaceId?: string | undefined;
   language?: string | undefined;
   region?: string | undefined;
@@ -66,3 +68,30 @@ export interface ReverseGeocodeParams {
 }
 
 export type GeocodeResult = PlaceDetails;
+export type ReverseGeocodeResult = ReverseGeocodePlaceDto;
+export type ResolvePlacePayload = ResolvePlaceRequestDto;
+export type ResolvablePlaceInput =
+  | Place
+  | PlaceDetails
+  | PlaceSearchResult
+  | ReverseGeocodeResult
+  | ResolvePlacePayload;
+
+export function isBackendPlace(value: ResolvablePlaceInput): value is Place {
+  return "id" in value && "createdAt" in value && "updatedAt" in value;
+}
+
+export function mapSearchProviderToBackendProvider(
+  provider: PlaceSearchProvider
+): PlaceProviderDto {
+  switch (provider) {
+    case "google":
+      return "GOOGLE";
+    case "mapbox":
+      return "MAPBOX";
+    case "openStreetMap":
+      return "OSM";
+    case "internal":
+      return "INTERNAL";
+  }
+}

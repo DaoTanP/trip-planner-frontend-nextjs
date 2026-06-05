@@ -29,4 +29,19 @@ export interface TripMapProps {
   onViewportChange: (viewport: MapViewport) => void;
   onMarkerSelect: (marker: MapMarker) => void;
   onMarkerHover?: (marker?: MapMarker) => void;
+  onMapClick?: ((point: MapRoutePoint) => void) | undefined;
 }
+
+export type DerivedRouteLeg = {
+  id: string;
+  fromItemId: string;
+  toItemId: string;
+  fromPlaceId: string;
+  toPlaceId: string;
+  distanceMeters?: number | undefined;
+  durationSeconds?: number | undefined;
+  geometry?: {
+    type: "LineString";
+    coordinates: [number, number][];
+  };
+};

@@ -25,7 +25,6 @@ export function CreateTripForm() {
     resolver: zodResolver(schema),
     defaultValues: {
       title: "",
-      description: "",
       startDate: "",
       endDate: ""
     }
@@ -39,7 +38,6 @@ export function CreateTripForm() {
           title: values.title.trim()
         };
 
-        if (values.description?.trim()) payload.description = values.description.trim();
         if (values.startDate) payload.startDate = values.startDate;
         if (values.endDate) payload.endDate = values.endDate;
 
@@ -56,21 +54,6 @@ export function CreateTripForm() {
           {...form.register("title")}
         />
         <FieldError id="trip-title-error" message={form.formState.errors.title?.message} />
-      </div>
-
-      <div className="grid gap-2">
-        <Label htmlFor="trip-description">{tTrip("form.descriptionLabel")}</Label>
-        <Input
-          id="trip-description"
-          placeholder={tTrip("form.descriptionPlaceholder")}
-          aria-invalid={Boolean(form.formState.errors.description)}
-          aria-describedby="trip-description-error"
-          {...form.register("description")}
-        />
-        <FieldError
-          id="trip-description-error"
-          message={form.formState.errors.description?.message}
-        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

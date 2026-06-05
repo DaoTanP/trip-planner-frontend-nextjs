@@ -9,12 +9,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useCreatePlaceFromDetailsMutation } from "@/modules/places/mutations/use-place-mutations";
+import { useResolvePlaceMutation } from "@/modules/places/mutations/use-place-mutations";
 import {
   placeDetailQueryOptions,
-  placeSearchQueryOptions
+  providerPlaceSearchQueryOptions
 } from "@/modules/places/queries/place.queries";
-import type { PlaceSearchResult } from "@/modules/places/types/place.types";
+import type { PlaceSearchResult, ResolvablePlaceInput } from "@/modules/places/types/place.types";
 import type { PlaceDto } from "@/services/api/contracts";
 
 interface PlaceSearchBoxProps {
@@ -43,7 +43,7 @@ export function PlaceSearchBox({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [pendingPlaceId, setPendingPlaceId] = useState<string | undefined>();
   const [isSelectingPlace, setIsSelectingPlace] = useState(false);
-  const createPlace = useCreatePlaceFromDetailsMutation();
+  const resolvePlace = useResolvePlaceMutation();
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
@@ -55,23 +55,52 @@ export function PlaceSearchBox({
     () => ({ q: debouncedQuery, limit: 8, language: locale }),
     [debouncedQuery, locale]
   );
-  const placesQuery = useQuery(placeSearchQueryOptions(searchParams));
-  const isAddingPlace = Boolean(pendingPlaceId) || createPlace.isPending || isSelectingPlace;
+  const placesQuery = useQuery(providerPlaceSearchQueryOptions(searchParams));
+  const isAddingPlace = Boolean(pendingPlaceId) || resolvePlace.isPending || isSelectingPlace;
 
   async function handleAddPlace(place: PlaceSearchResult) {
     setPendingPlaceId(place.id);
     setIsSelectingPlace(true);
 
     try {
-      const details = await queryClient.fetchQuery(
-        placeDetailQueryOptions({
-          placeId: place.providerPlaceId ?? place.id,
-          provider: place.provider,
-          storedPlaceId: place.storedPlaceId,
-          language: locale
-        })
-      );
-      const storedPlace = await createPlace.mutateAsync(details);
+      const input: ResolvablePlaceInput =
+        place.provider === "google" && !place.storedPlaceId
+          ? await queryClient.fetchQuery(
+              placeDetailQueryOptions({
+                placeId: place.providerPlaceId ?? place.id,
+                provider: place.provider,
+                language: locale
+              })
+            )
+          : place;
+      const storedPlace = await resolvePlace.mutateAsync(input);
+      await onPlaceSelected(storedPlace);
+      setQuery("");
+      onClose?.();
+    } catch {
+      toast.error(t("addError"));
+    } finally {
+      setPendingPlaceId(undefined);
+      setIsSelectingPlace(false);
+    }
+  }
+
+  async function handleAddManualPlace() {
+    const name = debouncedQuery.trim();
+
+    if (!name) {
+      return;
+    }
+
+    setPendingPlaceId(`manual:${name}`);
+    setIsSelectingPlace(true);
+
+    try {
+      const storedPlace = await resolvePlace.mutateAsync({
+        provider: "MANUAL",
+        source: "MANUAL",
+        name
+      });
       await onPlaceSelected(storedPlace);
       setQuery("");
       onClose?.();
@@ -151,7 +180,20 @@ export function PlaceSearchBox({
         ))}
 
         {debouncedQuery && placesQuery.data?.length === 0 && !placesQuery.isFetching ? (
-          <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">{t("empty")}</div>
+          <div className="grid gap-2 rounded-md bg-muted p-3 text-sm text-muted-foreground">
+            <span>{t("empty")}</span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-fit"
+              disabled={isAddingPlace}
+              onClick={() => void handleAddManualPlace()}
+            >
+              <Plus aria-hidden="true" />
+              {t("addManual", { name: debouncedQuery })}
+            </Button>
+          </div>
         ) : null}
       </div>
     </section>

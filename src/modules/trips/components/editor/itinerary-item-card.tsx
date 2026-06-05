@@ -5,18 +5,16 @@ import { useSortable } from "@dnd-kit/sortable";
 import {
   BedDouble,
   CalendarCheck,
-  CheckSquare,
   ChevronDown,
   ChevronUp,
   GripVertical,
   MapPin,
   MessageSquare,
   Navigation,
-  NotebookPen,
   Route,
+  ShoppingBag,
   Sparkles,
   Trash2,
-  X,
   Utensils
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -47,6 +45,7 @@ import type { StopNotePreviewState } from "../../hooks/use-itinerary-note-previe
 import {
   getItemMetadataList,
   getItemMetadataString,
+  itineraryItemTypes,
   type ItemSyncState,
   type RouteSummaryByItem
 } from "../../utils/planner-workspace.utils";
@@ -66,16 +65,16 @@ interface ItineraryItemCardProps {
   notePreview?: StopNotePreviewState | undefined;
 }
 
+type ItineraryItemType = ItineraryItem["types"][number];
+
 const typeIcons = {
   ACTIVITY: CalendarCheck,
-  PLACE: MapPin,
   LODGING: BedDouble,
-  TRANSPORT: Navigation,
   FOOD: Utensils,
-  NOTE: NotebookPen,
-  TASK: CheckSquare,
-  CUSTOM: Sparkles
-} satisfies Record<ItineraryItem["type"], typeof Sparkles>;
+  SHOPPING: ShoppingBag,
+  TRANSPORTATION: Navigation,
+  OTHER: Sparkles
+} satisfies Record<ItineraryItemType, typeof Sparkles>;
 
 export function ItineraryItemCard({
   tripId,
@@ -98,12 +97,14 @@ export function ItineraryItemCard({
   const deleteItem = useDeleteItineraryItemMutation(tripId);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAssigningPlace, setIsAssigningPlace] = useState(false);
-  const [isTitleFocused, setIsTitleFocused] = useState(false);
+  const [isSummaryFocused, setIsSummaryFocused] = useState(false);
   const [draft, setDraft] = useState(() => ({
     version: item.version,
-    title: item.title
+    summary: item.summary ?? ""
   }));
-  const title = draft.version === item.version ? draft.title : item.title;
+  const summary = draft.version === item.version ? draft.summary : (item.summary ?? "");
+  const firstType = item.types[0] ?? "OTHER";
+  const TypeIcon = typeIcons[firstType];
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
     data: {
@@ -113,7 +114,6 @@ export function ItineraryItemCard({
 
   const isSelected = selectedItemId === item.id;
   const isHovered = hoveredItemId === item.id;
-  const TypeIcon = typeIcons[item.type];
   const tags = getItemMetadataList(item, "tags");
   const reminder = getItemMetadataString(item, "reminder");
   const bookingState = getItemMetadataString(item, "bookingState");
@@ -128,9 +128,8 @@ export function ItineraryItemCard({
       }).format(new Date(item.updatedAt)),
     [item.updatedAt, locale]
   );
-  const placeName = place?.name ?? title;
+  const placeName = place?.name ?? t("unknownPlace");
   const placeAddress = place?.formattedAddress ?? place?.address;
-  const planningLine = place && title.trim() && title.trim() !== place.name ? title.trim() : null;
   const statusLabel = t(`statuses.${item.status}`);
   const presenceEntries = useEntityPresenceEntries({
     tripId,
@@ -145,18 +144,23 @@ export function ItineraryItemCard({
     entityId: item.id,
     state: "EDITING",
     priority: 2,
-    enabled: isTitleFocused || isAssigningPlace
+    enabled: isSummaryFocused || isAssigningPlace
   });
 
   function patchItem(payload: UpdateItineraryItemPayload) {
     updateItem.mutate({ itemId: item.id, payload });
   }
 
-  function handleTitleBlur() {
-    setIsTitleFocused(false);
-    const nextTitle = title.trim();
-    if (nextTitle && nextTitle !== item.title) {
-      patchItem({ title: nextTitle, expectedVersion: item.version });
+  function handleSummaryBlur() {
+    setIsSummaryFocused(false);
+    const nextSummary = summary.trim();
+    const currentSummary = item.summary ?? "";
+
+    if (nextSummary !== currentSummary) {
+      patchItem({
+        summary: nextSummary || null,
+        expectedVersion: item.version
+      });
     }
   }
 
@@ -165,22 +169,11 @@ export function ItineraryItemCard({
       itemId: item.id,
       payload: {
         placeId: nextPlace.id,
-        routeSegmentId: null,
         expectedVersion: item.version
       }
     });
     setIsAssigningPlace(false);
     selectItem(item.id, nextPlace.id);
-  }
-
-  function handleRemovePlace() {
-    patchItem({
-      placeId: null,
-      routeSegmentId: null,
-      expectedVersion: item.version
-    });
-    setIsAssigningPlace(false);
-    selectItem(item.id, undefined);
   }
 
   return (
@@ -198,11 +191,9 @@ export function ItineraryItemCard({
         syncState === "conflicted" && "border-destructive ring-2 ring-destructive/20",
         isDragging && "relative z-20 opacity-80"
       )}
-      onMouseEnter={() => {
-        setHoveredItemId(item.id);
-      }}
+      onMouseEnter={() => setHoveredItemId(item.id)}
       onMouseLeave={() => setHoveredItemId(undefined)}
-      onClick={() => selectItem(item.id, item.placeId ?? undefined)}
+      onClick={() => selectItem(item.id, item.placeId)}
     >
       <div className="grid grid-cols-[2.25rem_1fr_auto] gap-2">
         <div className="grid justify-items-center gap-1">
@@ -232,53 +223,20 @@ export function ItineraryItemCard({
             ) : null}
           </div>
 
-          {place ? (
-            <div className="mt-1 min-w-0">
-              <h3 className="truncate text-lg font-semibold leading-tight">{placeName}</h3>
-            </div>
-          ) : (
-            <div className="mt-1 min-w-0">
-              <input
-                value={title}
-                onChange={(event) =>
-                  setDraft({
-                    version: item.version,
-                    title: event.target.value
-                  })
-                }
-                onBlur={handleTitleBlur}
-                onFocus={() => setIsTitleFocused(true)}
-                onClick={(event) => event.stopPropagation()}
-                className="w-full rounded-sm bg-transparent text-lg font-semibold leading-tight outline-none focus-visible:bg-muted"
-                aria-label={t("titleLabel")}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-1 h-7 px-1.5 text-xs text-muted-foreground"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setIsAssigningPlace((current) => !current);
-                }}
-              >
-                <MapPin className="size-3.5" aria-hidden="true" />
-                {t("attachPlace")}
-              </Button>
-            </div>
-          )}
+          <div className="mt-1 min-w-0">
+            <h3 className="truncate text-lg font-semibold leading-tight">{placeName}</h3>
+            {placeAddress ? (
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">{placeAddress}</p>
+            ) : null}
+          </div>
 
           {isAssigningPlace ? (
             <div className="mt-3" onClick={(event) => event.stopPropagation()}>
               <PlaceSearchBox
-                title={place ? t("changePlace") : t("attachPlace")}
+                title={t("changePlace")}
                 placeholder={t("placeSearchPlaceholder")}
                 className="border-dashed shadow-none"
-                actionLabel={(candidate) =>
-                  place
-                    ? t("changePlaceTo", { name: candidate.name })
-                    : t("attachPlaceTo", { name: candidate.name })
-                }
+                actionLabel={(candidate) => t("changePlaceTo", { name: candidate.name })}
                 onClose={() => setIsAssigningPlace(false)}
                 onPlaceSelected={handlePlaceSelected}
               />
@@ -288,8 +246,9 @@ export function ItineraryItemCard({
           <StopNotesPreview
             tripId={tripId}
             item={item}
+            placeId={place?.id}
             notePreview={notePreview}
-            planningLine={planningLine}
+            planningLine={item.summary}
             isExpanded={isExpanded}
             onExpand={() => setIsExpanded(true)}
           />
@@ -297,14 +256,11 @@ export function ItineraryItemCard({
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <TypeIcon className="size-3" aria-hidden="true" />
-              {t(`types.${item.type}`)}
+              {item.types.map((type) => t(`types.${type}`)).join(" / ")}
             </span>
             <span>{statusLabel}</span>
             {item.durationMinutes ? (
               <span>{t("duration", { minutes: item.durationMinutes })}</span>
-            ) : null}
-            {item.cost !== null ? (
-              <span>{formatMoney(item.cost, item.currency, locale)}</span>
             ) : null}
             {activePresence.length > 0 ? <StopPresenceIndicator entries={activePresence} /> : null}
           </div>
@@ -314,8 +270,25 @@ export function ItineraryItemCard({
               className="mt-3 grid gap-3 border-t pt-3 text-xs text-muted-foreground"
               onClick={(event) => event.stopPropagation()}
             >
+              <label className="grid gap-1">
+                <span className="font-medium text-foreground">{t("summaryLabel")}</span>
+                <textarea
+                  value={summary}
+                  rows={3}
+                  className="min-h-20 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder={t("summaryPlaceholder")}
+                  onChange={(event) =>
+                    setDraft({
+                      version: item.version,
+                      summary: event.target.value
+                    })
+                  }
+                  onFocus={() => setIsSummaryFocused(true)}
+                  onBlur={handleSummaryBlur}
+                />
+              </label>
+
               <div className="flex flex-wrap items-center gap-2">
-                {placeAddress ? <span className="min-w-0 truncate">{placeAddress}</span> : null}
                 <Button
                   type="button"
                   variant="ghost"
@@ -324,37 +297,41 @@ export function ItineraryItemCard({
                   onClick={() => setIsAssigningPlace((current) => !current)}
                 >
                   <MapPin className="size-3.5" aria-hidden="true" />
-                  {place ? t("changePlace") : t("attachPlace")}
+                  {t("changePlace")}
                 </Button>
-                {place ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-1.5 text-xs text-destructive"
-                    disabled={updateItem.isPending}
-                    onClick={handleRemovePlace}
-                  >
-                    <X className="size-3.5" aria-hidden="true" />
-                    {t("removePlace")}
-                  </Button>
+                {routeSummary ? (
+                  <span className="inline-flex min-w-0 items-center gap-1">
+                    <Route className="size-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">
+                      {t("routeSummary", {
+                        mode: routeSummary.travelMode,
+                        distance: formatDistance(routeSummary.distanceMeters, locale),
+                        duration: formatRouteDuration(routeSummary.durationSeconds, t)
+                      })}
+                    </span>
+                  </span>
                 ) : null}
               </div>
 
-              {routeSummary ? (
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <Route className="size-3 shrink-0" aria-hidden="true" />
-                  <span className="truncate">
-                    {t("routeSummary", {
-                      mode: routeSummary.travelMode,
-                      distance: formatDistance(routeSummary.distanceMeters, locale),
-                      duration: formatRouteDuration(routeSummary.durationSeconds, t)
-                    })}
-                  </span>
-                </span>
-              ) : null}
-
               <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={firstType}
+                  aria-label={t("typeLabel")}
+                  className="h-7 rounded-md border bg-background px-2 text-xs"
+                  disabled={updateItem.isPending}
+                  onChange={(event) =>
+                    patchItem({
+                      types: [event.target.value as ItineraryItemType],
+                      expectedVersion: item.version
+                    })
+                  }
+                >
+                  {itineraryItemTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {t(`types.${type}`)}
+                    </option>
+                  ))}
+                </select>
                 <select
                   value={item.status}
                   aria-label={t("statusLabel")}
@@ -375,8 +352,6 @@ export function ItineraryItemCard({
                     </option>
                   ))}
                 </select>
-                {item.isAllDay ? <span>{t("allDay")}</span> : null}
-                {item.isFlexibleTime ? <span>{t("flexible")}</span> : null}
                 {tags.map((tag) => (
                   <span key={tag} className="rounded-md border px-1.5 py-0.5">
                     {tag}
@@ -444,6 +419,7 @@ export function ItineraryItemCard({
 function StopNotesPreview({
   tripId,
   item,
+  placeId,
   notePreview,
   planningLine,
   isExpanded,
@@ -451,20 +427,32 @@ function StopNotesPreview({
 }: {
   tripId: string;
   item: ItineraryItem;
+  placeId?: string | undefined;
   notePreview?: StopNotePreviewState | undefined;
   planningLine: string | null;
   isExpanded: boolean;
   onExpand: () => void;
 }) {
+  const t = useTranslations("trip.editor.item");
+
   if (isExpanded) {
     return (
-      <div className="mt-3 border-t pt-3" onClick={(event) => event.stopPropagation()}>
-        <NotePanel
-          tripId={tripId}
-          targetEntityType="ITINERARY_ITEM"
-          targetEntityId={item.id}
-          compact
-        />
+      <div className="mt-3 grid gap-4 border-t pt-3" onClick={(event) => event.stopPropagation()}>
+        <section className="grid gap-2">
+          <p className="text-xs font-medium text-muted-foreground">{t("stopNotes")}</p>
+          <NotePanel
+            tripId={tripId}
+            targetEntityType="ITINERARY_ITEM"
+            targetEntityId={item.id}
+            compact
+          />
+        </section>
+        {placeId ? (
+          <section className="grid gap-2">
+            <p className="text-xs font-medium text-muted-foreground">{t("placeNotes")}</p>
+            <NotePanel tripId={tripId} targetEntityType="PLACE" targetEntityId={placeId} compact />
+          </section>
+        ) : null}
       </div>
     );
   }
@@ -490,7 +478,7 @@ function StopNotesPreview({
   return (
     <div className="mt-2 grid gap-1.5">
       <ul className="grid gap-1 text-sm text-foreground">
-        {planningLine ? <li className="min-w-0 truncate">- {planningLine}</li> : null}
+        {planningLine ? <li className="line-clamp-2 min-w-0">{planningLine}</li> : null}
         {visibleNotes.map((note) => (
           <NotePreviewLine key={note.id} note={note} />
         ))}
@@ -519,7 +507,7 @@ function StopPresenceIndicator({ entries }: { entries: PresenceEntry[] }) {
       <span className="size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
       <span className="truncate">
         {remainingCount > 0
-          ? `${primaryLabel} · ${t("presence.more", { count: remainingCount })}`
+          ? `${primaryLabel} / ${t("presence.more", { count: remainingCount })}`
           : primaryLabel}
       </span>
     </span>
@@ -553,7 +541,7 @@ function MoreNotesButton({
 }
 
 function NotePreviewLine({ note }: { note: CollaborativeNote }) {
-  return <li className="line-clamp-2 min-w-0">- {note.body}</li>;
+  return <li className="line-clamp-2 min-w-0">{note.body}</li>;
 }
 
 function formatSchedule(
@@ -561,11 +549,12 @@ function formatSchedule(
   locale: string,
   t: ReturnType<typeof useTranslations>
 ) {
-  if (!item.startTime && !item.endTime) {
-    return item.isFlexibleTime ? t("flexible") : t("unscheduled");
+  if (!item.startsAt) {
+    return t("unscheduled");
   }
 
   const timezone = item.timezone;
+  const start = new Date(item.startsAt);
   const dateFormatter = new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
@@ -576,16 +565,16 @@ function formatSchedule(
     minute: "2-digit",
     timeZone: timezone
   });
-  const start = item.startTime ? new Date(item.startTime) : null;
-  const end = item.endTime ? new Date(item.endTime) : null;
-  const startLabel = start
-    ? `${dateFormatter.format(start)} \u00b7 ${timeFormatter.format(start)}`
-    : null;
-  const endLabel = end ? timeFormatter.format(end) : null;
+  const startLabel = `${dateFormatter.format(start)} / ${timeFormatter.format(start)}`;
 
-  return startLabel && endLabel && startLabel !== endLabel
-    ? `${startLabel} - ${endLabel}`
-    : (startLabel ?? (end ? `${dateFormatter.format(end)} \u00b7 ${endLabel}` : t("unscheduled")));
+  if (item.durationMinutes === null) {
+    return startLabel;
+  }
+
+  const end = new Date(start.getTime() + item.durationMinutes * 60_000);
+  const endLabel = timeFormatter.format(end);
+
+  return `${startLabel} - ${endLabel}`;
 }
 
 function formatDistance(meters: number | null, locale: string) {
@@ -606,16 +595,4 @@ function formatRouteDuration(seconds: number | null, t: ReturnType<typeof useTra
   }
 
   return t("routeDuration", { minutes: Math.max(1, Math.round(seconds / 60)) });
-}
-
-function formatMoney(amount: number, currency: string | null, locale: string) {
-  if (!currency) {
-    return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(amount);
-  }
-
-  return new Intl.NumberFormat(locale, {
-    currency,
-    maximumFractionDigits: 0,
-    style: "currency"
-  }).format(amount);
 }

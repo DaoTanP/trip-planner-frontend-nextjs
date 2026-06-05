@@ -1,6 +1,14 @@
 "use client";
 
-import { CalendarDays, Pencil, Route, Trash2, Users } from "lucide-react";
+import {
+  CalendarDays,
+  CircleDollarSign,
+  MapPinned,
+  MessageSquare,
+  Pencil,
+  Trash2,
+  Users
+} from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -21,10 +29,6 @@ export function TripCard({ trip }: TripCardProps) {
   const deleteMutation = useDeleteTripMutation();
   const startDate = trip.startDate ? format.dateTime(new Date(trip.startDate), "tripDate") : null;
   const endDate = trip.endDate ? format.dateTime(new Date(trip.endDate), "tripDate") : null;
-  const timelineSummary = t("card.timelineSummary", {
-    itemCount: trip.itineraryItemCount,
-    routeCount: trip.routeSegmentCount
-  });
 
   return (
     <article className="grid gap-4 rounded-md border bg-card p-4 shadow-sm">
@@ -32,8 +36,8 @@ export function TripCard({ trip }: TripCardProps) {
         <div className="min-w-0 space-y-1">
           <h2 className="truncate text-base font-semibold">{trip.title}</h2>
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Route className="size-4" aria-hidden="true" />
-            {timelineSummary}
+            <MapPinned className="size-4" aria-hidden="true" />
+            {t("card.items", { count: trip.itineraryItemCount })}
           </p>
         </div>
         <Badge variant={trip.status === "COMPLETED" ? "success" : "secondary"}>
@@ -49,6 +53,14 @@ export function TripCard({ trip }: TripCardProps) {
         <p className="flex items-center gap-2">
           <Users className="size-4" aria-hidden="true" />
           {t("card.collaborators", { count: trip.collaboratorCount })}
+        </p>
+        <p className="flex items-center gap-2">
+          <MessageSquare className="size-4" aria-hidden="true" />
+          {t("card.notes", { count: trip.noteCount })}
+        </p>
+        <p className="flex items-center gap-2">
+          <CircleDollarSign className="size-4" aria-hidden="true" />
+          {t("card.expenses", { count: trip.expenseCount })}
         </p>
       </div>
 

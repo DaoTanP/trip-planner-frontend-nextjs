@@ -5,7 +5,7 @@
   },
   "metadata": {
     "title": "Trip Planner",
-    "description": "Plan collaborative trips with places, routes, maps, and localized itineraries."
+    "description": "Plan collaborative trips with place-backed stops, maps, and localized itineraries."
   },
   "nav": {
     "home": "Home",
@@ -66,8 +66,8 @@
   },
   "home": {
     "eyebrow": "Map-first planning workspace",
-    "title": "Build trips around places, routes, and real movement.",
-    "description": "A production-ready frontend foundation for sequencing stops, saving places, shaping routes, and adding collaboration when the product is ready.",
+    "title": "Build trips around places and real movement.",
+    "description": "A production-ready frontend foundation for discovering places, sequencing stops, visualizing routes, and adding collaboration when the product is ready.",
     "primaryAction": "Open trips",
     "secondaryAction": "Log in",
     "mapTitle": "Hanoi to Da Nang",

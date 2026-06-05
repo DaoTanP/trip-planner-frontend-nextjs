@@ -7,7 +7,7 @@
 
 ## Context
 
-Notes are now a reusable collaborative resource. They can attach to trips, itinerary items, expenses, places, route segments, and future collaboration surfaces. Keeping note services inside `modules/trips` would make trip notes the implicit default and encourage new entity-specific note APIs.
+Notes are now a reusable collaborative resource. They can attach to trips, itinerary items, expenses, and places. Keeping note services inside `modules/trips` would make trip notes the implicit default and encourage new entity-specific note APIs.
 
 The frontend also needs cursor pagination, threaded replies, optimistic updates, revision patching, and future websocket/offline reconciliation without storing notes in Zustand.
 
@@ -21,7 +21,7 @@ Trip editor composition may render `NotePanel`, but note server state and mutati
 
 ## Consequences
 
-- Trip, itinerary, expense, place, and future route note panels share one implementation.
+- Trip, itinerary item, expense, and place note panels share one implementation.
 - Optimistic create/update/delete mutations patch loaded note pages instead of invalidating trip detail.
 - Trip `revision` is patched into `tripKeys.detail(tripId)` from note mutation responses.
 - Future realtime events can patch matching note query pages by target filters.

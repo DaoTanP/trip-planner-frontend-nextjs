@@ -2,11 +2,11 @@
 
 import { useMutation } from "@tanstack/react-query";
 
-import { createPlaceFromDetails } from "../services/places.service";
-import type { PlaceDetails } from "../types/place.types";
+import { resolvePlace } from "../services/places.service";
+import type { ResolvablePlaceInput } from "../types/place.types";
 
-export function useCreatePlaceFromDetailsMutation() {
+export function useResolvePlaceMutation() {
   return useMutation({
-    mutationFn: (details: PlaceDetails) => createPlaceFromDetails(details)
+    mutationFn: (input: ResolvablePlaceInput) => resolvePlace(input)
   });
 }

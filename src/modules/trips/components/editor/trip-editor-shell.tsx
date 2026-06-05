@@ -3,12 +3,14 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo } from "react";
-import { RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MapPinPlus, RefreshCw, X } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
+import { BudgetExpensePanel } from "@/modules/expenses/components/budget-expense-panel";
 import { useSession } from "@/modules/auth/hooks/use-session";
 import {
   usePresenceSource,
@@ -16,26 +18,31 @@ import {
   useTripPresenceEntries
 } from "@/modules/collaboration/hooks/use-presence";
 import {
-  mapRouteQueryOptions,
-  tripRouteSegmentsQueryOptions
-} from "@/modules/map/queries/map-route.queries";
+  tripBudgetQueryOptions,
+  tripExpensesQueryOptions
+} from "@/modules/expenses/queries/expense.queries";
+import { useCreateItineraryItemMutation } from "@/modules/itinerary/mutations/use-itinerary-mutations";
+import { mapRouteQueryOptions } from "@/modules/map/queries/map-route.queries";
 import { getRouteRenderPoints } from "@/modules/map/services/routing/route-normalizer";
 import type { MapMarker } from "@/modules/map/types/map.types";
-import { decodePolyline } from "@/modules/map/utils/polyline";
 import { itineraryInfiniteQueryOptions } from "@/modules/itinerary/queries/itinerary.queries";
+import { NotePanel } from "@/modules/notes/components/note-panel";
+import { useResolvePlaceMutation } from "@/modules/places/mutations/use-place-mutations";
 import { tripPlacesQueryOptions } from "@/modules/places/queries/place.queries";
+import { reverseGeocodePlaces } from "@/modules/places/services/places.service";
+import type { ReverseGeocodeResult } from "@/modules/places/types/place.types";
 import { useTripDeltaSync } from "@/modules/sync/hooks/use-trip-delta-sync";
 import { useSyncDebug } from "@/modules/sync/hooks/use-sync-debug";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
-import { tripDetailQueryOptions, tripExpensesQueryOptions } from "../../queries/trip.queries";
+import { tripDetailQueryOptions } from "../../queries/trip.queries";
 import {
-  getAdjacentRouteSegmentIds,
-  getCachedRoutePoints,
+  buildDerivedRouteLegs,
+  getAdjacentRouteLegIds,
+  getRouteLegAdjacentItemIds,
+  getRouteLegPoints,
   getItineraryMapMarkers,
-  getProviderRouteRequestPoints,
-  getRouteSegmentAdjacentItemIds,
-  getRouteSegmentPoints
+  getProviderRouteRequestPoints
 } from "../../utils/trip-editor.utils";
 import {
   buildItemSyncStateMap,
@@ -58,26 +65,41 @@ interface TripEditorShellProps {
   tripId: string;
 }
 
+type MapStopCandidate = {
+  point: { latitude: number; longitude: number };
+  place: ReverseGeocodeResult;
+};
+
+type EditorTab = "stops" | "budget" | "notes";
+
 export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const locale = useLocale();
   const t = useTranslations("trip.editor");
   const tripQuery = useQuery(tripDetailQueryOptions(tripId));
   const itineraryQuery = useInfiniteQuery(itineraryInfiniteQueryOptions(tripId));
   const placesQuery = useQuery(tripPlacesQueryOptions(tripId));
-  const routeSegmentsQuery = useQuery(tripRouteSegmentsQueryOptions(tripId));
   const expensesQuery = useQuery(tripExpensesQueryOptions(tripId));
+  const budgetQuery = useQuery(tripBudgetQueryOptions(tripId));
+  const createItem = useCreateItineraryItemMutation(tripId);
+  const resolvePlace = useResolvePlaceMutation();
   const sessionQuery = useSession();
   const syncDebug = useSyncDebug(tripId);
   useTripDeltaSync(tripId);
   const viewport = usePlannerStore((state) => state.viewport);
   const selectedItemId = usePlannerStore((state) => state.selectedItemId);
   const hoveredItemId = usePlannerStore((state) => state.hoveredItemId);
-  const selectedRouteSegmentId = usePlannerStore((state) => state.selectedRouteSegmentId);
-  const hoveredRouteSegmentId = usePlannerStore((state) => state.hoveredRouteSegmentId);
+  const selectedRouteLegId = usePlannerStore((state) => state.selectedRouteLegId);
+  const hoveredRouteLegId = usePlannerStore((state) => state.hoveredRouteLegId);
   const setViewport = usePlannerStore((state) => state.setViewport);
   const selectItem = usePlannerStore((state) => state.selectItem);
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
   const setSelectedTripId = usePlannerStore((state) => state.setSelectedTripId);
+  const [mapStopCandidate, setMapStopCandidate] = useState<MapStopCandidate | null>(null);
+  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+  const [isAddingMapStop, setIsAddingMapStop] = useState(false);
+  const [activeTab, setActiveTab] = useState<EditorTab>("stops");
+  const reverseGeocodeAbortRef = useRef<AbortController | null>(null);
+  const reverseGeocodeRequestIdRef = useRef(0);
   const currentUser = sessionQuery.data?.user;
   useTripPresenceConnection({ tripId, user: currentUser });
   usePresenceSource({
@@ -103,38 +125,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     [itineraryQuery.data]
   );
   const places = useMemo(() => placesQuery.data ?? [], [placesQuery.data]);
-  const routeSegments = useMemo(
-    () => routeSegmentsQuery.data?.items ?? [],
-    [routeSegmentsQuery.data]
-  );
   const markers = useMemo(() => getItineraryMapMarkers(items, places), [items, places]);
   const providerRouteRequestPoints = useMemo(
     () => getProviderRouteRequestPoints(markers),
     [markers]
-  );
-  const cachedRoute = useMemo(
-    () => getCachedRoutePoints(items, routeSegments, decodePolyline),
-    [items, routeSegments]
-  );
-  const focusedRouteSegmentId = hoveredRouteSegmentId ?? selectedRouteSegmentId;
-  const focusedRouteItemIds = useMemo(
-    () => getRouteSegmentAdjacentItemIds(focusedRouteSegmentId, items),
-    [focusedRouteSegmentId, items]
-  );
-  const focusedMarkerIds = useMemo(
-    () => focusedRouteItemIds.map((itemId) => `item:${itemId}`),
-    [focusedRouteItemIds]
-  );
-  const activeRouteSegmentIds = useMemo(
-    () =>
-      focusedRouteSegmentId
-        ? [focusedRouteSegmentId]
-        : getAdjacentRouteSegmentIds(selectedItemId, items),
-    [focusedRouteSegmentId, items, selectedItemId]
-  );
-  const activeRoute = useMemo(
-    () => getRouteSegmentPoints(activeRouteSegmentIds, routeSegments, decodePolyline),
-    [activeRouteSegmentIds, routeSegments]
   );
   const routeRequest = useMemo(
     () => ({
@@ -146,15 +140,34 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   );
   const routeQuery = useQuery(mapRouteQueryOptions(routeRequest));
   const renderedRoute = useMemo(
-    () => getRouteRenderPoints(routeQuery.data, cachedRoute),
-    [cachedRoute, routeQuery.data]
+    () => getRouteRenderPoints(routeQuery.data, providerRouteRequestPoints),
+    [providerRouteRequestPoints, routeQuery.data]
+  );
+  const routeLegs = useMemo(
+    () => buildDerivedRouteLegs(items, places, routeQuery.data),
+    [items, places, routeQuery.data]
+  );
+  const focusedRouteLegId = hoveredRouteLegId ?? selectedRouteLegId;
+  const focusedRouteItemIds = useMemo(
+    () => getRouteLegAdjacentItemIds(focusedRouteLegId, routeLegs),
+    [focusedRouteLegId, routeLegs]
+  );
+  const focusedMarkerIds = useMemo(
+    () => focusedRouteItemIds.map((itemId) => `item:${itemId}`),
+    [focusedRouteItemIds]
+  );
+  const activeRouteLegIds = useMemo(
+    () =>
+      focusedRouteLegId ? [focusedRouteLegId] : getAdjacentRouteLegIds(selectedItemId, routeLegs),
+    [focusedRouteLegId, routeLegs, selectedItemId]
+  );
+  const activeRoute = useMemo(
+    () => getRouteLegPoints(activeRouteLegIds, routeLegs, markers),
+    [activeRouteLegIds, markers, routeLegs]
   );
   const selectedMarkerId = selectedItemId ? `item:${selectedItemId}` : undefined;
   const hoveredMarkerId = hoveredItemId ? `item:${hoveredItemId}` : undefined;
-  const routeSummaryByItem = useMemo(
-    () => buildRouteSummaryByItem(items, routeSegments),
-    [items, routeSegments]
-  );
+  const routeSummaryByItem = useMemo(() => buildRouteSummaryByItem(routeLegs), [routeLegs]);
   const syncStateByItem = useMemo(
     () => buildItemSyncStateMap(syncDebug.queueEntries, tripId),
     [syncDebug.queueEntries, tripId]
@@ -163,18 +176,37 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     () =>
       buildPlannerStats({
         tripNoteCount: tripQuery.data?.noteCount ?? 0,
+        tripExpenseCount: tripQuery.data?.expenseCount,
         items,
         places,
-        routeSegments,
-        expenses: expensesQuery.data
+        route: routeQuery.data,
+        routeLegs,
+        expenses: expensesQuery.data,
+        budgetSummary: budgetQuery.data
       }),
-    [expensesQuery.data, items, places, routeSegments, tripQuery.data?.noteCount]
+    [
+      budgetQuery.data,
+      expensesQuery.data,
+      items,
+      places,
+      routeLegs,
+      routeQuery.data,
+      tripQuery.data?.expenseCount,
+      tripQuery.data?.noteCount
+    ]
   );
   useEffect(() => {
     setSelectedTripId(tripId);
 
     return () => setSelectedTripId(undefined);
   }, [setSelectedTripId, tripId]);
+
+  useEffect(
+    () => () => {
+      reverseGeocodeAbortRef.current?.abort();
+    },
+    []
+  );
 
   useEffect(() => {
     if (!selectedItemId) {
@@ -225,6 +257,76 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     [setHoveredItemId]
   );
 
+  const handleMapClick = useCallback(
+    async (point: { latitude: number; longitude: number }) => {
+      const requestId = reverseGeocodeRequestIdRef.current + 1;
+      const controller = new AbortController();
+
+      reverseGeocodeRequestIdRef.current = requestId;
+      reverseGeocodeAbortRef.current?.abort();
+      reverseGeocodeAbortRef.current = controller;
+      setMapStopCandidate(null);
+      setIsReverseGeocoding(true);
+
+      try {
+        const place = await reverseGeocodePlaces({ point, language: locale }, controller.signal);
+        if (requestId !== reverseGeocodeRequestIdRef.current || controller.signal.aborted) {
+          return;
+        }
+
+        setMapStopCandidate({ point, place });
+      } catch {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        toast.error(t("map.reverseGeocodeFailed"));
+      } finally {
+        if (requestId === reverseGeocodeRequestIdRef.current) {
+          setIsReverseGeocoding(false);
+          reverseGeocodeAbortRef.current = null;
+        }
+      }
+    },
+    [locale, t]
+  );
+
+  function handleDismissMapStopCandidate() {
+    reverseGeocodeRequestIdRef.current += 1;
+    reverseGeocodeAbortRef.current?.abort();
+    reverseGeocodeAbortRef.current = null;
+    setIsReverseGeocoding(false);
+    setMapStopCandidate(null);
+  }
+
+  async function handleAddMapStop() {
+    if (!mapStopCandidate || isAddingMapStop) {
+      return;
+    }
+
+    const candidate = mapStopCandidate;
+    setIsAddingMapStop(true);
+
+    try {
+      const place = await resolvePlace.mutateAsync(candidate.place);
+      const payload = {
+        placeId: place.id,
+        types: ["ACTIVITY"],
+        clientMutationId: crypto.randomUUID()
+      } satisfies Parameters<typeof createItem.mutateAsync>[0];
+      const timezone = place.timezone ?? tripQuery.data?.timezone;
+
+      const result = await createItem.mutateAsync(timezone ? { ...payload, timezone } : payload);
+      selectItem(result.item.id, place.id);
+      setMapStopCandidate(null);
+      toast.success(t("map.stopAdded"));
+    } catch {
+      toast.error(t("map.addStopFailed"));
+    } finally {
+      setIsAddingMapStop(false);
+    }
+  }
+
   if (tripQuery.isLoading || itineraryQuery.isLoading) {
     return <TripEditorSkeleton />;
   }
@@ -246,19 +348,77 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
 
   const trip = tripQuery.data;
   const renderMapWorkspace = () => (
-    <LazyTripMap
-      markers={markers}
-      route={renderedRoute}
-      activeRoute={activeRoute}
-      routeResult={routeQuery.data}
-      viewport={viewport}
-      selectedMarkerId={selectedMarkerId}
-      hoveredMarkerId={hoveredMarkerId}
-      focusedMarkerIds={focusedMarkerIds}
-      onViewportChange={setViewport}
-      onMarkerSelect={handleMarkerSelect}
-      onMarkerHover={handleMarkerHover}
-    />
+    <div className="relative">
+      <LazyTripMap
+        markers={markers}
+        route={renderedRoute}
+        activeRoute={activeRoute}
+        routeResult={routeQuery.data}
+        viewport={viewport}
+        selectedMarkerId={selectedMarkerId}
+        hoveredMarkerId={hoveredMarkerId}
+        focusedMarkerIds={focusedMarkerIds}
+        onViewportChange={setViewport}
+        onMarkerSelect={handleMarkerSelect}
+        onMarkerHover={handleMarkerHover}
+        onMapClick={(point) => void handleMapClick(point)}
+      />
+      {isReverseGeocoding ? (
+        <div className="absolute left-3 top-3 z-40 flex items-center gap-2 rounded-md bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+          <span>{t("map.reverseGeocoding")}</span>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-6"
+            aria-label={t("map.cancelLookup")}
+            onClick={handleDismissMapStopCandidate}
+          >
+            <X className="size-3.5" aria-hidden="true" />
+          </Button>
+        </div>
+      ) : null}
+      {mapStopCandidate ? (
+        <div className="absolute inset-x-3 bottom-3 z-40 rounded-md border bg-background/95 p-3 text-sm shadow-lg">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate font-medium">
+                {mapStopCandidate.place.name ??
+                  mapStopCandidate.place.formattedAddress ??
+                  t("map.unknownPlace")}
+              </p>
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                {mapStopCandidate.place.formattedAddress ??
+                  t("map.coordinates", {
+                    lat: mapStopCandidate.point.latitude.toFixed(5),
+                    lng: mapStopCandidate.point.longitude.toFixed(5)
+                  })}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label={t("map.dismissCandidate")}
+              onClick={handleDismissMapStopCandidate}
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            className="mt-3"
+            disabled={isAddingMapStop || createItem.isPending || resolvePlace.isPending}
+            onClick={() => void handleAddMapStop()}
+          >
+            <MapPinPlus aria-hidden="true" />
+            {t("map.addStop")}
+          </Button>
+        </div>
+      ) : null}
+    </div>
   );
 
   return (
@@ -270,19 +430,45 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           className="grid gap-2"
         >
           <TripEditorHeader trip={trip} stats={stats} presenceEntries={presenceEntries} />
-          <TripItineraryPanel
-            tripId={trip.id}
-            tripTimezone={trip.timezone}
-            items={items}
-            places={places}
-            currentUserId={currentUser?.id}
-            routeSummaryByItem={routeSummaryByItem}
-            focusedRouteItemIds={focusedRouteItemIds}
-            syncStateByItem={syncStateByItem}
-            hasNextPage={itineraryQuery.hasNextPage}
-            isFetchingNextPage={itineraryQuery.isFetchingNextPage}
-            onLoadMore={() => void itineraryQuery.fetchNextPage()}
-          />
+          <div className="flex gap-1 rounded-md border bg-card p-1">
+            {(["stops", "budget", "notes"] as const).map((tab) => (
+              <Button
+                key={tab}
+                type="button"
+                variant={activeTab === tab ? "secondary" : "ghost"}
+                size="sm"
+                aria-pressed={activeTab === tab}
+                onClick={() => setActiveTab(tab)}
+              >
+                {t(`tabs.${tab}`)}
+              </Button>
+            ))}
+          </div>
+          {activeTab === "stops" ? (
+            <TripItineraryPanel
+              tripId={trip.id}
+              items={items}
+              places={places}
+              currentUserId={currentUser?.id}
+              routeSummaryByItem={routeSummaryByItem}
+              focusedRouteItemIds={focusedRouteItemIds}
+              syncStateByItem={syncStateByItem}
+              hasNextPage={itineraryQuery.hasNextPage}
+              isFetchingNextPage={itineraryQuery.isFetchingNextPage}
+              onLoadMore={() => void itineraryQuery.fetchNextPage()}
+            />
+          ) : null}
+          {activeTab === "budget" ? (
+            <BudgetExpensePanel tripId={trip.id} items={items} places={places} />
+          ) : null}
+          {activeTab === "notes" ? (
+            <NotePanel
+              tripId={trip.id}
+              targetEntityType="TRIP"
+              targetEntityId={trip.id}
+              title={t("notes.tripTitle")}
+            />
+          ) : null}
           <div className="lg:hidden">{renderMapWorkspace()}</div>
         </motion.div>
 

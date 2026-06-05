@@ -2,8 +2,13 @@ import type {
   ItineraryItem,
   ReorderItineraryItemsPayload
 } from "@/modules/itinerary/types/itinerary.types";
-import type { MapMarker, MapRoutePoint } from "@/modules/map/types/map.types";
-import type { PlaceDto, RouteSegmentDto } from "@/services/api/contracts";
+import type {
+  DerivedRouteLeg,
+  MapMarker,
+  MapRoute,
+  MapRoutePoint
+} from "@/modules/map/types/map.types";
+import type { PlaceDto } from "@/services/api/contracts";
 
 export const orderStride = 65_536;
 
@@ -25,7 +30,7 @@ export function getItineraryMapMarkers(items: ItineraryItem[], places: PlaceDto[
   );
 
   orderedItems.forEach((item, index) => {
-    const place = item.placeId ? placeMap.get(item.placeId) : undefined;
+    const place = placeMap.get(item.placeId);
 
     if (typeof place?.latitude !== "number" || typeof place.longitude !== "number") {
       return;
@@ -37,7 +42,7 @@ export function getItineraryMapMarkers(items: ItineraryItem[], places: PlaceDto[
       stopOrder: index + 1,
       itemId: item.id,
       placeId: place.id,
-      label: place.name || item.title,
+      label: place.name,
       latitude: place.latitude,
       longitude: place.longitude
     });
@@ -121,103 +126,96 @@ export function buildItineraryReorderIntent(
   };
 }
 
-export function getCachedRoutePoints(
+export function buildDerivedRouteLegs(
   items: ItineraryItem[],
-  routeSegments: RouteSegmentDto[],
-  decode: (polyline: string) => MapRoutePoint[]
-) {
-  const segmentById = new Map(routeSegments.map((segment) => [segment.id, segment]));
+  places: PlaceDto[],
+  route?: MapRoute | undefined
+): DerivedRouteLeg[] {
+  const markers = getItineraryMapMarkers(items, places);
 
-  return [...items]
-    .sort((left, right) => left.sortOrder - right.sortOrder)
-    .flatMap((item) => {
-      const segment = item.routeSegmentId ? segmentById.get(item.routeSegmentId) : undefined;
+  return markers.slice(1).flatMap((marker, index) => {
+    const previousMarker = markers[index];
 
-      return segment ? decode(segment.polyline) : [];
-    });
-}
+    if (!previousMarker?.itemId || !previousMarker.placeId || !marker.itemId || !marker.placeId) {
+      return [];
+    }
 
-export function getAdjacentRouteSegmentIds(itemId: string | undefined, items: ItineraryItem[]) {
-  if (!itemId) {
-    return [];
-  }
+    const routeLeg = route?.legs[index];
 
-  const orderedItems = [...items].sort((left, right) =>
-    left.sortOrder === right.sortOrder
-      ? left.id.localeCompare(right.id)
-      : left.sortOrder - right.sortOrder
-  );
-  const itemIndex = orderedItems.findIndex((item) => item.id === itemId);
-
-  if (itemIndex < 0) {
-    return [];
-  }
-
-  return Array.from(
-    new Set(
-      [orderedItems[itemIndex]?.routeSegmentId, orderedItems[itemIndex + 1]?.routeSegmentId].filter(
-        (segmentId): segmentId is string => Boolean(segmentId)
-      )
-    )
-  );
-}
-
-export function getRouteSegmentAdjacentItemIds(
-  routeSegmentId: string | undefined,
-  items: ItineraryItem[]
-) {
-  if (!routeSegmentId) {
-    return [];
-  }
-
-  const orderedItems = [...items].sort((left, right) =>
-    left.sortOrder === right.sortOrder
-      ? left.id.localeCompare(right.id)
-      : left.sortOrder - right.sortOrder
-  );
-  const targetIndex = orderedItems.findIndex((item) => item.routeSegmentId === routeSegmentId);
-
-  if (targetIndex < 0) {
-    return [];
-  }
-
-  return Array.from(
-    new Set(
-      [orderedItems[targetIndex - 1]?.id, orderedItems[targetIndex]?.id].filter(
-        (itemId): itemId is string => Boolean(itemId)
-      )
-    )
-  );
-}
-
-export function getRouteSegmentPoints(
-  routeSegmentIds: string[],
-  routeSegments: RouteSegmentDto[],
-  decode: (polyline: string) => MapRoutePoint[]
-) {
-  const segmentById = new Map(routeSegments.map((segment) => [segment.id, segment]));
-
-  return routeSegmentIds.flatMap((segmentId) => {
-    const segment = segmentById.get(segmentId);
-
-    return segment ? decode(segment.polyline) : [];
+    return [
+      {
+        id: `leg:${previousMarker.itemId}:${marker.itemId}`,
+        fromItemId: previousMarker.itemId,
+        toItemId: marker.itemId,
+        fromPlaceId: previousMarker.placeId,
+        toPlaceId: marker.placeId,
+        ...(routeLeg?.distanceMeters !== undefined
+          ? { distanceMeters: routeLeg.distanceMeters ?? undefined }
+          : {}),
+        ...(routeLeg?.durationSeconds !== undefined
+          ? { durationSeconds: routeLeg.durationSeconds ?? undefined }
+          : {})
+      }
+    ];
   });
 }
 
-export function getItemRoutePoints(
-  itemId: string | undefined,
-  items: ItineraryItem[],
-  routeSegments: RouteSegmentDto[],
-  decode: (polyline: string) => MapRoutePoint[]
-) {
+export function getAdjacentRouteLegIds(itemId: string | undefined, routeLegs: DerivedRouteLeg[]) {
   if (!itemId) {
     return [];
   }
 
-  const item = items.find((candidate) => candidate.id === itemId);
-  const segment = item?.routeSegmentId
-    ? routeSegments.find((candidate) => candidate.id === item.routeSegmentId)
-    : undefined;
+  return Array.from(
+    new Set(
+      routeLegs
+        .filter((leg) => leg.fromItemId === itemId || leg.toItemId === itemId)
+        .map((leg) => leg.id)
+    )
+  );
+}
 
-  return segment ? decode(segment.polyline) : [];
+export function getRouteLegAdjacentItemIds(
+  routeLegId: string | undefined,
+  legs: DerivedRouteLeg[]
+) {
+  if (!routeLegId) {
+    return [];
+  }
+
+  const leg = legs.find((candidate) => candidate.id === routeLegId);
+
+  return leg ? [leg.fromItemId, leg.toItemId] : [];
+}
+
+export function getRouteLegPoints(
+  routeLegIds: string[],
+  routeLegs: DerivedRouteLeg[],
+  markers: MapMarker[]
+) {
+  const routeLegIdSet = new Set(routeLegIds);
+  const markerByItemId = new Map(
+    markers
+      .filter((marker): marker is MapMarker & { itemId: string } => Boolean(marker.itemId))
+      .map((marker) => [marker.itemId, marker])
+  );
+
+  return routeLegs.flatMap((leg) => {
+    if (!routeLegIdSet.has(leg.id)) {
+      return [];
+    }
+
+    if (leg.geometry?.coordinates.length) {
+      return leg.geometry.coordinates.map(([longitude, latitude]) => ({ latitude, longitude }));
+    }
+
+    const fromMarker = markerByItemId.get(leg.fromItemId);
+    const toMarker = markerByItemId.get(leg.toItemId);
+
+    return fromMarker && toMarker
+      ? [
+          { latitude: fromMarker.latitude, longitude: fromMarker.longitude },
+          { latitude: toMarker.latitude, longitude: toMarker.longitude }
+        ]
+      : [];
+  });
 }

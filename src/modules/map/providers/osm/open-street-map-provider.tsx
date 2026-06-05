@@ -14,7 +14,9 @@ import {
   longitudeToWorldX,
   projectPoint,
   webMercatorTileSize,
+  worldXToLongitude,
   worldXToTileX,
+  worldYToLatitude,
   worldYToTileY
 } from "@/modules/map/utils/web-mercator";
 
@@ -35,7 +37,8 @@ export function OpenStreetMapProvider({
   focusedMarkerIds = [],
   onViewportChange,
   onMarkerSelect,
-  onMarkerHover
+  onMarkerHover,
+  onMapClick
 }: TripMapProps) {
   const t = useTranslations("trip.editor.map");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -125,6 +128,22 @@ export function OpenStreetMapProvider({
       ref={containerRef}
       className="relative min-h-[26rem] overflow-hidden rounded-md border bg-muted md:min-h-[calc(100dvh-8rem)]"
       aria-label={t("label")}
+      onClick={(event) => {
+        const target = event.target as HTMLElement;
+
+        if (!onMapClick || target.closest("button")) {
+          return;
+        }
+
+        const rect = event.currentTarget.getBoundingClientRect();
+        const worldX = centerWorldX + event.clientX - rect.left - rect.width / 2;
+        const worldY = centerWorldY + event.clientY - rect.top - rect.height / 2;
+
+        onMapClick({
+          latitude: worldYToLatitude(worldY, zoom),
+          longitude: worldXToLongitude(worldX, zoom)
+        });
+      }}
     >
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,.08)_1px,transparent_1px),linear-gradient(0deg,rgba(15,23,42,.08)_1px,transparent_1px)] bg-[size:48px_48px]" />
 

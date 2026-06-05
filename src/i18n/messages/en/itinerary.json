@@ -1,6 +1,6 @@
 {
   "title": "Itinerary",
-  "description": "Arrange days, stops, routes, and travel time.",
+  "description": "Arrange place-backed stops and dynamic travel context.",
   "empty": {
     "title": "No itinerary stops",
     "description": "Add places to start shaping this trip."

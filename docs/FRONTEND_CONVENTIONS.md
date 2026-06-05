@@ -19,10 +19,10 @@ These conventions keep the codebase predictable as it grows.
 - UI-only trip editor state belongs in `src/stores/use-planner-store.ts`.
 - Itinerary items are a flat trip-scoped sequence. Do not model day ownership in frontend state or service contracts.
 - Date/day/location/custom grouping is presentation-only and must be computed from flat items.
-- Do not depend on `Destination` or `destinationNames`; derive display summaries from trip counts, places, and route segments.
-- The planner editor should read as a workspace, not an admin form: keep the trip header compact, keep the timeline primary, keep the map persistent, and move quick add/place search into overlays.
+- Do not depend on `Destination`, `destinationNames`, persisted routes, or route segments; derive display summaries from trip counts, places, expenses, notes, and dynamic route legs.
+- The planner editor should read as a workspace, not an admin form: keep the trip header compact, keep the stop list primary, keep the map persistent, and make place search/map-click creation the stop creation surfaces.
 - Trip end date display is derived from itinerary item timestamps. Do not add end-date editing back into the planner header.
-- Planning insights, date grouping, city grouping, type grouping, route gaps, idle gaps, and budget warnings are frontend-derived from granular query data.
+- Date grouping, city grouping, type grouping, route gaps, idle gaps, and budget warnings are frontend-derived from granular query data when presented.
 
 Do not place itinerary reorder logic inside map components. Do not place map projection logic inside itinerary cards.
 
@@ -82,7 +82,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Services return feature-ready data, not raw Axios responses.
 - List queries should preserve pagination metadata from `meta.pagination` when the UI may need it later.
 - Cursor-paginated editor resources should keep page objects in TanStack Query rather than discarding pagination metadata.
-- Itinerary and notes should use `useInfiniteQuery` for editor loading so large trips can hydrate page by page.
+- Itinerary, notes, and expenses should use `useInfiniteQuery` for editor loading so large trips can hydrate page by page.
 - Notes must use the unified `/notes` API and `noteKeys.list(filters)` with `tripId`, `targetEntityType`, `targetEntityId`, and optional `parentNoteId`; do not add trip-, itinerary-, expense-, or place-specific note services.
 - Mutation hooks must patch infinite-query pages surgically and preserve pagination metadata.
 - Use TanStack Query for server records and optimistic cache writes.
@@ -101,8 +101,8 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Keep optimistic cache updates centralized inside mutation hooks.
 - Keep deterministic cache patching centralized in `src/modules/sync/patchers` when applying mutation events or future websocket events.
 - Use query invalidation or targeted cache patching after successful itinerary mutations.
-- Do not store itinerary items, places, notes, route segments, collaborators, or expenses in Zustand.
-- Note panels may be reused by trips, itinerary items, expenses, places, and future route/collaboration surfaces. They must not duplicate note server state outside TanStack Query.
+- Do not store itinerary items, places, notes, derived route legs, collaborators, expenses, or budget summaries in Zustand.
+- Note panels may be reused by trips, itinerary items, expenses, and places. They must not duplicate note server state outside TanStack Query.
 - Selected item note panels must use `src/modules/notes`; do not add item-note state or note counts to Zustand.
 
 ## Forms
@@ -142,7 +142,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Roll back optimistic cache updates on mutation error.
 - Reorder flat itinerary item sequences by `sortOrder`; do not send `dayId` in reorder payloads.
 - Never add `TripDay` or day-based API contracts to frontend modules.
-- Keep item rendering isolated and compatible with virtualization. Large loaded timelines may render a visible window, but reorder payloads still use flat neighbor IDs.
+- Keep stop rendering isolated and compatible with virtualization. Large loaded stop lists may render a visible window, but reorder payloads still use flat neighbor IDs.
 
 ## Map
 
@@ -153,11 +153,11 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 - Provider SDK imports and script loaders must stay inside `src/modules/map/providers/<provider>`.
 - Route geometry, encoded polylines, distance, and duration must normalize to `MapRoute` before reaching editor UI.
 - Marker hover and selection sync through `use-planner-store`; fetched route/place data stays in TanStack Query.
-- Marker click should select the itinerary item, and timeline item click should move the map viewport through provider-neutral callbacks.
+- Marker click should select the itinerary item, and stop card click should move the map viewport through provider-neutral callbacks.
 - Markers are derived from itinerary item IDs plus normalized trip places. Itinerary item payloads must not duplicate place coordinates.
-- Cached route geometry comes from trip route segment queries; provider routing remains a fallback.
-- Treat route cache identity as provider, from place, to place, travel mode, route profile hash, departure/traffic settings, and alternate route index.
-- Place autocomplete, details, geocoding, and reverse geocoding belong in `src/modules/places`, not itinerary cards.
+- Route geometry is derived dynamically from ordered stop coordinates through provider routing. It is not persisted, synchronized, repaired, or written back to the backend.
+- Treat route query identity as provider, ordered route points, travel mode, language, region, and provider options.
+- Place autocomplete, details, and backend reverse geocoding belong in `src/modules/places`, not itinerary cards.
 - UI components must not expose raw Google Maps, Mapbox, OSM, or HERE response shapes.
 - MapLibre components must stay under `src/modules/map/providers/maplibre`.
 - MapLibre route layers render normalized route points or decoded polylines only.

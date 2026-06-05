@@ -4,20 +4,15 @@ import type {
   GoogleAddressComponent,
   GoogleAutocompletePrediction,
   GoogleAutocompleteRequest,
-  GoogleGeocoderRequest,
-  GoogleGeocoderResult,
   GooglePlaceResult
 } from "@/modules/map/providers/google/google-map.types";
 import { normalizeGoogleMapsError } from "@/modules/map/providers/shared/map-provider-error";
 
 import type {
-  GeocodeParams,
-  GeocodeResult,
   PlaceDetails,
   PlaceDetailsParams,
   PlaceSearchParams,
-  PlaceSearchResult,
-  ReverseGeocodeParams
+  PlaceSearchResult
 } from "../types/place.types";
 
 const googlePlacesFields = [
@@ -130,100 +125,6 @@ export async function getGooglePlaceDetails(
   return mapGooglePlaceToDetails(result, providerPlaceId);
 }
 
-export async function geocodeGooglePlace(
-  params: GeocodeParams,
-  signal?: AbortSignal
-): Promise<GeocodeResult[]> {
-  const address = params.address.trim();
-
-  if (!address) {
-    return [];
-  }
-
-  throwIfAborted(signal);
-  const googleMaps = await loadGoogleMaps({
-    language: params.language,
-    region: params.region
-  });
-  const geocoder = new googleMaps.Geocoder();
-  const request: GoogleGeocoderRequest = {
-    address
-  };
-
-  if (params.countryCode) {
-    request.componentRestrictions = {
-      country: params.countryCode.toLowerCase()
-    };
-  }
-  if (params.language || mapConfig.googleMapsLanguage) {
-    request.language = params.language || mapConfig.googleMapsLanguage;
-  }
-  if (params.region || mapConfig.googleMapsRegion) {
-    request.region = params.region || mapConfig.googleMapsRegion;
-  }
-
-  const results = await withAbort<GoogleGeocoderResult[]>(signal, (resolve, reject) => {
-    geocoder.geocode(request, (geocodeResults, status) => {
-      if (status === "OK") {
-        resolve(geocodeResults ?? []);
-        return;
-      }
-
-      if (status === "ZERO_RESULTS") {
-        resolve([]);
-        return;
-      }
-
-      reject(normalizeGoogleMapsError(status, "Google geocoding failed"));
-    });
-  });
-
-  return results.map(mapGeocoderResultToDetails);
-}
-
-export async function reverseGeocodeGooglePlace(
-  params: ReverseGeocodeParams,
-  signal?: AbortSignal
-): Promise<GeocodeResult[]> {
-  throwIfAborted(signal);
-  const googleMaps = await loadGoogleMaps({
-    language: params.language,
-    region: params.region
-  });
-  const geocoder = new googleMaps.Geocoder();
-  const request: GoogleGeocoderRequest = {
-    location: {
-      lat: params.point.latitude,
-      lng: params.point.longitude
-    }
-  };
-
-  if (params.language || mapConfig.googleMapsLanguage) {
-    request.language = params.language || mapConfig.googleMapsLanguage;
-  }
-  if (params.region || mapConfig.googleMapsRegion) {
-    request.region = params.region || mapConfig.googleMapsRegion;
-  }
-
-  const results = await withAbort<GoogleGeocoderResult[]>(signal, (resolve, reject) => {
-    geocoder.geocode(request, (geocodeResults, status) => {
-      if (status === "OK") {
-        resolve(geocodeResults ?? []);
-        return;
-      }
-
-      if (status === "ZERO_RESULTS") {
-        resolve([]);
-        return;
-      }
-
-      reject(normalizeGoogleMapsError(status, "Google reverse geocoding failed"));
-    });
-  });
-
-  return results.map(mapGeocoderResultToDetails);
-}
-
 function mapPredictionToPlaceSearchResult(
   prediction: GoogleAutocompletePrediction
 ): PlaceSearchResult {
@@ -271,35 +172,6 @@ function mapGooglePlaceToDetails(place: GooglePlaceResult, fallbackPlaceId: stri
       provider: "google",
       googleUrl: place.url ?? null,
       utcOffsetMinutes: place.utc_offset_minutes ?? null
-    },
-    sourcePayload: {
-      googlePlaceId: providerPlaceId,
-      types: categories
-    }
-  };
-}
-
-function mapGeocoderResultToDetails(result: GoogleGeocoderResult): GeocodeResult {
-  const providerPlaceId = result.place_id ?? result.formatted_address ?? "geocode";
-  const location = result.geometry?.location;
-  const categories = result.types ?? [];
-
-  return {
-    id: `google:${providerPlaceId}`,
-    provider: "google",
-    providerPlaceId,
-    source: "GOOGLE",
-    name: result.formatted_address ?? providerPlaceId,
-    formattedAddress: result.formatted_address ?? null,
-    countryCode: getCountryCode(result.address_components),
-    latitude: location ? location.lat() : null,
-    longitude: location ? location.lng() : null,
-    websiteUrl: null,
-    phoneNumber: null,
-    timezone: null,
-    categories,
-    metadata: {
-      provider: "google"
     },
     sourcePayload: {
       googlePlaceId: providerPlaceId,

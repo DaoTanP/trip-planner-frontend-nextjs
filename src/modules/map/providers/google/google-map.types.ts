@@ -179,49 +179,7 @@ export interface GooglePlacesService {
   ) => void;
 }
 
-export interface GoogleDirectionsService {
-  route: (
-    request: GoogleDirectionsRequest,
-    callback: (result: GoogleDirectionsResult | null, status: string) => void
-  ) => void;
-}
-
-export interface GoogleDirectionsRequest {
-  destination: GoogleLatLngLiteral;
-  optimizeWaypoints?: boolean;
-  origin: GoogleLatLngLiteral;
-  region?: string;
-  travelMode: string;
-  unitSystem?: number;
-  waypoints?: Array<{
-    location: GoogleLatLngLiteral;
-    stopover: boolean;
-  }>;
-}
-
-export interface GoogleDirectionsResult {
-  routes?: GoogleDirectionsRoute[];
-}
-
-export interface GoogleDirectionsRoute {
-  legs?: GoogleDirectionsLeg[];
-  overview_path?: GoogleLatLng[];
-  overview_polyline?: string;
-}
-
-export interface GoogleDirectionsLeg {
-  distance?: {
-    value?: number;
-  };
-  duration?: {
-    value?: number;
-  };
-  end_location?: GoogleLatLng;
-  start_location?: GoogleLatLng;
-}
-
 export interface GoogleMapsApi {
-  DirectionsService: new () => GoogleDirectionsService;
   Geocoder: new () => GoogleGeocoder;
   LatLngBounds: new () => GoogleLatLngBounds;
   Map: new (container: HTMLElement, options: GoogleMapOptions) => GoogleMap;
@@ -238,15 +196,6 @@ export interface GoogleMapsApi {
   Polyline: new (
     options: GooglePolylineOptions & { map?: GoogleMap; path: GoogleLatLngLiteral[] }
   ) => GooglePolyline;
-  TravelMode: {
-    BICYCLING: string;
-    DRIVING: string;
-    TRANSIT: string;
-    WALKING: string;
-  };
-  UnitSystem: {
-    METRIC: number;
-  };
   event: {
     clearInstanceListeners: (instance: unknown) => void;
   };

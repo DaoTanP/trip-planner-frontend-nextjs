@@ -76,6 +76,7 @@ export function GoogleMapProvider({
   selectedMarkerId,
   hoveredMarkerId,
   focusedMarkerIds = [],
+  autoFitMarkerBoundsKey,
   onViewportChange,
   onMarkerSelect,
   onMarkerHover,
@@ -89,6 +90,7 @@ export function GoogleMapProvider({
   const mapRef = useRef<GoogleMap | null>(null);
   const markersRef = useRef<Map<string, GoogleMarker>>(new Map());
   const markerDataRef = useRef<Map<string, MapMarker>>(new Map());
+  const lastAutoFitMarkerBoundsKeyRef = useRef<string | undefined>(undefined);
   const polylineRef = useRef<GooglePolyline | null>(null);
   const activePolylineRef = useRef<GooglePolyline | null>(null);
   const onViewportChangeRef = useRef(onViewportChange);
@@ -307,6 +309,49 @@ export function GoogleMapProvider({
     const googleMaps = googleMapsRef.current;
     const map = mapRef.current;
 
+    if (
+      loadState !== "ready" ||
+      !googleMaps ||
+      !map ||
+      markers.length === 0 ||
+      !autoFitMarkerBoundsKey ||
+      lastAutoFitMarkerBoundsKeyRef.current === autoFitMarkerBoundsKey
+    ) {
+      return;
+    }
+
+    lastAutoFitMarkerBoundsKeyRef.current = autoFitMarkerBoundsKey;
+
+    if (markers.length === 1) {
+      const marker = markers[0];
+
+      if (!marker) {
+        return;
+      }
+
+      const nextViewport = {
+        latitude: marker.latitude,
+        longitude: marker.longitude,
+        zoom: Math.max(viewport.zoom, 13)
+      };
+
+      map.setCenter({ lat: nextViewport.latitude, lng: nextViewport.longitude });
+      map.setZoom(nextViewport.zoom);
+      onViewportChangeRef.current(nextViewport);
+      return;
+    }
+
+    const bounds = new googleMaps.LatLngBounds();
+    markers.forEach((marker) => {
+      bounds.extend({ lat: marker.latitude, lng: marker.longitude });
+    });
+    map.fitBounds(bounds);
+  }, [autoFitMarkerBoundsKey, loadState, markers, viewport.zoom]);
+
+  useEffect(() => {
+    const googleMaps = googleMapsRef.current;
+    const map = mapRef.current;
+
     if (loadState !== "ready" || !googleMaps || !map) {
       return;
     }
@@ -377,7 +422,7 @@ export function GoogleMapProvider({
 
   return (
     <section
-      className="relative min-h-[26rem] overflow-hidden rounded-md border bg-muted md:min-h-[calc(100dvh-8rem)]"
+      className="relative h-[42dvh] min-h-72 max-h-[28rem] overflow-hidden rounded-md border bg-muted md:h-[calc(100dvh-8rem)] md:max-h-none"
       aria-label={t("label")}
     >
       <div ref={containerRef} className="absolute inset-0" />

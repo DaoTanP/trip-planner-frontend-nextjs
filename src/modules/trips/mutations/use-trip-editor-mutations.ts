@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { syncMutationQueue } from "@/modules/sync/queue/mutation-queue";
 import { runQueuedMutation } from "@/modules/sync/runtime/sync-runtime";
 import type { UpdateTripRequestDto } from "@/services/api/contracts";
 
@@ -13,6 +14,10 @@ export function useUpdateTripMutation(tripId: string) {
 
   return useMutation({
     mutationFn: (payload: UpdateTripRequestDto) => {
+      const tripQueryState = queryClient.getQueryState(tripKeys.detail(tripId));
+      const hasPendingTripMutation = syncMutationQueue
+        .getSnapshot()
+        .some((entry) => entry.tripId === tripId && entry.state !== "acknowledged");
       const currentTrip = queryClient.getQueryData(tripKeys.detail(tripId)) as
         | { revision?: string }
         | undefined;
@@ -20,7 +25,13 @@ export function useUpdateTripMutation(tripId: string) {
         ...payload,
         clientMutationId: payload.clientMutationId ?? crypto.randomUUID()
       };
-      const expectedRevision = payload.expectedRevision ?? currentTrip?.revision;
+      const expectedRevision =
+        payload.expectedRevision ??
+        (hasPendingTripMutation ||
+        tripQueryState?.isInvalidated ||
+        tripQueryState?.fetchStatus === "fetching"
+          ? undefined
+          : currentTrip?.revision);
 
       if (expectedRevision !== undefined) {
         nextPayload.expectedRevision = expectedRevision;

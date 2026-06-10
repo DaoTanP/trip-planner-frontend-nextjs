@@ -18,6 +18,9 @@ type CursorParams = {
   limit?: number | undefined;
 };
 
+const routeDataPageLimit = 200;
+const maxRouteDataPages = 100;
+
 function withCursorParams(url: string, params?: CursorParams) {
   const searchParams = new URLSearchParams();
 
@@ -52,6 +55,34 @@ export async function getItineraryItems(
     items: response.data.items,
     pagination: response.meta.pagination
   } satisfies ItineraryItemsPage;
+}
+
+export async function getAllItineraryItemsForRoute(tripId: string, signal?: AbortSignal) {
+  const items: ItineraryItem[] = [];
+  const seenCursors = new Set<string>();
+  let cursor: string | undefined;
+  let pageCount = 0;
+
+  do {
+    if (cursor) {
+      if (seenCursors.has(cursor)) {
+        throw new Error("Itinerary route data pagination repeated a cursor");
+      }
+      seenCursors.add(cursor);
+    }
+
+    const page = await getItineraryItems(tripId, { cursor, limit: routeDataPageLimit }, signal);
+
+    items.push(...page.items);
+    cursor = page.pagination.nextCursor ?? undefined;
+    pageCount += 1;
+
+    if (pageCount >= maxRouteDataPages && cursor) {
+      throw new Error("Itinerary route data pagination exceeded the safety limit");
+    }
+  } while (cursor);
+
+  return items;
 }
 
 export async function createItineraryItem(tripId: string, payload: CreateItineraryItemPayload) {

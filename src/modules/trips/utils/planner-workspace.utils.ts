@@ -125,10 +125,6 @@ export function buildPlannerStats({
     routeLegs.reduce((total, routeLeg) => total + (routeLeg.durationSeconds ?? 0), 0);
   const summary = budgetSummary ?? expenses?.summary;
   const expenseItems = expenses?.expenses ?? [];
-  const itemNoteCount = items.reduce(
-    (total, item) => total + (getItemMetadataNumber(item, "noteCount") ?? 0),
-    0
-  );
   const itemDates = items
     .flatMap((item) => getItemDateBounds(item))
     .filter((value): value is string => Boolean(value))
@@ -140,7 +136,7 @@ export function buildPlannerStats({
     routeCount: routeLegs.length,
     totalRouteDistanceMeters,
     totalRouteDurationSeconds,
-    noteCount: tripNoteCount + itemNoteCount,
+    noteCount: tripNoteCount,
     expenseCount: tripExpenseCount ?? expenseItems.length,
     totalExpenses:
       summary?.spentAmount ?? expenseItems.reduce((total, expense) => total + expense.amount, 0),
@@ -204,13 +200,6 @@ export function getItemMetadataString(item: ItineraryItem, key: string) {
   const value = metadata?.[key];
 
   return typeof value === "string" ? value : null;
-}
-
-export function getItemMetadataNumber(item: ItineraryItem, key: string) {
-  const metadata = asRecord(item.metadata);
-  const value = metadata?.[key];
-
-  return typeof value === "number" ? value : null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

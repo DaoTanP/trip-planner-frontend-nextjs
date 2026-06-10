@@ -2,13 +2,14 @@
 
 import { LocateFixed, Minus, Plus, Route } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig, resolveTileUrl } from "@/modules/map/config/map.config";
-import type { TripMapProps } from "@/modules/map/types/map.types";
+import type { MapRoutePoint, TripMapProps } from "@/modules/map/types/map.types";
+import { getBoundsCenter, getPointBounds } from "@/modules/map/utils/bounds";
 import {
   latitudeToWorldY,
   longitudeToWorldX,
@@ -35,6 +36,7 @@ export function OpenStreetMapProvider({
   selectedMarkerId,
   hoveredMarkerId,
   focusedMarkerIds = [],
+  autoFitMarkerBoundsKey,
   onViewportChange,
   onMarkerSelect,
   onMarkerHover,
@@ -42,7 +44,18 @@ export function OpenStreetMapProvider({
 }: TripMapProps) {
   const t = useTranslations("trip.editor.map");
   const containerRef = useRef<HTMLDivElement>(null);
+  const lastAutoFitMarkerBoundsKeyRef = useRef<string | undefined>(undefined);
+  const dragStateRef = useRef<{
+    moved: boolean;
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    startWorldX: number;
+    startWorldY: number;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [isDragging, setIsDragging] = useState(false);
   const zoom = Math.round(clampZoom(viewport.zoom));
   const centerWorldX = longitudeToWorldX(viewport.longitude, zoom);
   const centerWorldY = latitudeToWorldY(viewport.latitude, zoom);
@@ -68,6 +81,25 @@ export function OpenStreetMapProvider({
 
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (
+      !autoFitMarkerBoundsKey ||
+      markers.length === 0 ||
+      lastAutoFitMarkerBoundsKeyRef.current === autoFitMarkerBoundsKey
+    ) {
+      return;
+    }
+
+    const nextViewport = getViewportForPoints(markers);
+
+    if (!nextViewport) {
+      return;
+    }
+
+    lastAutoFitMarkerBoundsKeyRef.current = autoFitMarkerBoundsKey;
+    onViewportChange(nextViewport);
+  }, [autoFitMarkerBoundsKey, markers, onViewportChange]);
 
   const tiles = useMemo(() => {
     const centerTileX = worldXToTileX(centerWorldX);
@@ -123,13 +155,81 @@ export function OpenStreetMapProvider({
       .join(" ");
   }, [activeRoute, size.height, size.width, viewport, zoom]);
 
+  function handlePointerDown(event: PointerEvent<HTMLElement>) {
+    const target = event.target as HTMLElement;
+
+    if (event.button !== 0 || target.closest("button")) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStateRef.current = {
+      moved: false,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startWorldX: centerWorldX,
+      startWorldY: centerWorldY
+    };
+    setIsDragging(true);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLElement>) {
+    const dragState = dragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragState.startClientX;
+    const deltaY = event.clientY - dragState.startClientY;
+    const moved = Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3;
+
+    dragState.moved = dragState.moved || moved;
+    onViewportChange({
+      latitude: worldYToLatitude(dragState.startWorldY - deltaY, zoom),
+      longitude: worldXToLongitude(dragState.startWorldX - deltaX, zoom),
+      zoom: viewport.zoom
+    });
+  }
+
+  function handlePointerEnd(event: PointerEvent<HTMLElement>) {
+    const dragState = dragStateRef.current;
+
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (dragState.moved) {
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+    }
+
+    dragStateRef.current = null;
+    setIsDragging(false);
+  }
+
   return (
     <section
       ref={containerRef}
-      className="relative min-h-[26rem] overflow-hidden rounded-md border bg-muted md:min-h-[calc(100dvh-8rem)]"
+      className={cn(
+        "relative h-[42dvh] min-h-72 max-h-[28rem] touch-none overflow-hidden rounded-md border bg-muted md:h-[calc(100dvh-8rem)] md:max-h-none",
+        isDragging ? "cursor-grabbing" : "cursor-grab"
+      )}
       aria-label={t("label")}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerEnd}
+      onPointerCancel={handlePointerEnd}
       onClick={(event) => {
         const target = event.target as HTMLElement;
+
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false;
+          return;
+        }
 
         if (!onMapClick || target.closest("button")) {
           return;
@@ -208,6 +308,7 @@ export function OpenStreetMapProvider({
               top: `calc(50% + ${projected.y}px)`
             }}
             aria-label={t("marker", { name: marker.label })}
+            onPointerDown={(event) => event.stopPropagation()}
             onClick={() => onMarkerSelect(marker)}
             onMouseEnter={() => onMarkerHover?.(marker)}
             onMouseLeave={() => onMarkerHover?.(undefined)}
@@ -243,15 +344,12 @@ export function OpenStreetMapProvider({
           aria-label={t("fitRoute")}
           disabled={(activeRoute?.length ?? route.length) < 2}
           onClick={() => {
-            const routePoint = activeRoute?.[0] ?? route[0];
-            if (!routePoint) {
+            const nextViewport = getViewportForPoints(activeRoute?.length ? activeRoute : route);
+            if (!nextViewport) {
               return;
             }
-            onViewportChange({
-              latitude: routePoint.latitude,
-              longitude: routePoint.longitude,
-              zoom: Math.max(viewport.zoom, 12)
-            });
+
+            onViewportChange(nextViewport);
           }}
         >
           <Route aria-hidden="true" />
@@ -261,16 +359,14 @@ export function OpenStreetMapProvider({
           size="icon"
           variant="secondary"
           aria-label={t("fit")}
+          disabled={markers.length === 0}
           onClick={() => {
-            const firstMarker = markers[0];
-            if (!firstMarker) {
+            const nextViewport = getViewportForPoints(markers);
+            if (!nextViewport) {
               return;
             }
-            onViewportChange({
-              latitude: firstMarker.latitude,
-              longitude: firstMarker.longitude,
-              zoom: viewport.zoom
-            });
+
+            onViewportChange(nextViewport);
           }}
         >
           <LocateFixed aria-hidden="true" />
@@ -283,4 +379,31 @@ export function OpenStreetMapProvider({
       <RouteSummary route={routeResult} />
     </section>
   );
+}
+
+function getViewportForPoints(points: MapRoutePoint[]) {
+  const bounds = getPointBounds(points);
+
+  if (!bounds) {
+    return null;
+  }
+
+  const center = getBoundsCenter(bounds);
+  const span = Math.max(Math.abs(bounds.north - bounds.south), Math.abs(bounds.east - bounds.west));
+
+  return {
+    latitude: center.latitude,
+    longitude: center.longitude,
+    zoom: getZoomForSpan(span)
+  };
+}
+
+function getZoomForSpan(span: number) {
+  if (span > 30) return 3;
+  if (span > 10) return 5;
+  if (span > 3) return 7;
+  if (span > 1) return 9;
+  if (span > 0.3) return 11;
+
+  return 13;
 }

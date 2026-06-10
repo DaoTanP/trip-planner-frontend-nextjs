@@ -154,6 +154,16 @@ export function buildDerivedRouteLegs(
           : {}),
         ...(routeLeg?.durationSeconds !== undefined
           ? { durationSeconds: routeLeg.durationSeconds ?? undefined }
+          : {}),
+        ...(routeLeg?.points?.length
+          ? {
+              geometry: {
+                type: "LineString" as const,
+                coordinates: routeLeg.points.map(
+                  (point) => [point.longitude, point.latitude] as [number, number]
+                )
+              }
+            }
           : {})
       }
     ];

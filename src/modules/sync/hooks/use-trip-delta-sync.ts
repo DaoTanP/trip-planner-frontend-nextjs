@@ -28,6 +28,7 @@ export function useTripDeltaSync(
 
     const abortController = new AbortController();
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    latestRevisionRef.current = null;
 
     const tick = async () => {
       const trip = queryClient.getQueryData<TripDetail>(tripKeys.detail(tripId));

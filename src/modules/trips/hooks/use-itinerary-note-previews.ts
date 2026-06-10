@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
+import { type InfiniteData, useQueryClient } from "@tanstack/react-query";
 
+import { noteKeys } from "@/modules/notes/queries/note.queries";
 import type { CollaborativeNote } from "@/modules/notes/types/note.types";
+import type { CursorPage } from "@/modules/notes/types/note.types";
 
 export type VisibleStopNoteTarget = {
   itemId: string;
-  noteCount: number | null;
 };
 
 export type StopNotePreviewState = {
@@ -17,24 +19,49 @@ export type StopNotePreviewState = {
 };
 
 type UseItineraryNotePreviewsOptions = {
+  tripId: string;
   visibleStops: VisibleStopNoteTarget[];
 };
 
-export function useItineraryNotePreviews({ visibleStops }: UseItineraryNotePreviewsOptions) {
-  const previewsByItem = useMemo(() => {
-    const nextPreviews = new Map<string, StopNotePreviewState>();
+type NotesInfiniteData = InfiniteData<CursorPage<CollaborativeNote>, string | undefined>;
 
-    for (const stop of visibleStops) {
-      nextPreviews.set(stop.itemId, {
-        notes: [],
-        noteCount: stop.noteCount,
-        hasMoreNotes: stop.noteCount === null ? false : stop.noteCount > 0,
-        isLoading: false
-      });
-    }
+export function useItineraryNotePreviews({
+  tripId,
+  visibleStops
+}: UseItineraryNotePreviewsOptions) {
+  const queryClient = useQueryClient();
+  const [, setCacheVersion] = useState(0);
 
-    return nextPreviews;
-  }, [visibleStops]);
+  useEffect(
+    () =>
+      queryClient.getQueryCache().subscribe((event) => {
+        if (event.query.queryKey[0] === "notes") {
+          setCacheVersion((current) => current + 1);
+        }
+      }),
+    [queryClient]
+  );
+
+  const previewsByItem = new Map<string, StopNotePreviewState>();
+
+  for (const stop of visibleStops) {
+    const queryKey = noteKeys.target("ITINERARY_ITEM", stop.itemId, tripId);
+    const queryState = queryClient.getQueryState<NotesInfiniteData>(queryKey);
+    const data = queryClient.getQueryData<NotesInfiniteData>(queryKey);
+    const notes =
+      data?.pages
+        .flatMap((page) => page.items)
+        .filter((note) => note.parentNoteId === null && note.deletedAt === null) ?? [];
+    const nextCursor = data?.pages.at(-1)?.pagination.nextCursor ?? null;
+    const noteCount = data ? notes.length : null;
+
+    previewsByItem.set(stop.itemId, {
+      notes,
+      noteCount,
+      hasMoreNotes: nextCursor !== null,
+      isLoading: queryState?.fetchStatus === "fetching"
+    });
+  }
 
   return {
     previewsByItem,

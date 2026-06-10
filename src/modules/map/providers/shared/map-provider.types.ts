@@ -1,4 +1,5 @@
 export type MapProviderId = "maplibre" | "openStreetMap" | "google" | "mapbox" | "here";
+export type MapRouteProviderId = MapProviderId | "osrm";
 
 export interface MapViewport {
   latitude: number;

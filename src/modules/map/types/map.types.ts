@@ -5,6 +5,7 @@ import type { MapViewport } from "@/modules/map/providers/shared/map-provider.ty
 export type {
   MapBounds,
   MapProviderId,
+  MapRouteProviderId,
   MapViewport
 } from "@/modules/map/providers/shared/map-provider.types";
 export type { MapMarker } from "@/modules/map/providers/shared/map-marker.types";
@@ -26,9 +27,11 @@ export interface TripMapProps {
   selectedMarkerId?: string | undefined;
   hoveredMarkerId?: string | undefined;
   focusedMarkerIds?: string[] | undefined;
+  autoFitMarkerBoundsKey?: string | undefined;
   onViewportChange: (viewport: MapViewport) => void;
   onMarkerSelect: (marker: MapMarker) => void;
   onMarkerHover?: (marker?: MapMarker) => void;
+  onMapContextChange?: (() => void) | undefined;
   onMapClick?: ((point: MapRoutePoint) => void) | undefined;
 }
 

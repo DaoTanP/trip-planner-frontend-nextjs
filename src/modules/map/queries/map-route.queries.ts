@@ -1,20 +1,48 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { isGoogleMapsConfigured } from "@/modules/map/config/map.config";
 import { getMapRoute } from "@/modules/map/services/map-route.service";
-import type { MapRouteRequest } from "@/modules/map/types/map.types";
+import type { MapRoutePoint, MapRouteRequest } from "@/modules/map/types/map.types";
 
 export const mapRouteKeys = {
   all: ["map-routes"] as const,
-  route: (request: MapRouteRequest) => [...mapRouteKeys.all, "route", request] as const
+  route: (request: MapRouteRequest) =>
+    [...mapRouteKeys.all, "route", normalizeRouteRequest(request)] as const
 };
 
 export function mapRouteQueryOptions(request: MapRouteRequest) {
+  const normalizedRequest = normalizeRouteRequest(request);
+
   return queryOptions({
-    queryKey: mapRouteKeys.route(request),
-    queryFn: ({ signal }) => getMapRoute(request, signal),
-    enabled: isGoogleMapsConfigured() && request.points.length >= 2,
+    queryKey: mapRouteKeys.route(normalizedRequest),
+    queryFn: ({ signal }) => getMapRoute(normalizedRequest, signal),
+    enabled: normalizedRequest.points.length >= 2,
     retry: false,
     staleTime: 5 * 60 * 1000
   });
+}
+
+function normalizeRouteRequest(request: MapRouteRequest): MapRouteRequest {
+  return {
+    points: request.points.filter(isValidRoutePoint).map(normalizeRoutePoint),
+    travelMode: request.travelMode ?? "driving",
+    ...(request.optimizeWaypoints ? { optimizeWaypoints: true } : {})
+  };
+}
+
+function normalizeRoutePoint(point: MapRoutePoint): MapRoutePoint {
+  return {
+    latitude: Number(point.latitude.toFixed(6)),
+    longitude: Number(point.longitude.toFixed(6))
+  };
+}
+
+function isValidRoutePoint(point: MapRoutePoint) {
+  return (
+    Number.isFinite(point.latitude) &&
+    Number.isFinite(point.longitude) &&
+    point.latitude >= -90 &&
+    point.latitude <= 90 &&
+    point.longitude >= -180 &&
+    point.longitude <= 180
+  );
 }

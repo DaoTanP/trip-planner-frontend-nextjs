@@ -1,4 +1,4 @@
-import type { MapProviderId } from "./map-provider.types";
+import type { MapRouteProviderId } from "./map-provider.types";
 
 export type MapTravelMode = "driving" | "walking" | "bicycling" | "transit";
 
@@ -14,10 +14,11 @@ export interface MapRouteLeg {
   end: RoutePoint;
   distanceMeters: number | null;
   durationSeconds: number | null;
+  points?: RoutePoint[] | undefined;
 }
 
 export interface MapRoute {
-  provider: MapProviderId;
+  provider: MapRouteProviderId;
   points: RoutePoint[];
   encodedPolyline?: string | undefined;
   distanceMeters: number | null;

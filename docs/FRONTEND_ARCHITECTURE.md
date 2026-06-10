@@ -333,20 +333,21 @@ The editor intentionally full-bleeds from the normal app shell using a `w-screen
 
 Map-specific concepts are isolated in `modules/places`, `modules/map`, and `stores/use-planner-store.ts`.
 
-`src/modules/map` owns provider rendering, routing DTOs, provider errors, and provider math. `src/modules/places` owns provider-backed place search, backend place search fallback, place details, backend reverse geocoding, and mapping those results into backend place resolution payloads. Itinerary and trip editor components consume normalized contracts only.
+`src/modules/map` owns provider rendering, routing DTOs, provider errors, provider-neutral route requests, and provider math. `src/modules/places` owns provider-backed place search, backend place search fallback, place details, backend reverse geocoding, and mapping those results into backend place resolution payloads. Itinerary and trip editor components consume normalized contracts only.
 
-The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL JS is the default rendering engine, Google Maps remains a provider adapter for Google-backed rendering and routing, and the OSM raster renderer remains available as a lightweight fallback path. Provider-specific code lives under:
+The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL JS is the default rendering engine, Google Maps remains a rendering adapter, and the OSM raster renderer remains available as a lightweight fallback path. Routing is provider-neutral and uses OSRM by default behind `getMapRoute(points)`. Production must set `NEXT_PUBLIC_OSRM_ROUTE_URL`; when it is missing, routing is reported as unavailable instead of falling back to the public OSRM demo service. Development may use the public demo fallback and logs a warning so the dependency is visible. Provider-specific code lives under:
 
 - `src/modules/map/providers/maplibre` for MapLibre GL JS and `react-map-gl` rendering, markers, viewport sync, and route layers.
-- `src/modules/map/providers/google` for Maps JavaScript loading, rendering, markers, polylines, and directions.
+- `src/modules/map/providers/google` for Maps JavaScript loading, rendering, markers, and polylines.
 - `src/modules/map/providers/osm` for the OSM tile renderer and Web Mercator projection.
 - `src/modules/places/services/google-places.service.ts` for Google Places autocomplete and details.
-- `src/modules/map/services/map-route.service.ts` and `src/modules/map/queries/map-route.queries.ts` for provider-neutral routing.
+- `src/modules/map/services/routing` for provider-neutral routing, with OSRM as the default adapter.
+- `src/modules/map/services/map-route.service.ts` and `src/modules/map/queries/map-route.queries.ts` for the public route boundary and TanStack Query integration.
 - `src/modules/map/providers/shared` for provider-independent marker, route, viewport, and bounds contracts.
 
-The trip editor derives `MapMarker[]` and fallback route points from trip DTOs, then asks TanStack Query for provider route geometry when the active provider supports routing. The map receives provider-ready props and emits only viewport, marker select, and marker hover callbacks. Business logic stays outside map components.
+The trip editor derives map markers and route request points from a dedicated full-itinerary route-data query plus the trip places query, then asks TanStack Query for route geometry through `getMapRoute(points)`. The visible stop list may still be paginated, but map route rendering never uses a partial visible page as a complete route source. If the full route-data query is loading or unavailable, route rendering is hidden and the map shows an explicit route-data notice. The map receives provider-ready props and emits only viewport, context-change, marker select, marker hover, and map-click callbacks. Business logic stays outside map components.
 
-The editor derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. Route visualization is generated dynamically from ordered marker coordinates through provider-neutral route queries; no route geometry is persisted or synchronized.
+The editor derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. Route visualization is generated dynamically from ordered marker coordinates through provider-neutral route queries; no route geometry is persisted or synchronized. The OSRM adapter scales requests by stop count: small routes request full geometry and steps, medium routes request simplified geometry, and large routes are chunked with simplified geometry. Very large routes return a visible too-many-stops error rather than freezing the browser.
 
 Stop list and map synchronization is ID-based. Stop cards write selected and hovered item IDs to `use-planner-store`; map providers receive only selected/hovered marker IDs and callbacks. Selecting a stop card moves the map viewport toward the item's normalized place, and selecting a marker selects the item and lets the stop list scroll the card into view. Providers do not know about notes, filters, reorder rules, or itinerary mutations.
 
@@ -435,7 +436,7 @@ Desktop uses two columns:
 - left planner: compact trip header, stop search/filters, budget, and threaded notes
 - right map: sticky viewport-height workspace with route, marker, hover, selection, and fit controls
 
-Tablet and mobile use a planner-first workflow with compact tab controls and a map quick-jump so the map remains reachable from secondary workflows. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.
+Tablet and mobile use a planner-first workflow with compact tab controls, a map surface immediately below the controls, and the active Stops/Budget/Notes content below the map. This keeps the map available even when secondary workflows are open. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.
 
 ## Future Realtime
 

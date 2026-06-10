@@ -2,7 +2,7 @@
 
 import { LocateFixed, Minus, Plus, Route } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMap, { type MapLayerMouseEvent } from "react-map-gl/maplibre";
 
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,14 @@ import { clampZoom, hasViewportChanged, normalizeViewport } from "@/modules/map/
 
 import { loadMapLibre } from "./maplibre-loader";
 import {
+  mapLibreMarkerClusterLayerId,
   mapLibreMarkerInteractiveLayerIds,
   mapLibreMarkerPointLayerId,
   MapLibreMarkerLayer
 } from "./maplibre-marker-layer";
 import { MapLibreRouteLayer } from "./maplibre-route-layer";
 import type { MapLibreMapRef } from "./maplibre.types";
-import { viewportFromMap, viewportFromViewState } from "./maplibre.types";
+import { viewportFromMap } from "./maplibre.types";
 
 export function MapLibreMap({
   markers,
@@ -33,15 +34,18 @@ export function MapLibreMap({
   selectedMarkerId,
   hoveredMarkerId,
   focusedMarkerIds,
+  autoFitMarkerBoundsKey,
   onViewportChange,
   onMarkerSelect,
   onMarkerHover,
+  onMapContextChange,
   onMapClick
 }: TripMapProps) {
   const t = useTranslations("trip.editor.map");
   const { mapRef, setMapInstance } = useMapInstance<MapLibreMapRef>();
-  const { commitViewport, scheduleViewport } = useMapViewport({ onViewportChange });
+  const { commitViewport } = useMapViewport({ onViewportChange });
   const mapLib = useMemo(() => loadMapLibre(), []);
+  const lastAutoFitMarkerBoundsKeyRef = useRef<string | undefined>(undefined);
   const [hasLoadError, setHasLoadError] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const normalizedViewport = useMemo(() => normalizeViewport(viewport), [viewport]);
@@ -128,6 +132,31 @@ export function MapLibreMap({
     [markerById]
   );
 
+  const hasClusterFromEvent = useCallback(
+    (event: MapLayerMouseEvent) =>
+      event.features?.some((feature) => feature.layer.id === mapLibreMarkerClusterLayerId) === true,
+    []
+  );
+
+  const handleClusterSelect = useCallback(
+    (event: MapLayerMouseEvent) => {
+      const map = mapRef.current;
+
+      if (!map) {
+        return;
+      }
+
+      map.easeTo({
+        center: [event.lngLat.lng, event.lngLat.lat],
+        duration: 220,
+        essential: true,
+        zoom: Math.min(mapConfig.maxZoom, map.getZoom() + 2)
+      });
+      onMapContextChange?.();
+    },
+    [mapRef, onMapContextChange]
+  );
+
   const handleMapClick = useCallback(
     (event: MapLayerMouseEvent) => {
       const marker = getMarkerFromEvent(event);
@@ -137,26 +166,32 @@ export function MapLibreMap({
         return;
       }
 
+      if (hasClusterFromEvent(event)) {
+        handleClusterSelect(event);
+        return;
+      }
+
       onMapClick?.({
         latitude: event.lngLat.lat,
         longitude: event.lngLat.lng
       });
     },
-    [getMarkerFromEvent, handleMarkerSelect, onMapClick]
+    [getMarkerFromEvent, handleClusterSelect, handleMarkerSelect, hasClusterFromEvent, onMapClick]
   );
 
   const handleMapMouseMove = useCallback(
     (event: MapLayerMouseEvent) => {
       const marker = getMarkerFromEvent(event);
+      const isCluster = hasClusterFromEvent(event);
       const map = mapRef.current;
 
       if (map) {
-        map.getCanvas().style.cursor = marker ? "pointer" : "";
+        map.getCanvas().style.cursor = marker || isCluster ? "pointer" : "";
       }
 
       handleMarkerHover(marker);
     },
-    [getMarkerFromEvent, handleMarkerHover, mapRef]
+    [getMarkerFromEvent, handleMarkerHover, hasClusterFromEvent, mapRef]
   );
 
   const handleMapMouseLeave = useCallback(() => {
@@ -204,9 +239,32 @@ export function MapLibreMap({
     handleExternalViewport();
   }, [handleExternalViewport]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    const bounds = getPointBounds(markers);
+
+    if (
+      !isMapReady ||
+      !map ||
+      !bounds ||
+      !autoFitMarkerBoundsKey ||
+      lastAutoFitMarkerBoundsKeyRef.current === autoFitMarkerBoundsKey
+    ) {
+      return;
+    }
+
+    lastAutoFitMarkerBoundsKeyRef.current = autoFitMarkerBoundsKey;
+    map.fitBounds(toLngLatBounds(bounds), {
+      duration: 0,
+      maxZoom: 15,
+      padding: 64
+    });
+    commitViewport(viewportFromMap(map));
+  }, [autoFitMarkerBoundsKey, commitViewport, isMapReady, mapRef, markers]);
+
   return (
     <section
-      className="trip-maplibre relative h-[26rem] overflow-hidden rounded-md border bg-muted md:h-[calc(100dvh-8rem)]"
+      className="trip-maplibre relative h-[42dvh] min-h-72 max-h-[28rem] overflow-hidden rounded-md border bg-muted md:h-[calc(100dvh-8rem)] md:max-h-none"
       aria-label={t("label")}
     >
       <ReactMap
@@ -227,7 +285,6 @@ export function MapLibreMap({
           handleMapLoad();
           handleExternalViewport();
         }}
-        onMove={(event) => scheduleViewport(viewportFromViewState(event.viewState))}
         onMoveEnd={handleMoveEnd}
         onClick={handleMapClick}
         onMouseMove={handleMapMouseMove}

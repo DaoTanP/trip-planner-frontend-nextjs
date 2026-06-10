@@ -2,14 +2,17 @@
 
 import { MapPin, Plus, Search, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useResolvePlaceMutation } from "@/modules/places/mutations/use-place-mutations";
+import {
+  upsertTripPlaceInCache,
+  useResolvePlaceMutation
+} from "@/modules/places/mutations/use-place-mutations";
 import {
   placeKeys,
   placeDetailQueryOptions,
@@ -25,7 +28,6 @@ interface PlaceSearchBoxProps {
   className?: string | undefined;
   autoFocus?: boolean | undefined;
   actionLabel?: ((place: PlaceSearchResult) => string) | undefined;
-  isPlaceAlreadyAdded?: ((placeId: string) => boolean) | undefined;
   onClose?: (() => void) | undefined;
   onPlaceSelected: (place: PlaceDto) => Promise<void> | void;
 }
@@ -37,7 +39,6 @@ export function PlaceSearchBox({
   className,
   autoFocus = true,
   actionLabel,
-  isPlaceAlreadyAdded,
   onClose,
   onPlaceSelected
 }: PlaceSearchBoxProps) {
@@ -50,7 +51,8 @@ export function PlaceSearchBox({
   const [pendingPlaceId, setPendingPlaceId] = useState<string | undefined>();
   const [isSelectingPlace, setIsSelectingPlace] = useState(false);
   const [activeResultIndex, setActiveResultIndex] = useState(0);
-  const resolvePlace = useResolvePlaceMutation(tripId);
+  const selectionLockRef = useRef(false);
+  const resolvePlace = useResolvePlaceMutation();
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedQuery(query.trim()), 250);
@@ -72,22 +74,12 @@ export function PlaceSearchBox({
       ? `${searchId}-result-${activeResultIndex}`
       : undefined;
 
-  function getKnownPlaceId(place: PlaceSearchResult) {
-    return place.storedPlaceId ?? (place.provider === "internal" ? place.id : undefined);
-  }
-
-  function isDuplicateSearchResult(place: PlaceSearchResult) {
-    const placeId = getKnownPlaceId(place);
-
-    return placeId ? isPlaceAlreadyAdded?.(placeId) === true : false;
-  }
-
   async function handleAddPlace(place: PlaceSearchResult) {
-    if (isDuplicateSearchResult(place)) {
-      toast.error(t("duplicateStop"));
+    if (selectionLockRef.current) {
       return;
     }
 
+    selectionLockRef.current = true;
     setPendingPlaceId(place.id);
     setIsSelectingPlace(true);
 
@@ -103,12 +95,10 @@ export function PlaceSearchBox({
             )
           : place;
       const storedPlace = await resolvePlace.mutateAsync(input);
-      if (isPlaceAlreadyAdded?.(storedPlace.id)) {
-        toast.error(t("duplicateStop"));
-        return;
-      }
-
       await onPlaceSelected(storedPlace);
+      if (tripId) {
+        upsertTripPlaceInCache(queryClient, tripId, storedPlace);
+      }
       setQuery("");
       onClose?.();
     } catch {
@@ -117,6 +107,7 @@ export function PlaceSearchBox({
       }
       toast.error(t("addError"));
     } finally {
+      selectionLockRef.current = false;
       setPendingPlaceId(undefined);
       setIsSelectingPlace(false);
     }
@@ -125,10 +116,11 @@ export function PlaceSearchBox({
   async function handleAddManualPlace() {
     const name = debouncedQuery.trim();
 
-    if (!name) {
+    if (!name || selectionLockRef.current) {
       return;
     }
 
+    selectionLockRef.current = true;
     setPendingPlaceId(`manual:${name}`);
     setIsSelectingPlace(true);
 
@@ -138,12 +130,10 @@ export function PlaceSearchBox({
         source: "MANUAL",
         name
       });
-      if (isPlaceAlreadyAdded?.(storedPlace.id)) {
-        toast.error(t("duplicateStop"));
-        return;
-      }
-
       await onPlaceSelected(storedPlace);
+      if (tripId) {
+        upsertTripPlaceInCache(queryClient, tripId, storedPlace);
+      }
       setQuery("");
       onClose?.();
     } catch {
@@ -152,6 +142,7 @@ export function PlaceSearchBox({
       }
       toast.error(t("addError"));
     } finally {
+      selectionLockRef.current = false;
       setPendingPlaceId(undefined);
       setIsSelectingPlace(false);
     }
@@ -187,7 +178,7 @@ export function PlaceSearchBox({
     if (event.key === "Enter") {
       event.preventDefault();
       const activePlace = results[activeResultIndex];
-      if (activePlace && !isAddingPlace && !isDuplicateSearchResult(activePlace)) {
+      if (activePlace && !isAddingPlace) {
         void handleAddPlace(activePlace);
       }
     }
@@ -261,7 +252,6 @@ export function PlaceSearchBox({
 
         {results.map((place, index) => {
           const isActive = index === activeResultIndex;
-          const isDuplicate = isDuplicateSearchResult(place);
 
           return (
             <article
@@ -286,12 +276,8 @@ export function PlaceSearchBox({
                 type="button"
                 size="icon"
                 variant="secondary"
-                aria-label={
-                  isDuplicate
-                    ? t("duplicateStop")
-                    : (actionLabel?.(place) ?? t("addPlace", { name: place.name }))
-                }
-                disabled={isAddingPlace || isDuplicate}
+                aria-label={actionLabel?.(place) ?? t("addPlace", { name: place.name })}
+                disabled={isAddingPlace}
                 onClick={() => void handleAddPlace(place)}
               >
                 <Plus aria-hidden="true" />

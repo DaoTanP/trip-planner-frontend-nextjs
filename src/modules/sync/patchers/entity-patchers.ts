@@ -6,6 +6,7 @@ import { itineraryKeys } from "@/modules/itinerary/queries/itinerary.queries";
 import type { ItineraryItem, ItineraryItemsPage } from "@/modules/itinerary/types/itinerary.types";
 import type { CollaborativeNote, CursorPage } from "@/modules/notes/types/note.types";
 import { noteKeys } from "@/modules/notes/queries/note.queries";
+import { placeKeys } from "@/modules/places/queries/place.queries";
 import { tripKeys } from "@/modules/trips/queries/trip.queries";
 import type { TripDetail, TripExpensesPage } from "@/modules/trips/types/trip.types";
 
@@ -15,6 +16,11 @@ import type { EntityPatchPayload, TripMutationEvent } from "../types/sync.types"
 type ItineraryInfiniteData = InfiniteData<ItineraryItemsPage, string | undefined>;
 type NotesInfiniteData = InfiniteData<CursorPage<CollaborativeNote>, string | undefined>;
 type ExpenseInfiniteData = InfiniteData<TripExpensesPage, string | undefined>;
+type ExpenseListFilters = {
+  categoryId?: unknown;
+  itineraryItemId?: unknown;
+  paidByUserId?: unknown;
+};
 const expenseListQueryPrefix = (tripId: string) => [...expenseKeys.byTrip(tripId), "list"] as const;
 const expenseInfiniteListQueryPrefix = (tripId: string) =>
   [...expenseKeys.byTrip(tripId), "infinite-list"] as const;
@@ -25,6 +31,41 @@ const sortItineraryItems = (items: ItineraryItem[]) =>
       ? left.id.localeCompare(right.id)
       : left.sortOrder - right.sortOrder
   );
+
+function applyItineraryItemPatch(items: ItineraryItem[], patch: EntityPatchPayload) {
+  if (patch.patchType === "ENTITY_DELETED") {
+    return items.filter((item) => item.id !== patch.entityId);
+  }
+
+  if (patch.patchType === "ENTITY_REBALANCED") {
+    const affectedItems = Array.isArray(patch.fields?.affectedItems)
+      ? patch.fields.affectedItems
+      : [];
+    const affectedById = new Map(
+      affectedItems
+        .filter((item): item is Record<string, unknown> => !!asRecord(item))
+        .map((item) => [String(item.id), item])
+    );
+
+    return sortItineraryItems(
+      items.map((item) => {
+        const affected = affectedById.get(item.id);
+        return affected ? ({ ...item, ...affected } as ItineraryItem) : item;
+      })
+    );
+  }
+
+  if (!patch.fields) {
+    return items;
+  }
+
+  const nextItem = {
+    ...(items.find((item) => item.id === patch.entityId) ?? {}),
+    ...patch.fields
+  } as ItineraryItem;
+
+  return upsertById(items, nextItem, sortItineraryItems);
+}
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value)
@@ -55,6 +96,38 @@ const noteMatchesFilters = (
     return false;
   }
   if (typeof filters.parentNoteId === "string" && note.parentNoteId !== filters.parentNoteId) {
+    return false;
+  }
+  if (filters.parentNoteId === undefined && note.parentNoteId !== null) {
+    return false;
+  }
+
+  return true;
+};
+
+const asExpenseFilters = (value: unknown): ExpenseListFilters | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as ExpenseListFilters)
+    : null;
+
+const expenseMatchesFilters = (
+  expense: TripExpensesPage["expenses"][number],
+  filters: ExpenseListFilters | null
+) => {
+  if (!filters) {
+    return true;
+  }
+
+  if (typeof filters.categoryId === "string" && expense.categoryId !== filters.categoryId) {
+    return false;
+  }
+  if (
+    typeof filters.itineraryItemId === "string" &&
+    expense.itineraryItemId !== filters.itineraryItemId
+  ) {
+    return false;
+  }
+  if (typeof filters.paidByUserId === "string" && expense.paidByUserId !== filters.paidByUserId) {
     return false;
   }
 
@@ -115,40 +188,20 @@ export function patchItineraryItem(
   patch: EntityPatchPayload
 ) {
   queryClient.setQueryData<ItineraryInfiniteData>(itineraryKeys.items(tripId), (current) =>
-    patchInfiniteItems<ItineraryItemsPage, ItineraryItem>(current, (items) => {
-      if (patch.patchType === "ENTITY_DELETED") {
-        return items.filter((item) => item.id !== patch.entityId);
-      }
-
-      if (patch.patchType === "ENTITY_REBALANCED") {
-        const affectedItems = Array.isArray(patch.fields?.affectedItems)
-          ? patch.fields.affectedItems
-          : [];
-        const affectedById = new Map(
-          affectedItems
-            .filter((item): item is Record<string, unknown> => !!asRecord(item))
-            .map((item) => [String(item.id), item])
-        );
-
-        return sortItineraryItems(
-          items.map((item) => {
-            const affected = affectedById.get(item.id);
-            return affected ? ({ ...item, ...affected } as ItineraryItem) : item;
-          })
-        );
-      }
-
-      if (!patch.fields) {
-        return items;
-      }
-
-      const nextItem = {
-        ...(items.find((item) => item.id === patch.entityId) ?? {}),
-        ...patch.fields
-      } as ItineraryItem;
-      return upsertById(items, nextItem, sortItineraryItems);
-    })
+    patchInfiniteItems<ItineraryItemsPage, ItineraryItem>(current, (items) =>
+      applyItineraryItemPatch(items, patch)
+    )
   );
+  queryClient.setQueryData<ItineraryItem[]>(itineraryKeys.routeItems(tripId), (current) =>
+    current ? applyItineraryItemPatch(current, patch) : current
+  );
+
+  if (patch.patchType !== "ENTITY_DELETED") {
+    void queryClient.invalidateQueries({
+      queryKey: placeKeys.byTrip(tripId),
+      refetchType: "active"
+    });
+  }
 }
 
 export function patchNote(queryClient: QueryClient, patch: EntityPatchPayload) {
@@ -188,7 +241,11 @@ export function patchNote(queryClient: QueryClient, patch: EntityPatchPayload) {
 }
 
 export function patchExpense(queryClient: QueryClient, tripId: string, patch: EntityPatchPayload) {
-  const patchPage = (current: TripExpensesPage | undefined) => {
+  const patchPage = (
+    current: TripExpensesPage | undefined,
+    filters: ExpenseListFilters | null,
+    canInsert: boolean
+  ) => {
     if (!current) {
       return current;
     }
@@ -208,27 +265,53 @@ export function patchExpense(queryClient: QueryClient, tripId: string, patch: En
       ...(current.expenses.find((expense) => expense.id === patch.entityId) ?? {}),
       ...patch.fields
     } as TripExpensesPage["expenses"][number];
+    const existing = current.expenses.some((expense) => expense.id === patch.entityId);
 
     return {
       ...current,
-      expenses: upsertById(current.expenses, nextExpense)
+      expenses:
+        expenseMatchesFilters(nextExpense, filters) && (canInsert || existing)
+          ? upsertById(current.expenses, nextExpense)
+          : current.expenses.filter((expense) => expense.id !== patch.entityId)
     };
   };
 
-  queryClient.setQueriesData<TripExpensesPage>(
-    { queryKey: expenseListQueryPrefix(tripId) },
-    patchPage
-  );
-  queryClient.setQueriesData<ExpenseInfiniteData>(
-    { queryKey: expenseInfiniteListQueryPrefix(tripId) },
-    (current) =>
-      current
-        ? {
-            ...current,
-            pages: current.pages.map((page) => patchPage(page) ?? page)
-          }
-        : current
-  );
+  queryClient
+    .getQueryCache()
+    .findAll({ queryKey: expenseListQueryPrefix(tripId) })
+    .forEach((query) => {
+      const filters = asExpenseFilters(query.queryKey[4]);
+
+      queryClient.setQueryData<TripExpensesPage>(query.queryKey, (current) =>
+        patchPage(current, filters, true)
+      );
+    });
+
+  queryClient
+    .getQueryCache()
+    .findAll({ queryKey: expenseInfiniteListQueryPrefix(tripId) })
+    .forEach((query) => {
+      const filters = asExpenseFilters(query.queryKey[4]);
+
+      queryClient.setQueryData<ExpenseInfiniteData>(query.queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              pages: current.pages.map(
+                (page, index) => patchPage(page, filters, index === 0) ?? page
+              )
+            }
+          : current
+      );
+    });
+  void queryClient.invalidateQueries({
+    queryKey: expenseListQueryPrefix(tripId),
+    refetchType: "active"
+  });
+  void queryClient.invalidateQueries({
+    queryKey: expenseInfiniteListQueryPrefix(tripId),
+    refetchType: "active"
+  });
   void queryClient.invalidateQueries({ queryKey: expenseKeys.budget(tripId) });
 }
 
@@ -265,6 +348,24 @@ function invalidateTripResources(queryClient: QueryClient, tripId: string) {
   void queryClient.invalidateQueries({ queryKey: noteKeys.lists() });
 }
 
+function invalidateTripDetailForCountChange(
+  queryClient: QueryClient,
+  tripId: string,
+  patch: EntityPatchPayload
+) {
+  if (
+    (patch.patchType === "ENTITY_CREATED" || patch.patchType === "ENTITY_DELETED") &&
+    (patch.entityType === "ITINERARY_ITEM" ||
+      patch.entityType === "NOTE" ||
+      patch.entityType === "EXPENSE")
+  ) {
+    void queryClient.invalidateQueries({
+      queryKey: tripKeys.detail(tripId),
+      refetchType: "active"
+    });
+  }
+}
+
 export function applyEntityPatch(
   queryClient: QueryClient,
   tripId: string,
@@ -290,4 +391,6 @@ export function applyEntityPatch(
       invalidateTripResources(queryClient, tripId);
       break;
   }
+
+  invalidateTripDetailForCountChange(queryClient, tripId, patch);
 }

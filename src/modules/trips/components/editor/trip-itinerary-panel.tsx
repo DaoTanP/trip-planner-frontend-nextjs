@@ -38,7 +38,6 @@ import {
 import { useVirtualWindow } from "../../hooks/use-virtual-window";
 import {
   filterStopSequence,
-  getItemMetadataNumber,
   itineraryItemStatuses,
   itineraryItemTypes,
   sortStopSequence,
@@ -130,12 +129,10 @@ export function TripItineraryPanel({
           .filter((item): item is ItineraryItem => item !== undefined)
       : visibleItems;
 
-    return previewItems.map((item) => ({
-      itemId: item.id,
-      noteCount: getItemMetadataNumber(item, "noteCount")
-    }));
+    return previewItems.map((item) => ({ itemId: item.id }));
   }, [isVirtualized, virtualItems, visibleItems]);
   const { previewsByItem: notePreviewsByItem } = useItineraryNotePreviews({
+    tripId,
     visibleStops: visibleStopsForNotePreview
   });
   const selectedRowIndex = useMemo(
@@ -257,9 +254,6 @@ export function TripItineraryPanel({
         onRouteLegHover={setHoveredRouteLegId}
         onNewItemTypeChange={setNewItemType}
         onSubmitPlaceInsertion={(place) => handleSubmitPlace(insertionAnchor, place)}
-        isPlaceAlreadyAdded={(placeId) =>
-          orderedItems.some((candidate) => candidate.placeId === placeId)
-        }
         t={t}
         itemT={itemT}
       />
@@ -380,9 +374,6 @@ export function TripItineraryPanel({
               onInsertionChange={handleInsertionChange}
               onNewItemTypeChange={setNewItemType}
               onSubmitPlace={(place) => handleSubmitPlace("start", place)}
-              isPlaceAlreadyAdded={(placeId) =>
-                orderedItems.some((candidate) => candidate.placeId === placeId)
-              }
               t={t}
               itemT={itemT}
             />
@@ -427,7 +418,6 @@ function StopSequenceRow({
   onRouteLegHover,
   onNewItemTypeChange,
   onSubmitPlaceInsertion,
-  isPlaceAlreadyAdded,
   t,
   itemT
 }: {
@@ -455,7 +445,6 @@ function StopSequenceRow({
   onRouteLegHover: (routeLegId?: string) => void;
   onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlaceInsertion: (place: PlaceDto) => Promise<void>;
-  isPlaceAlreadyAdded: (placeId: string) => boolean;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
 }) {
@@ -500,7 +489,6 @@ function StopSequenceRow({
         onInsertionChange={onInsertionChange}
         onNewItemTypeChange={onNewItemTypeChange}
         onSubmitPlace={onSubmitPlaceInsertion}
-        isPlaceAlreadyAdded={isPlaceAlreadyAdded}
         t={t}
         itemT={itemT}
       />
@@ -577,7 +565,6 @@ function InlineAddStop({
   onInsertionChange,
   onNewItemTypeChange,
   onSubmitPlace,
-  isPlaceAlreadyAdded,
   t,
   itemT
 }: {
@@ -588,7 +575,6 @@ function InlineAddStop({
   onInsertionChange: (anchor: InsertionAnchor | null) => void;
   onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlace: (place: PlaceDto) => Promise<void>;
-  isPlaceAlreadyAdded: (placeId: string) => boolean;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
 }) {
@@ -639,7 +625,6 @@ function InlineAddStop({
         placeholder={t("placeSearchPlaceholder")}
         className="border-0 bg-transparent p-0 shadow-none"
         actionLabel={(place) => t("addPlaceHere", { name: place.name })}
-        isPlaceAlreadyAdded={isPlaceAlreadyAdded}
         onClose={() => onInsertionChange(null)}
         onPlaceSelected={onSubmitPlace}
       />

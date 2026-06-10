@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useMutation, type QueryClient } from "@tanstack/react-query";
 import type { PlaceDto } from "@/services/api/contracts";
 
 import { placeKeys } from "../queries/place.queries";
@@ -22,15 +22,8 @@ export function upsertTripPlaceInCache(queryClient: QueryClient, tripId: string,
   });
 }
 
-export function useResolvePlaceMutation(tripId?: string | undefined) {
-  const queryClient = useQueryClient();
-
+export function useResolvePlaceMutation() {
   return useMutation({
-    mutationFn: (input: ResolvablePlaceInput) => resolvePlace(input),
-    onSuccess: (place) => {
-      if (tripId) {
-        upsertTripPlaceInCache(queryClient, tripId, place);
-      }
-    }
+    mutationFn: (input: ResolvablePlaceInput) => resolvePlace(input)
   });
 }

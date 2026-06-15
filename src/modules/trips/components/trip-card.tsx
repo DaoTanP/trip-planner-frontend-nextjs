@@ -30,10 +30,7 @@ export function TripCard({ trip }: TripCardProps) {
   const deleteMutation = useDeleteTripMutation();
   const startDate = trip.startDate ? format.dateTime(new Date(trip.startDate), "tripDate") : null;
   const endDate = trip.endDate ? format.dateTime(new Date(trip.endDate), "tripDate") : null;
-  const statusClassName =
-    trip.status === "COMPLETED"
-      ? statusColorClassNames.trip.COMPLETED
-      : statusColorClassNames.trip.DEFAULT;
+  const statusClassName = statusColorClassNames.trip[trip.status];
 
   return (
     <article className="grid gap-4 rounded-md border bg-card p-4 shadow-sm">

@@ -1,7 +1,10 @@
 export {
   categoryColors,
+  getCategoryColor,
   getItineraryItemTypeCategoryColor,
+  getItineraryItemTypeCategoryKey,
   getPlaceCategoryColor,
+  getPlaceCategoryKey,
   ITINERARY_ITEM_TYPE_TO_CATEGORY_KEY,
   PLACE_CATEGORY_TO_CATEGORY_KEY
 } from "./category-colors";

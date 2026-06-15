@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/routing";
 import { routes } from "@/constants/routes";
+import { uiStateColorClassNames } from "@/theme";
 import Image from "next/image";
 
 export default async function HomePage() {
@@ -56,7 +57,9 @@ export default async function HomePage() {
           <h1 className="max-w-5xl text-5xl tracking-tight text-white md:text-7xl">
             Plan your next
             <div className="relative mt-2 inline-block">
-              <div className="absolute left-1/2 top-1/2 -z-10 h-full w-[110%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-yellow-500/20 blur-[0.5em]" />
+              <div
+                className={`absolute left-1/2 top-1/2 -z-10 h-full w-[110%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[0.5em] ${uiStateColorClassNames.heroGlow}`}
+              />
 
               <span className="bg-linear-to-r from-orange-300 to-yellow-200 bg-clip-text px-2 font-bold italic text-transparent">
                 unforgettable journey

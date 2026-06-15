@@ -613,7 +613,7 @@ function StopSequenceRow({
       ? ({
           id: routeSummary.id,
           travelMode: routeSummary.travelMode,
-          travelModeLabel: t(`routeModes.${routeSummary.travelMode}`),
+          travelModeLabel: formatTravelModeLabel(routeSummary.travelMode, t),
           travelModeSelectLabel: t("travelModeLabel"),
           routeModePickerTitle: t("routeModePickerTitle"),
           travelModeOptions: routeTravelModeOptions,
@@ -726,7 +726,7 @@ function StopSequenceRowPreview({
       ? ({
           id: routeSummary.id,
           travelMode: routeSummary.travelMode,
-          travelModeLabel: t(`routeModes.${routeSummary.travelMode}`),
+          travelModeLabel: formatTravelModeLabel(routeSummary.travelMode, t),
           travelModeSelectLabel: t("travelModeLabel"),
           routeModePickerTitle: t("routeModePickerTitle"),
           travelModeOptions: routeTravelModeOptions,
@@ -798,7 +798,9 @@ function formatRouteMetricsLabel(
 ) {
   const metrics = formatRouteMetrics(routeSummary, locale, t, itemT);
 
-  return metrics.length > 0 ? metrics.join(" \u00b7 ") : t(`routeModes.${routeSummary.travelMode}`);
+  return metrics.length > 0
+    ? metrics.join(" \u00b7 ")
+    : formatTravelModeLabel(routeSummary.travelMode, t);
 }
 
 function formatRouteSegmentAriaLabel(
@@ -808,9 +810,13 @@ function formatRouteSegmentAriaLabel(
   itemT: ReturnType<typeof useTranslations>
 ) {
   return t("routeSegmentAriaLabel", {
-    mode: t(`routeModes.${routeSummary.travelMode}`),
+    mode: formatTravelModeLabel(routeSummary.travelMode, t),
     metrics: formatRouteMetricsLabel(routeSummary, locale, t, itemT)
   });
+}
+
+function formatTravelModeLabel(travelMode: MapTravelMode, t: ReturnType<typeof useTranslations>) {
+  return t(getTravelModeConfig(travelMode).labelKey);
 }
 
 function InlineAddStop({

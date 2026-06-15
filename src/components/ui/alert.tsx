@@ -2,12 +2,13 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
+import { semanticColorClassNames } from "@/theme";
 
 const alertVariants = cva("relative w-full rounded-md border p-4 text-sm", {
   variants: {
     variant: {
       default: "border-border bg-background text-foreground",
-      destructive: "border-destructive/40 bg-destructive/10 text-destructive"
+      destructive: semanticColorClassNames.errorSubtle
     }
   },
   defaultVariants: {

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig } from "@/modules/map/config/map.config";
 import type { MapMarker, MapRoutePoint, TripMapProps } from "@/modules/map/types/map.types";
-import { markerColors, routeColors } from "@/theme";
+import { markerColors, markerRenderConfig, routeColors, routeRenderConfig } from "@/theme";
 
 import { loadGoogleMaps } from "./google-map-loader";
 import type {
@@ -23,14 +23,12 @@ import { fromGoogleLatLng, toGoogleLatLngLiteral } from "./google-map.types";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-const markerPath = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z";
-
 function createMarkerLabel(marker: MapMarker): GoogleMarkerLabel {
   return {
     text: String(marker.stopOrder),
     color: markerColors.label.hex,
-    fontSize: "11px",
-    fontWeight: "700"
+    fontSize: markerRenderConfig.google.labelFontSize,
+    fontWeight: markerRenderConfig.google.labelFontWeight
   };
 }
 
@@ -39,7 +37,7 @@ function createMarkerIcon(
   state: "default" | "emphasis" | "selected"
 ): GoogleMarkerIcon {
   return {
-    path: markerPath,
+    path: markerRenderConfig.google.path,
     fillColor:
       state === "selected"
         ? markerColors.selected.hex
@@ -48,9 +46,12 @@ function createMarkerIcon(
           : markerColors.default.hex,
     fillOpacity: 1,
     strokeColor: markerColors.stroke.hex,
-    strokeWeight: 2,
-    scale: state === "selected" ? 1.75 : state === "emphasis" ? 1.65 : 1.55,
-    anchor: new googleMaps.Point(12, 24)
+    strokeWeight: markerRenderConfig.google.strokeWeight,
+    scale: markerRenderConfig.google.scale[state],
+    anchor: new googleMaps.Point(
+      markerRenderConfig.google.anchor.x,
+      markerRenderConfig.google.anchor.y
+    )
   };
 }
 
@@ -276,7 +277,7 @@ export function GoogleMapProvider({
         existingMarker.setTitle(marker.label);
         existingMarker.setLabel(label);
         existingMarker.setIcon(icon);
-        existingMarker.setZIndex(isSelected ? 30 : isEmphasized ? 20 : 10);
+        existingMarker.setZIndex(markerRenderConfig.google.zIndex[markerState]);
         return;
       }
 
@@ -287,7 +288,7 @@ export function GoogleMapProvider({
         optimized: true,
         position,
         title: marker.label,
-        zIndex: isSelected ? 30 : isEmphasized ? 20 : 10
+        zIndex: markerRenderConfig.google.zIndex[markerState]
       });
       googleMarker.addListener("click", () => {
         const currentMarker = markerDataRef.current.get(marker.id);
@@ -381,8 +382,8 @@ export function GoogleMapProvider({
       clickable: true,
       geodesic: true,
       strokeColor: routeColors.default.hex,
-      strokeOpacity: 0.78,
-      strokeWeight: 5
+      strokeOpacity: routeRenderConfig.default.googleOpacity,
+      strokeWeight: routeRenderConfig.default.width
     };
 
     if (!polylineRef.current) {
@@ -421,8 +422,8 @@ export function GoogleMapProvider({
       clickable: true,
       geodesic: true,
       strokeColor: routeColors.active.hex,
-      strokeOpacity: 0.92,
-      strokeWeight: 7
+      strokeOpacity: routeRenderConfig.active.googleOpacity,
+      strokeWeight: routeRenderConfig.active.width
     };
 
     if (!activePolylineRef.current) {

@@ -42,7 +42,9 @@ import type { PlaceDto } from "@/services/api/contracts";
 import { usePlannerStore } from "@/stores/use-planner-store";
 import {
   collaborationColorClassNames,
+  getTravelModeConfig,
   getItineraryItemTypeCategoryColor,
+  statusColorClassNames,
   syncColorClassNames,
   syncStateBadgeClassNames,
   tripStateColorClassNames
@@ -326,7 +328,12 @@ export function ItineraryItemCard({
                 })
               }
             />
-            <span className="inline-flex items-center gap-1">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5",
+                statusColorClassNames.itineraryItem[item.status]
+              )}
+            >
               <Circle className="size-3 shrink-0" aria-hidden="true" />
               {statusLabel}
             </span>
@@ -360,7 +367,7 @@ export function ItineraryItemCard({
                     <Route className="size-3 shrink-0" aria-hidden="true" />
                     <span className="truncate">
                       {t("routeSummary", {
-                        mode: t(`routeModes.${routeSummary.travelMode}`),
+                        mode: t(getTravelModeConfig(routeSummary.travelMode).labelKey),
                         distance: formatDistance(routeSummary.distanceMeters, locale),
                         duration: formatRouteDuration(routeSummary.durationSeconds, t)
                       })}

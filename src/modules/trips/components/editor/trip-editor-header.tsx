@@ -6,10 +6,12 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { PresenceAvatarStack } from "@/modules/collaboration/components/presence-avatar-stack";
 import { useUniquePresenceUsers } from "@/modules/collaboration/hooks/use-presence";
 import type { PresenceEntry } from "@/modules/collaboration/types/presence.types";
 import { usePlannerStore } from "@/stores/use-planner-store";
+import { statusColorClassNames } from "@/theme";
 
 import { useUpdateTripMutation } from "../../mutations/use-trip-editor-mutations";
 import type { TripDetail } from "../../types/trip.types";
@@ -86,10 +88,20 @@ export function TripEditorHeader({ trip, stats, presenceEntries = [] }: TripEdit
               <CalendarRange className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{derivedDateRange}</span>
             </span>
-            <span className="rounded-md bg-muted px-2 py-0.5 text-foreground">
+            <span
+              className={cn(
+                "rounded-md border px-2 py-0.5",
+                statusColorClassNames.trip[trip.status]
+              )}
+            >
               {statusT(trip.status)}
             </span>
-            <span className="rounded-md bg-muted px-2 py-0.5 text-foreground">
+            <span
+              className={cn(
+                "rounded-md border px-2 py-0.5",
+                statusColorClassNames.visibility[trip.visibility]
+              )}
+            >
               {visibilityT(trip.visibility)}
             </span>
             <span className="min-w-0 truncate">{summaryParts.join(" / ")}</span>

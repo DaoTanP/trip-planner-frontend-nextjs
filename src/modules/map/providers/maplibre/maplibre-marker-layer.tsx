@@ -4,7 +4,7 @@ import { memo, useMemo } from "react";
 import { Layer, Source, type LayerProps } from "react-map-gl/maplibre";
 
 import type { MapMarker } from "@/modules/map/types/map.types";
-import { markerColors } from "@/theme";
+import { markerColors, markerRenderConfig } from "@/theme";
 
 export const mapLibreMarkerPointLayerId = "trip-marker-point";
 const markerSourceId = "trip-markers";
@@ -64,9 +64,9 @@ const clusterLayer: LayerProps = {
   filter: ["has", "point_count"],
   paint: {
     "circle-color": markerColors.cluster.hex,
-    "circle-radius": ["step", ["get", "point_count"], 18, 20, 24, 60, 30],
+    "circle-radius": markerRenderConfig.mapLibre.clusterCircleRadius,
     "circle-stroke-color": markerColors.stroke.hex,
-    "circle-stroke-width": 3
+    "circle-stroke-width": markerRenderConfig.mapLibre.clusterStrokeWidth
   }
 };
 
@@ -78,7 +78,7 @@ const clusterCountLayer: LayerProps = {
   layout: {
     "text-field": ["get", "point_count_abbreviated"],
     "text-size": 12,
-    "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"]
+    "text-font": markerRenderConfig.mapLibre.labelFont
   },
   paint: {
     "text-color": markerColors.label.hex
@@ -93,13 +93,11 @@ const markerShadowLayer: LayerProps = {
   paint: {
     "circle-color": markerColors.shadow.hex,
 
-    "circle-opacity": ["case", ["get", "isSelected"], 0.28, ["get", "isHovered"], 0.24, 0.18],
+    "circle-opacity": markerRenderConfig.mapLibre.shadowOpacity,
 
-    "circle-radius": ["case", ["get", "isSelected"], 24, ["get", "isHovered"], 22, 19],
+    "circle-radius": markerRenderConfig.mapLibre.shadowCircleRadius,
 
-    // "circle-translate": [0, 2],
-
-    "circle-blur": 0.2
+    "circle-blur": markerRenderConfig.mapLibre.shadowBlur
   }
 };
 
@@ -118,11 +116,11 @@ const markerLayer: LayerProps = {
       markerColors.default.hex
     ],
 
-    "circle-radius": ["case", ["get", "isSelected"], 18, ["get", "isHovered"], 16, 15],
+    "circle-radius": markerRenderConfig.mapLibre.markerCircleRadius,
 
     "circle-stroke-color": markerColors.stroke.hex,
 
-    "circle-stroke-width": ["case", ["get", "isSelected"], 4, ["get", "isFocused"], 4, 3]
+    "circle-stroke-width": markerRenderConfig.mapLibre.markerStrokeWidth
   }
 };
 
@@ -133,8 +131,8 @@ const markerLabelLayer: LayerProps = {
   filter: ["!", ["has", "point_count"]],
   layout: {
     "text-field": ["to-string", ["get", "stopOrder"]],
-    "text-size": ["case", ["get", "isSelected"], 18, 15],
-    "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+    "text-size": markerRenderConfig.mapLibre.labelTextSize,
+    "text-font": markerRenderConfig.mapLibre.labelFont,
     "text-allow-overlap": true,
     "text-ignore-placement": true
   },
@@ -180,8 +178,8 @@ export const MapLibreMarkerLayer = memo(function MapLibreMarkerLayer({
       type="geojson"
       data={markerData}
       cluster
-      clusterRadius={24}
-      clusterMaxZoom={16}
+      clusterRadius={markerRenderConfig.mapLibre.clusterRadius}
+      clusterMaxZoom={markerRenderConfig.mapLibre.clusterMaxZoom}
     >
       <Layer {...markerShadowLayer} />
       <Layer {...markerLayer} />

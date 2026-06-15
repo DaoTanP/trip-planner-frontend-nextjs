@@ -10,7 +10,7 @@ import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig, resolveTileUrl } from "@/modules/map/config/map.config";
 import type { MapRoutePoint, TripMapProps } from "@/modules/map/types/map.types";
 import { getBoundsCenter, getPointBounds } from "@/modules/map/utils/bounds";
-import { markerColorClassNames, routeColors } from "@/theme";
+import { markerColorClassNames, markerRenderConfig, routeColors, routeRenderConfig } from "@/theme";
 import {
   latitudeToWorldY,
   longitudeToWorldX,
@@ -272,10 +272,10 @@ export function OpenStreetMapProvider({
               points={routePoints}
               fill="none"
               stroke={routeColors.default.hex}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="5"
-              strokeOpacity="0.72"
+              strokeLinecap={routeRenderConfig.lineCap}
+              strokeLinejoin={routeRenderConfig.lineJoin}
+              strokeWidth={routeRenderConfig.default.width}
+              strokeOpacity={routeRenderConfig.default.osmOpacity}
               pointerEvents="stroke"
               onClick={(event) => event.stopPropagation()}
             />
@@ -286,10 +286,10 @@ export function OpenStreetMapProvider({
               points={activeRoutePoints}
               fill="none"
               stroke={routeColors.active.hex}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="7"
-              strokeOpacity="0.9"
+              strokeLinecap={routeRenderConfig.lineCap}
+              strokeLinejoin={routeRenderConfig.lineJoin}
+              strokeWidth={routeRenderConfig.active.width}
+              strokeOpacity={routeRenderConfig.active.osmOpacity}
               pointerEvents="stroke"
               onClick={(event) => event.stopPropagation()}
             />
@@ -309,8 +309,15 @@ export function OpenStreetMapProvider({
             className={cn(
               "absolute z-20 flex size-10 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full border-2 border-background text-xs font-bold shadow-lg transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2",
               markerColorClassNames.default,
-              isSelected && ["scale-110", markerColorClassNames.selected],
-              !isSelected && isEmphasized && ["scale-105", markerColorClassNames.hover]
+              isSelected && [
+                markerRenderConfig.osm.selectedScaleClassName,
+                markerColorClassNames.selected
+              ],
+              !isSelected &&
+                isEmphasized && [
+                  markerRenderConfig.osm.emphasizedScaleClassName,
+                  markerColorClassNames.hover
+                ]
             )}
             style={{
               left: `calc(50% + ${projected.x}px)`,

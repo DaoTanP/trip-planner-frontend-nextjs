@@ -6,9 +6,7 @@ export type CategoryColorKey =
   | "food"
   | "shopping"
   | "transportation"
-  | "museum"
-  | "airport"
-  | "restaurant"
+  | "culture"
   | "other";
 
 export const categoryColors = {
@@ -27,14 +25,8 @@ export const categoryColors = {
   transportation: {
     badgeClassName: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
   },
-  museum: {
+  culture: {
     badgeClassName: "bg-violet-500/10 text-violet-700 dark:text-violet-300"
-  },
-  airport: {
-    badgeClassName: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
-  },
-  restaurant: {
-    badgeClassName: "bg-amber-500/10 text-amber-700 dark:text-amber-300"
   },
   other: {
     badgeClassName: "bg-muted text-muted-foreground"
@@ -51,16 +43,19 @@ export const ITINERARY_ITEM_TYPE_TO_CATEGORY_KEY = {
 } satisfies Record<ItineraryItemTypeDto, CategoryColorKey>;
 
 export const PLACE_CATEGORY_TO_CATEGORY_KEY: Record<string, CategoryColorKey> = {
-  airport: "airport",
+  airport: "transportation",
+  art_gallery: "culture",
   attraction: "activity",
   bakery: "food",
+  bar: "food",
   cafe: "food",
   food_market: "food",
+  gallery: "culture",
   lodging: "lodging",
   meal_takeaway: "food",
-  museum: "museum",
+  museum: "culture",
   park: "activity",
-  restaurant: "restaurant",
+  restaurant: "food",
   shopping_mall: "shopping",
   store: "shopping",
   tourist_attraction: "activity",
@@ -68,13 +63,24 @@ export const PLACE_CATEGORY_TO_CATEGORY_KEY: Record<string, CategoryColorKey> = 
   transit_station: "transportation"
 };
 
+export function getCategoryColor(categoryKey: CategoryColorKey) {
+  return categoryColors[categoryKey];
+}
+
+export function getItineraryItemTypeCategoryKey(type: ItineraryItemTypeDto) {
+  return ITINERARY_ITEM_TYPE_TO_CATEGORY_KEY[type];
+}
+
 export function getItineraryItemTypeCategoryColor(type: ItineraryItemTypeDto) {
-  return categoryColors[ITINERARY_ITEM_TYPE_TO_CATEGORY_KEY[type]];
+  return getCategoryColor(getItineraryItemTypeCategoryKey(type));
+}
+
+export function getPlaceCategoryKey(category: string) {
+  const normalizedCategory = category.trim().toLowerCase().replaceAll(" ", "_");
+
+  return PLACE_CATEGORY_TO_CATEGORY_KEY[normalizedCategory] ?? "other";
 }
 
 export function getPlaceCategoryColor(category: string) {
-  const normalizedCategory = category.trim().toLowerCase().replaceAll(" ", "_");
-  const categoryKey = PLACE_CATEGORY_TO_CATEGORY_KEY[normalizedCategory] ?? "other";
-
-  return categoryColors[categoryKey];
+  return getCategoryColor(getPlaceCategoryKey(category));
 }

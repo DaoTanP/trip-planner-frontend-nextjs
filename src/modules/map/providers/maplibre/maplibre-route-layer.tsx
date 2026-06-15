@@ -4,7 +4,7 @@ import { Layer, Source, type LayerProps } from "react-map-gl/maplibre";
 import { memo, useMemo } from "react";
 
 import type { MapRoutePoint } from "@/modules/map/types/map.types";
-import { routeColors } from "@/theme";
+import { routeColors, routeRenderConfig } from "@/theme";
 
 import { mapLibreMarkerShadowLayerId } from "./maplibre-marker-layer";
 
@@ -19,13 +19,13 @@ const routeLayer: LayerProps = {
   type: "line",
   source: routeSourceId,
   layout: {
-    "line-cap": "round",
-    "line-join": "round"
+    "line-cap": routeRenderConfig.lineCap,
+    "line-join": routeRenderConfig.lineJoin
   },
   paint: {
     "line-color": routeColors.default.hex,
-    "line-opacity": 0.9,
-    "line-width": 5
+    "line-opacity": routeRenderConfig.default.mapLibreOpacity,
+    "line-width": routeRenderConfig.default.width
   }
 };
 
@@ -34,13 +34,13 @@ const activeRouteLayer: LayerProps = {
   type: "line",
   source: activeRouteSourceId,
   layout: {
-    "line-cap": "round",
-    "line-join": "round"
+    "line-cap": routeRenderConfig.lineCap,
+    "line-join": routeRenderConfig.lineJoin
   },
   paint: {
     "line-color": routeColors.active.hex,
-    "line-opacity": 0.9,
-    "line-width": 7
+    "line-opacity": routeRenderConfig.active.mapLibreOpacity,
+    "line-width": routeRenderConfig.active.width
   }
 };
 

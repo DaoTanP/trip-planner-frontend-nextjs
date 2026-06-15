@@ -2,16 +2,16 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
-import { semanticColorClassNames } from "@/theme";
+import { semanticColorClassNames, uiStateColorClassNames } from "@/theme";
 
 const badgeVariants = cva(
   "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground",
-        outline: "text-foreground",
+        default: uiStateColorClassNames.defaultBadge,
+        secondary: uiStateColorClassNames.secondaryBadge,
+        outline: uiStateColorClassNames.outlineBadge,
         success: semanticColorClassNames.successBadge
       }
     },

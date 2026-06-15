@@ -1,8 +1,28 @@
+import type {
+  ItineraryItemStatusDto,
+  TripStatusDto,
+  TripVisibilityDto
+} from "@/services/api/contracts";
+
 import { semanticColorClassNames } from "./semantic-colors";
 
 export const statusColorClassNames = {
-  trip: {
+  itineraryItem: {
+    PLANNED: semanticColorClassNames.neutralBadge,
+    BOOKED: semanticColorClassNames.infoSubtle,
     COMPLETED: semanticColorClassNames.successBadge,
-    DEFAULT: "border-transparent bg-secondary text-secondary-foreground"
-  }
+    CANCELLED: semanticColorClassNames.warningSubtle
+  } satisfies Record<ItineraryItemStatusDto, string>,
+  trip: {
+    DRAFT: semanticColorClassNames.neutralBadge,
+    PLANNED: semanticColorClassNames.infoSubtle,
+    ACTIVE: semanticColorClassNames.infoSubtle,
+    COMPLETED: semanticColorClassNames.successBadge,
+    ARCHIVED: semanticColorClassNames.neutralBadge
+  } satisfies Record<TripStatusDto, string>,
+  visibility: {
+    PRIVATE: semanticColorClassNames.neutralBadge,
+    SHARED: semanticColorClassNames.infoSubtle,
+    PUBLIC: semanticColorClassNames.successBadge
+  } satisfies Record<TripVisibilityDto, string>
 } as const;

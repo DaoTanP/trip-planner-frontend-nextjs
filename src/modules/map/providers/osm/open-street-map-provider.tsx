@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig, resolveTileUrl } from "@/modules/map/config/map.config";
-import type { MapRoutePoint, TripMapProps } from "@/modules/map/types/map.types";
-import { getBoundsCenter, getPointBounds } from "@/modules/map/utils/bounds";
+import type { TripMapProps } from "@/modules/map/types/map.types";
+import { getViewportForPoints } from "@/modules/map/utils/bounds";
 import { markerColorClassNames, markerRenderConfig, routeColors, routeRenderConfig } from "@/theme";
 import {
   latitudeToWorldY,
@@ -395,31 +395,4 @@ export function OpenStreetMapProvider({
       <RouteSummary route={routeResult} />
     </section>
   );
-}
-
-function getViewportForPoints(points: MapRoutePoint[]) {
-  const bounds = getPointBounds(points);
-
-  if (!bounds) {
-    return null;
-  }
-
-  const center = getBoundsCenter(bounds);
-  const span = Math.max(Math.abs(bounds.north - bounds.south), Math.abs(bounds.east - bounds.west));
-
-  return {
-    latitude: center.latitude,
-    longitude: center.longitude,
-    zoom: getZoomForSpan(span)
-  };
-}
-
-function getZoomForSpan(span: number) {
-  if (span > 30) return 3;
-  if (span > 10) return 5;
-  if (span > 3) return 7;
-  if (span > 1) return 9;
-  if (span > 0.3) return 11;
-
-  return 13;
 }

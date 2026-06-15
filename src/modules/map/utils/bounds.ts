@@ -1,4 +1,4 @@
-import type { MapBounds, MapRoutePoint } from "@/modules/map/types/map.types";
+import type { MapBounds, MapRoutePoint, MapViewport } from "@/modules/map/types/map.types";
 
 export function getPointBounds(points: MapRoutePoint[]): MapBounds | undefined {
   if (points.length === 0) {
@@ -33,4 +33,31 @@ export function toLngLatBounds(bounds: MapBounds) {
     [bounds.west, bounds.south],
     [bounds.east, bounds.north]
   ] as [[number, number], [number, number]];
+}
+
+export function getViewportForPoints(points: MapRoutePoint[]): MapViewport | undefined {
+  const bounds = getPointBounds(points);
+
+  if (!bounds) {
+    return undefined;
+  }
+
+  const center = getBoundsCenter(bounds);
+  const span = Math.max(Math.abs(bounds.north - bounds.south), Math.abs(bounds.east - bounds.west));
+
+  return {
+    latitude: center.latitude,
+    longitude: center.longitude,
+    zoom: getZoomForSpan(span)
+  };
+}
+
+function getZoomForSpan(span: number) {
+  if (span > 30) return 3;
+  if (span > 10) return 5;
+  if (span > 3) return 7;
+  if (span > 1) return 9;
+  if (span > 0.3) return 11;
+
+  return 13;
 }

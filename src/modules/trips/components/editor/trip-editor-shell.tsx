@@ -33,6 +33,7 @@ import type {
   MapViewport
 } from "@/modules/map/types/map.types";
 import { getRouteRenderPoints } from "@/modules/map/utils/map-route-render.utils";
+import { getViewportForPoints } from "@/modules/map/utils/bounds";
 import {
   itineraryInfiniteQueryOptions,
   itineraryRouteItemsQueryOptions
@@ -147,6 +148,18 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   }>(() => ({
     tripId,
     travelModes: {}
+  }));
+  const [expandedRouteLegState, setExpandedRouteLegState] = useState<{
+    tripId: string;
+    routeLegId?: string | undefined;
+  }>(() => ({
+    tripId
+  }));
+  const [popoverRouteLegState, setPopoverRouteLegState] = useState<{
+    tripId: string;
+    routeLegId?: string | undefined;
+  }>(() => ({
+    tripId
   }));
   const routeTravelModeByLeg = useMemo(
     () =>
@@ -271,6 +284,19 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       ),
     [routeGroups, routeGroupQueries]
   );
+  const expandedRouteLegId =
+    expandedRouteLegState.tripId === tripId &&
+    expandedRouteLegState.routeLegId &&
+    routeLegs.some((routeLeg) => routeLeg.id === expandedRouteLegState.routeLegId)
+      ? expandedRouteLegState.routeLegId
+      : undefined;
+  const popoverRouteLegId =
+    popoverRouteLegState.tripId === tripId &&
+    popoverRouteLegState.routeLegId &&
+    routeLegs.some((routeLeg) => routeLeg.id === popoverRouteLegState.routeLegId)
+      ? popoverRouteLegState.routeLegId
+      : undefined;
+  const mapFocusedRouteLegId = popoverRouteLegId ?? expandedRouteLegId;
   const renderedRoute = useMemo(
     () =>
       areRouteGroupsResolved
@@ -300,16 +326,16 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     }).length;
   }, [isRouteDataIncomplete, places, placesQuery.isError, routeSourceItems]);
   const focusedRouteItemIds = useMemo(
-    () => getRouteLegAdjacentItemIds(selectedRouteLegId, routeLegs),
-    [routeLegs, selectedRouteLegId]
+    () => getRouteLegAdjacentItemIds(mapFocusedRouteLegId, routeLegs),
+    [mapFocusedRouteLegId, routeLegs]
   );
   const focusedMarkerIds = useMemo(
     () => focusedRouteItemIds.map((itemId) => `item:${itemId}`),
     [focusedRouteItemIds]
   );
   const activeRouteLegIds = useMemo(
-    () => (selectedRouteLegId ? [selectedRouteLegId] : []),
-    [selectedRouteLegId]
+    () => (mapFocusedRouteLegId ? [mapFocusedRouteLegId] : []),
+    [mapFocusedRouteLegId]
   );
   const activeRoute = useMemo(
     () => (routeResult ? getRouteLegPoints(activeRouteLegIds, routeLegs, markers) : []),
@@ -319,10 +345,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const hoveredMarkerId = hoveredItemId ? `item:${hoveredItemId}` : undefined;
   const autoFitMarkerBoundsKey = useMemo(
     () =>
-      selectedItemId || selectedRouteLegId
+      selectedItemId || mapFocusedRouteLegId
         ? undefined
         : buildAutoFitMarkerBoundsKey(tripId, markers),
-    [markers, selectedItemId, selectedRouteLegId, tripId]
+    [mapFocusedRouteLegId, markers, selectedItemId, tripId]
   );
   const routeSummaryByItem = useMemo(() => buildRouteSummaryByItem(routeLegs), [routeLegs]);
   const syncStateByItem = useMemo(
@@ -376,7 +402,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   useEffect(() => () => abortReverseGeocode(), [abortReverseGeocode]);
 
   useEffect(() => {
-    const selectionContextKey = `${selectedItemId ?? ""}:${selectedRouteLegId ?? ""}`;
+    const selectionContextKey = selectedItemId ?? "";
 
     if (
       selectionContextKeyRef.current !== undefined &&
@@ -392,7 +418,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     }
 
     selectionContextKeyRef.current = selectionContextKey;
-  }, [cancelMapStopDraft, selectedItemId, selectedRouteLegId]);
+  }, [cancelMapStopDraft, selectedItemId]);
 
   useEffect(() => {
     if (!selectedItemId) {
@@ -487,6 +513,64 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       setHoveredItemId(marker?.itemId);
     },
     [setHoveredItemId]
+  );
+
+  const handleRouteSectionOpenChange = useCallback(
+    (routeLegId: string, isOpen: boolean) => {
+      setExpandedRouteLegState((current) => {
+        const currentRouteLegId = current.tripId === tripId ? current.routeLegId : undefined;
+
+        if (isOpen) {
+          return { tripId, routeLegId };
+        }
+
+        return {
+          tripId,
+          routeLegId: currentRouteLegId === routeLegId ? undefined : currentRouteLegId
+        };
+      });
+
+      if (!isOpen) {
+        return;
+      }
+
+      const routePoints = getRouteLegPoints([routeLegId], routeLegs, markers);
+      const nextViewport = getViewportForPoints(routePoints);
+
+      if (nextViewport) {
+        setViewport(nextViewport);
+      }
+    },
+    [markers, routeLegs, setViewport, tripId]
+  );
+
+  const handleRoutePopoverOpenChange = useCallback(
+    (routeLegId: string, isOpen: boolean) => {
+      setPopoverRouteLegState((current) => {
+        const currentRouteLegId = current.tripId === tripId ? current.routeLegId : undefined;
+
+        if (isOpen) {
+          return { tripId, routeLegId };
+        }
+
+        return {
+          tripId,
+          routeLegId: currentRouteLegId === routeLegId ? undefined : currentRouteLegId
+        };
+      });
+
+      if (!isOpen) {
+        return;
+      }
+
+      const routePoints = getRouteLegPoints([routeLegId], routeLegs, markers);
+      const nextViewport = getViewportForPoints(routePoints);
+
+      if (nextViewport) {
+        setViewport(nextViewport);
+      }
+    },
+    [markers, routeLegs, setViewport, tripId]
   );
 
   const handleMapClick = useCallback(
@@ -817,6 +901,8 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
               currentUserId={currentUser?.id}
               routeSummaryByItem={routeSummaryByItem}
               onRouteTravelModeChange={setRouteLegTravelMode}
+              onRouteSectionOpenChange={handleRouteSectionOpenChange}
+              onRoutePopoverOpenChange={handleRoutePopoverOpenChange}
               focusedRouteItemIds={focusedRouteItemIds}
               syncStateByItem={syncStateByItem}
               hasNextPage={itineraryQuery.hasNextPage}

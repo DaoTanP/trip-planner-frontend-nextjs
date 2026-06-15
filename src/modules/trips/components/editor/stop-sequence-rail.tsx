@@ -33,7 +33,8 @@ export interface StopRouteSegment {
   routeSelectLabel: string;
   isSelected: boolean;
   isHovered: boolean;
-  onFocusRoute: () => void;
+  onSelectRoute: () => void;
+  onTravelModePopoverOpenChange: (isOpen: boolean) => void;
   onHover: (isHovered: boolean) => void;
   onTravelModeChange: (travelMode: MapTravelMode) => void;
 }
@@ -110,9 +111,24 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const isPickerOpenRef = useRef(false);
+  const onPopoverOpenChangeRef = useRef(segment.onTravelModePopoverOpenChange);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerPosition, setPickerPosition] = useState<RouteModePickerPosition | null>(null);
   const isFocused = segment.isSelected || segment.isHovered;
+
+  const setPickerOpen = useCallback((nextValue: boolean | ((current: boolean) => boolean)) => {
+    const currentIsOpen = isPickerOpenRef.current;
+    const nextIsOpen = typeof nextValue === "function" ? nextValue(currentIsOpen) : nextValue;
+
+    if (nextIsOpen === currentIsOpen) {
+      return;
+    }
+
+    isPickerOpenRef.current = nextIsOpen;
+    onPopoverOpenChangeRef.current(nextIsOpen);
+    setIsPickerOpen(nextIsOpen);
+  }, []);
   const updatePickerPosition = useCallback(() => {
     const trigger = triggerRef.current;
 
@@ -143,6 +159,19 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
   }, []);
 
   useEffect(() => {
+    onPopoverOpenChangeRef.current = segment.onTravelModePopoverOpenChange;
+  }, [segment.onTravelModePopoverOpenChange]);
+
+  useEffect(() => {
+    return () => {
+      if (isPickerOpenRef.current) {
+        isPickerOpenRef.current = false;
+        onPopoverOpenChangeRef.current(false);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isPickerOpen) {
       return;
     }
@@ -151,14 +180,14 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
       const target = event.target as Node;
 
       if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) {
-        setIsPickerOpen(false);
+        setPickerOpen(false);
       }
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
 
     return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [isPickerOpen]);
+  }, [isPickerOpen, setPickerOpen]);
 
   useEffect(() => {
     if (!isPickerOpen) {
@@ -176,8 +205,8 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
   }, [isPickerOpen, updatePickerPosition]);
 
   function openPicker(focusOptionIndex?: number) {
-    segment.onFocusRoute();
-    setIsPickerOpen(true);
+    segment.onSelectRoute();
+    setPickerOpen(true);
     updatePickerPosition();
 
     if (focusOptionIndex !== undefined) {
@@ -186,14 +215,14 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
   }
 
   function closePicker() {
-    setIsPickerOpen(false);
+    setPickerOpen(false);
     triggerRef.current?.focus();
   }
 
   function handleModeChange(travelMode: MapTravelMode) {
-    segment.onFocusRoute();
+    segment.onSelectRoute();
     segment.onTravelModeChange(travelMode);
-    setIsPickerOpen(false);
+    setPickerOpen(false);
     triggerRef.current?.focus();
   }
 
@@ -258,8 +287,8 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
           aria-expanded={isPickerOpen}
           aria-controls={isPickerOpen ? menuId : undefined}
           onClick={() => {
-            segment.onFocusRoute();
-            setIsPickerOpen((current) => {
+            segment.onSelectRoute();
+            setPickerOpen((current) => {
               if (!current) {
                 window.requestAnimationFrame(updatePickerPosition);
               }

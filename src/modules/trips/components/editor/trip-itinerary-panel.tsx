@@ -65,6 +65,8 @@ interface TripItineraryPanelProps {
   currentUserId?: string | undefined;
   routeSummaryByItem: RouteSummaryByItem;
   onRouteTravelModeChange: (routeLegId: string, travelMode: MapTravelMode) => void;
+  onRouteSectionOpenChange: (routeLegId: string, isOpen: boolean) => void;
+  onRoutePopoverOpenChange: (routeLegId: string, isOpen: boolean) => void;
   focusedRouteItemIds: string[];
   syncStateByItem: Map<string, ItemSyncState>;
   hasNextPage?: boolean;
@@ -97,6 +99,8 @@ export function TripItineraryPanel({
   currentUserId,
   routeSummaryByItem,
   onRouteTravelModeChange,
+  onRouteSectionOpenChange,
+  onRoutePopoverOpenChange,
   focusedRouteItemIds,
   syncStateByItem,
   hasNextPage = false,
@@ -286,6 +290,12 @@ export function TripItineraryPanel({
 
       return next;
     });
+
+    const routeSummary = routeSummaryByItem.get(itemId);
+
+    if (routeSummary) {
+      onRouteSectionOpenChange(routeSummary.id, isExpanded);
+    }
   }
 
   const renderStop = (item: ItineraryItem, visibleIndex: number) => {
@@ -327,6 +337,7 @@ export function TripItineraryPanel({
         onRouteLegSelect={selectRouteLeg}
         onRouteLegHover={setHoveredRouteLegId}
         onRouteTravelModeChange={onRouteTravelModeChange}
+        onRoutePopoverOpenChange={onRoutePopoverOpenChange}
         onExpandedChange={(isExpanded) => handleExpandedChange(item.id, isExpanded)}
         onNewItemTypeChange={setNewItemType}
         onSubmitPlaceInsertion={(place) => handleSubmitPlace(insertionAnchor, place)}
@@ -381,6 +392,7 @@ export function TripItineraryPanel({
         onRouteLegSelect={selectRouteLeg}
         onRouteLegHover={setHoveredRouteLegId}
         onRouteTravelModeChange={onRouteTravelModeChange}
+        onRoutePopoverOpenChange={onRoutePopoverOpenChange}
         t={t}
         itemT={itemT}
       />
@@ -553,6 +565,7 @@ function StopSequenceRow({
   onRouteLegSelect,
   onRouteLegHover,
   onRouteTravelModeChange,
+  onRoutePopoverOpenChange,
   onExpandedChange,
   onNewItemTypeChange,
   onSubmitPlaceInsertion,
@@ -589,6 +602,7 @@ function StopSequenceRow({
   onRouteLegSelect: (routeLegId?: string) => void;
   onRouteLegHover: (routeLegId?: string) => void;
   onRouteTravelModeChange: (routeLegId: string, travelMode: MapTravelMode) => void;
+  onRoutePopoverOpenChange: (routeLegId: string, isOpen: boolean) => void;
   onExpandedChange: (isExpanded: boolean) => void;
   onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlaceInsertion: (place: PlaceDto) => Promise<void>;
@@ -621,7 +635,9 @@ function StopSequenceRow({
           routeSelectLabel: formatRouteSegmentAriaLabel(routeSummary, locale, t, itemT),
           isSelected: isRouteLegSelected,
           isHovered: isRouteLegHovered,
-          onFocusRoute: () => onRouteLegSelect(routeSummary.id),
+          onSelectRoute: () => onRouteLegSelect(routeSummary.id),
+          onTravelModePopoverOpenChange: (isOpen) =>
+            onRoutePopoverOpenChange(routeSummary.id, isOpen),
           onHover: (nextIsHovered) => onRouteLegHover(nextIsHovered ? routeSummary.id : undefined),
           onTravelModeChange: (travelMode) => onRouteTravelModeChange(routeSummary.id, travelMode)
         } satisfies StopRouteSegment)
@@ -688,6 +704,7 @@ function StopSequenceRowPreview({
   onRouteLegSelect,
   onRouteLegHover,
   onRouteTravelModeChange,
+  onRoutePopoverOpenChange,
   t,
   itemT
 }: {
@@ -718,6 +735,7 @@ function StopSequenceRowPreview({
   onRouteLegSelect: (routeLegId?: string) => void;
   onRouteLegHover: (routeLegId?: string) => void;
   onRouteTravelModeChange: (routeLegId: string, travelMode: MapTravelMode) => void;
+  onRoutePopoverOpenChange: (routeLegId: string, isOpen: boolean) => void;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
 }) {
@@ -734,7 +752,9 @@ function StopSequenceRowPreview({
           routeSelectLabel: formatRouteSegmentAriaLabel(routeSummary, locale, t, itemT),
           isSelected: isRouteLegSelected,
           isHovered: isRouteLegHovered,
-          onFocusRoute: () => onRouteLegSelect(routeSummary.id),
+          onSelectRoute: () => onRouteLegSelect(routeSummary.id),
+          onTravelModePopoverOpenChange: (isOpen) =>
+            onRoutePopoverOpenChange(routeSummary.id, isOpen),
           onHover: (nextIsHovered) => onRouteLegHover(nextIsHovered ? routeSummary.id : undefined),
           onTravelModeChange: (travelMode) => onRouteTravelModeChange(routeSummary.id, travelMode)
         } satisfies StopRouteSegment)

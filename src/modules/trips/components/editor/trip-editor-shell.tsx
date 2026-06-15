@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
+import { cn } from "@/lib/utils";
 import { BudgetExpensePanel } from "@/modules/expenses/components/budget-expense-panel";
 import { useSession } from "@/modules/auth/hooks/use-session";
 import {
@@ -47,6 +48,7 @@ import type { ReverseGeocodeResult } from "@/modules/places/types/place.types";
 import { useTripDeltaSync } from "@/modules/sync/hooks/use-trip-delta-sync";
 import { useSyncDebug } from "@/modules/sync/hooks/use-sync-debug";
 import { usePlannerStore } from "@/stores/use-planner-store";
+import { semanticColorClassNames } from "@/theme";
 
 import { tripDetailQueryOptions } from "../../queries/trip.queries";
 import {
@@ -55,6 +57,7 @@ import {
   getItineraryMapMarkers,
   getProviderRouteRequestPoints
 } from "../../utils/trip-editor.utils";
+import { getDefaultItineraryItemTimezone } from "../../utils/timezone.utils";
 import {
   buildItemSyncStateMap,
   buildPlannerStats,
@@ -547,11 +550,11 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       const payload = {
         placeId: place.id,
         types: ["ACTIVITY"],
+        timezone: getDefaultItineraryItemTimezone(tripQuery.data?.timezone),
         clientMutationId: crypto.randomUUID()
       } satisfies Parameters<typeof createItem.mutateAsync>[0];
-      const timezone = place.timezone ?? tripQuery.data?.timezone;
 
-      const result = await createItem.mutateAsync(timezone ? { ...payload, timezone } : payload);
+      const result = await createItem.mutateAsync(payload);
       upsertTripPlaceInCache(queryClient, tripId, place);
       setActiveTab("stops");
       selectItem(result.item.id, place.id);
@@ -749,7 +752,12 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         >
           <TripEditorHeader trip={trip} stats={stats} presenceEntries={presenceEntries} />
           {placesQuery.isError ? (
-            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <div
+              className={cn(
+                "flex items-start gap-2 rounded-md border p-3 text-sm",
+                semanticColorClassNames.errorSubtle
+              )}
+            >
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span className="min-w-0 flex-1">{t("placesError")}</span>
               <Button
@@ -803,6 +811,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           {activeTab === "stops" ? (
             <TripItineraryPanel
               tripId={trip.id}
+              tripTimezone={trip.timezone}
               items={items}
               places={places}
               currentUserId={currentUser?.id}

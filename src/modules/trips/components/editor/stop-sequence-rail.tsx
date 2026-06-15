@@ -10,21 +10,11 @@ import {
   type MutableRefObject
 } from "react";
 import { createPortal } from "react-dom";
-import {
-  Bike,
-  Bus,
-  Car,
-  ChevronDown,
-  Check,
-  Footprints,
-  Plane,
-  Route,
-  Ship,
-  TrainFront
-} from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { MapTravelMode } from "@/modules/map/types/map.types";
+import { getTravelModeConfig, markerColorClassNames, routeColorClassNames } from "@/theme";
 
 export interface StopRouteTravelModeOption {
   value: MapTravelMode;
@@ -261,7 +251,7 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
           className={cn(
             "group inline-flex min-h-8 max-w-[min(22rem,calc(100vw-5rem))] min-w-0 items-center gap-3 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
             "hover:bg-muted/70 hover:text-foreground hover:shadow-sm focus-visible:outline-2",
-            isFocused && "bg-accent/10 text-foreground ring-1 ring-accent/40"
+            isFocused && routeColorClassNames.focusedSegment
           )}
           aria-label={segment.routeSelectLabel}
           aria-haspopup="menu"
@@ -316,8 +306,8 @@ export function StopMarker({
     <span
       className={cn(
         "relative z-10 flex size-8 items-center justify-center rounded-full border bg-background text-xs font-semibold text-foreground shadow-sm transition-colors",
-        isActive && "border-accent bg-accent/10 text-accent-foreground",
-        isSelected && "border-primary bg-primary text-primary-foreground",
+        isActive && markerColorClassNames.active,
+        isSelected && markerColorClassNames.selectedBadge,
         isDragging && "ring-2 ring-ring"
       )}
       aria-label={label}
@@ -396,7 +386,7 @@ function RouteModePicker({
               className={cn(
                 "grid grid-cols-[auto_1fr_auto] items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors",
                 "hover:bg-muted focus-visible:outline-2",
-                isActive && "bg-accent/10 text-foreground"
+                isActive && routeColorClassNames.activeModeOption
               )}
               onClick={() => onModeChange(option.value)}
               onKeyDown={(event) => onOptionKeyDown(event, index)}
@@ -410,7 +400,12 @@ function RouteModePicker({
                   </span>
                 ) : null}
               </span>
-              {isActive ? <Check className="size-4 text-primary" aria-hidden="true" /> : null}
+              {isActive ? (
+                <Check
+                  className={cn("size-4", routeColorClassNames.activeModeCheck)}
+                  aria-hidden="true"
+                />
+              ) : null}
             </button>
           );
         })}
@@ -419,38 +414,10 @@ function RouteModePicker({
   );
 }
 
-function TravelModeIcon({ travelMode }: { travelMode: string }) {
-  const normalizedMode = travelMode.trim().toLowerCase();
+function TravelModeIcon({ travelMode }: { travelMode: MapTravelMode }) {
+  const { Icon, color } = getTravelModeConfig(travelMode);
 
-  if (["driving", "drive", "car", "route"].includes(normalizedMode)) {
-    return <Car className="size-3.5 shrink-0" aria-hidden="true" />;
-  }
-
-  if (["walking", "walk", "foot"].includes(normalizedMode)) {
-    return <Footprints className="size-3.5 shrink-0" aria-hidden="true" />;
-  }
-
-  if (["bicycling", "cycling", "bike", "bicycle"].includes(normalizedMode)) {
-    return <Bike className="size-3.5 shrink-0" aria-hidden="true" />;
-  }
-
-  if (["transit", "bus"].includes(normalizedMode)) {
-    return <Bus className="size-3.5 shrink-0" aria-hidden="true" />;
-  }
-
-  if (["train", "rail"].includes(normalizedMode)) {
-    return <TrainFront className="size-3.5 shrink-0" aria-hidden="true" />;
-  }
-
-  if (["flight", "plane", "air"].includes(normalizedMode)) {
-    return <Plane className="size-3.5 shrink-0" aria-hidden="true" />;
-  }
-
-  if (["ferry", "ship", "boat"].includes(normalizedMode)) {
-    return <Ship className="size-3.5 shrink-0" aria-hidden="true" />;
-  }
-
-  return <Route className="size-3.5 shrink-0" aria-hidden="true" />;
+  return <Icon className={cn("size-3.5 shrink-0", color.className)} aria-hidden="true" />;
 }
 
 export function StopConnector({ isVisible, className }: StopConnectorProps) {

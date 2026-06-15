@@ -20,6 +20,7 @@ import {
 } from "@/modules/places/queries/place.queries";
 import type { PlaceSearchResult, ResolvablePlaceInput } from "@/modules/places/types/place.types";
 import type { PlaceDto } from "@/services/api/contracts";
+import { semanticColorClassNames, tripStateColorClassNames } from "@/theme";
 
 interface PlaceSearchBoxProps {
   title?: string | undefined;
@@ -236,7 +237,12 @@ export function PlaceSearchBox({
         ) : null}
 
         {placesQuery.isError ? (
-          <div className="grid gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <div
+            className={cn(
+              "grid gap-2 rounded-md border p-3 text-sm",
+              semanticColorClassNames.errorSubtle
+            )}
+          >
             <span>{t("error")}</span>
             <Button
               type="button"
@@ -261,7 +267,7 @@ export function PlaceSearchBox({
               aria-selected={isActive}
               className={cn(
                 "flex items-center justify-between gap-3 rounded-md border bg-background p-3",
-                isActive && "border-primary ring-1 ring-primary/30"
+                isActive && tripStateColorClassNames.selectedResultFrame
               )}
               onMouseEnter={() => setActiveResultIndex(index)}
             >

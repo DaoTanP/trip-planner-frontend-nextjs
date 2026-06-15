@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/constants/routes";
 import { Link } from "@/i18n/routing";
+import { statusColorClassNames } from "@/theme";
 
 import { useDeleteTripMutation } from "../mutations/use-delete-trip-mutation";
 import type { Trip } from "../types/trip.types";
@@ -29,6 +30,10 @@ export function TripCard({ trip }: TripCardProps) {
   const deleteMutation = useDeleteTripMutation();
   const startDate = trip.startDate ? format.dateTime(new Date(trip.startDate), "tripDate") : null;
   const endDate = trip.endDate ? format.dateTime(new Date(trip.endDate), "tripDate") : null;
+  const statusClassName =
+    trip.status === "COMPLETED"
+      ? statusColorClassNames.trip.COMPLETED
+      : statusColorClassNames.trip.DEFAULT;
 
   return (
     <article className="grid gap-4 rounded-md border bg-card p-4 shadow-sm">
@@ -40,7 +45,7 @@ export function TripCard({ trip }: TripCardProps) {
             {t("card.items", { count: trip.itineraryItemCount })}
           </p>
         </div>
-        <Badge variant={trip.status === "COMPLETED" ? "success" : "secondary"}>
+        <Badge variant="outline" className={statusClassName}>
           {t(`status.${trip.status}`)}
         </Badge>
       </div>

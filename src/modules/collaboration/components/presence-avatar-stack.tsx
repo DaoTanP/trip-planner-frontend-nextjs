@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { collaborationColorClassNames, getCollaborationColor } from "@/theme";
 
 import type { PresenceEntry } from "../types/presence.types";
 
@@ -27,7 +28,8 @@ export function PresenceAvatarStack({
           key={entry.userId}
           title={entry.userName}
           className={cn(
-            "flex size-7 items-center justify-center rounded-full border-2 border-card bg-primary text-[0.65rem] font-semibold text-primary-foreground shadow-sm",
+            "flex size-7 items-center justify-center rounded-full border-2 border-card text-[0.65rem] font-semibold shadow-sm",
+            getCollaborationColor(entry.userId).avatarClassName,
             index > 0 && "-ml-2"
           )}
         >
@@ -35,7 +37,12 @@ export function PresenceAvatarStack({
         </span>
       ))}
       {hiddenCount > 0 ? (
-        <span className="-ml-2 flex size-7 items-center justify-center rounded-full border-2 border-card bg-muted text-[0.65rem] font-semibold text-muted-foreground shadow-sm">
+        <span
+          className={cn(
+            "-ml-2 flex size-7 items-center justify-center rounded-full border-2 border-card text-[0.65rem] font-semibold shadow-sm",
+            collaborationColorClassNames.overflowAvatar
+          )}
+        >
           +{hiddenCount}
         </span>
       ) : null}

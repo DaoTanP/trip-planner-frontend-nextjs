@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   getNoteThreadPresenceId,
   useEntityPresenceEntries,
@@ -18,6 +19,7 @@ import {
   tripCollaboratorsQueryOptions,
   tripDetailQueryOptions
 } from "@/modules/trips/queries/trip.queries";
+import { collaborationColorClassNames } from "@/theme";
 
 import { useNoteFilters } from "../hooks/use-note-filters";
 import {
@@ -451,8 +453,16 @@ function NoteThreadPresenceIndicator({ entries }: { entries: PresenceEntry[] }) 
       : t("presence.viewing", { name: primaryEntry.userName });
 
   return (
-    <div className="mb-3 inline-flex max-w-full items-center gap-1 rounded-md bg-accent/10 px-2 py-1 text-xs text-accent-foreground">
-      <span className="size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+    <div
+      className={cn(
+        "mb-3 inline-flex max-w-full items-center gap-1 rounded-md px-2 py-1 text-xs",
+        collaborationColorClassNames.presencePill
+      )}
+    >
+      <span
+        className={cn("size-1.5 shrink-0 rounded-full", collaborationColorClassNames.presenceDot)}
+        aria-hidden="true"
+      />
       <span className="truncate">
         {remainingCount > 0
           ? `${primaryLabel} · ${t("presence.more", { count: remainingCount })}`

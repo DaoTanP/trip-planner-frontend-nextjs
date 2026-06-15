@@ -2,6 +2,7 @@
 
 import {
   closestCenter,
+  DragOverlay,
   DndContext,
   KeyboardSensor,
   PointerSensor,
@@ -30,6 +31,7 @@ import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
 import { mapTravelModes, type MapTravelMode } from "@/modules/map/types/map.types";
 import type { PlaceDto } from "@/services/api/contracts";
 import { usePlannerStore } from "@/stores/use-planner-store";
+import { getTravelModeConfig } from "@/theme";
 
 import {
   useItineraryNotePreviews,
@@ -44,14 +46,20 @@ import {
   type ItemSyncState,
   type RouteSummaryByItem
 } from "../../utils/planner-workspace.utils";
+import { getDefaultItineraryItemTimezone } from "../../utils/timezone.utils";
 import { buildItineraryReorderIntent, getPlaceMap } from "../../utils/trip-editor.utils";
 import { ItineraryItemCard } from "./itinerary-item-card";
 import { PlaceSearchBox } from "./place-search-box";
 import type { StopRouteSegment, StopRouteTravelModeOption } from "./stop-sequence-rail";
-import { StopSequenceItem } from "./stop-sequence-item";
+import {
+  StopSequenceItem,
+  StopSequenceItemPreview,
+  type StopSequenceDragHandleProps
+} from "./stop-sequence-item";
 
 interface TripItineraryPanelProps {
   tripId: string;
+  tripTimezone?: string | null | undefined;
   items: ItineraryItem[];
   places: PlaceDto[];
   currentUserId?: string | undefined;
@@ -66,11 +74,24 @@ interface TripItineraryPanelProps {
 
 type InsertionAnchor = "start" | string;
 type RouteSummary = RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never;
+type DragPreviewSize = { width: number; height: number };
 
 const stopSequenceEstimateSize = 250;
+const inertDragHandleProps: StopSequenceDragHandleProps = {
+  attributes: {
+    role: "button",
+    tabIndex: -1,
+    "aria-disabled": true,
+    "aria-pressed": undefined,
+    "aria-roledescription": "sortable",
+    "aria-describedby": ""
+  },
+  listeners: undefined
+};
 
 export function TripItineraryPanel({
   tripId,
+  tripTimezone,
   items,
   places,
   currentUserId,
@@ -101,6 +122,12 @@ export function TripItineraryPanel({
   const [activeInsertion, setActiveInsertion] = useState<InsertionAnchor | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [dragPreviewSize, setDragPreviewSize] = useState<DragPreviewSize | null>(null);
+  const [expandedItemIds, setExpandedItemIds] = useState<Set<string>>(() => new Set());
+  const defaultItemTimezone = useMemo(
+    () => getDefaultItineraryItemTimezone(tripTimezone),
+    [tripTimezone]
+  );
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -125,7 +152,7 @@ export function TripItineraryPanel({
     () =>
       mapTravelModes.map((mode) => ({
         value: mode,
-        label: t(`routeModes.${mode}`),
+        label: t(getTravelModeConfig(mode).labelKey),
         description: t(`routeModeDescriptions.${mode}`)
       })),
     [t]
@@ -181,8 +208,19 @@ export function TripItineraryPanel({
     return () => window.cancelAnimationFrame(frame);
   }, [containerRef, isVirtualized, selectedItemId, selectedRowIndex]);
 
+  function resetDragState() {
+    setActiveId(null);
+    setOverId(null);
+    setDragPreviewSize(null);
+  }
+
   function handleItemDragStart(event: DragStartEvent) {
-    setActiveId(String(event.active.id));
+    const itemId = String(event.active.id);
+    const activeElement = document.getElementById(`stop-sequence-item-${itemId}`);
+    const rect = activeElement?.getBoundingClientRect() ?? event.active.rect.current.initial;
+
+    setActiveId(itemId);
+    setDragPreviewSize(rect ? { height: rect.height, width: rect.width } : null);
   }
 
   function handleItemDragOver(event: DragOverEvent) {
@@ -191,8 +229,7 @@ export function TripItineraryPanel({
 
   function handleItemDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    setActiveId(null);
-    setOverId(null);
+    resetDragState();
 
     if (!over || active.id === over.id) {
       return;
@@ -219,6 +256,7 @@ export function TripItineraryPanel({
     const payload = {
       placeId: place.id,
       types: [newItemType],
+      timezone: defaultItemTimezone,
       clientMutationId: crypto.randomUUID()
     } satisfies Parameters<typeof createItem.mutateAsync>[0];
     const beforeItemId = anchor === "start" ? orderedItems[0]?.id : undefined;
@@ -236,6 +274,20 @@ export function TripItineraryPanel({
     setActiveInsertion(anchor);
   }
 
+  function handleExpandedChange(itemId: string, isExpanded: boolean) {
+    setExpandedItemIds((current) => {
+      const next = new Set(current);
+
+      if (isExpanded) {
+        next.add(itemId);
+      } else {
+        next.delete(itemId);
+      }
+
+      return next;
+    });
+  }
+
   const renderStop = (item: ItineraryItem, visibleIndex: number) => {
     const routeSummary = routeSummaryByItem.get(item.id);
     const itemIndex = orderedIndexByItem.get(item.id) ?? 0;
@@ -250,6 +302,7 @@ export function TripItineraryPanel({
         tripId={tripId}
         item={item}
         place={item.placeId ? placeMap.get(item.placeId) : undefined}
+        defaultTimezone={defaultItemTimezone}
         currentUserId={currentUserId}
         routeSummary={routeSummary}
         routeTravelModeOptions={routeTravelModeOptions}
@@ -261,6 +314,7 @@ export function TripItineraryPanel({
         isLast={visibleIndex === visibleItems.length - 1}
         isSelected={selectedItemId === item.id}
         isHovered={hoveredItemId === item.id}
+        isExpanded={expandedItemIds.has(item.id)}
         sequence={sequenceByItem.get(item.id) ?? itemIndex + 1}
         syncState={syncStateByItem.get(item.id)}
         notePreview={notePreviewsByItem.get(item.id)}
@@ -273,8 +327,60 @@ export function TripItineraryPanel({
         onRouteLegSelect={selectRouteLeg}
         onRouteLegHover={setHoveredRouteLegId}
         onRouteTravelModeChange={onRouteTravelModeChange}
+        onExpandedChange={(isExpanded) => handleExpandedChange(item.id, isExpanded)}
         onNewItemTypeChange={setNewItemType}
         onSubmitPlaceInsertion={(place) => handleSubmitPlace(insertionAnchor, place)}
+        t={t}
+        itemT={itemT}
+      />
+    );
+  };
+
+  const renderDragOverlay = () => {
+    if (!activeId || !dragPreviewSize) {
+      return null;
+    }
+
+    const visibleIndex = visibleItems.findIndex((item) => item.id === activeId);
+    const item = visibleItems[visibleIndex];
+
+    if (!item) {
+      return null;
+    }
+
+    const routeSummary = routeSummaryByItem.get(item.id);
+    const itemIndex = orderedIndexByItem.get(item.id) ?? 0;
+    const shouldShowRouteLeg = visibleIndex > 0 && itemIndex > 0 && Boolean(routeSummary);
+    const isRouteLegSelected = routeSummary !== undefined && selectedRouteLegId === routeSummary.id;
+    const isRouteLegHovered = routeSummary !== undefined && hoveredRouteLegId === routeSummary.id;
+
+    return (
+      <StopSequenceRowPreview
+        width={dragPreviewSize.width}
+        height={dragPreviewSize.height}
+        tripId={tripId}
+        item={item}
+        place={item.placeId ? placeMap.get(item.placeId) : undefined}
+        defaultTimezone={defaultItemTimezone}
+        currentUserId={currentUserId}
+        routeSummary={routeSummary}
+        routeTravelModeOptions={routeTravelModeOptions}
+        showRouteLeg={shouldShowRouteLeg}
+        isRouteLegSelected={isRouteLegSelected}
+        isRouteLegHovered={isRouteLegHovered}
+        isRouteFocused={focusedRouteItemIdSet.has(item.id)}
+        isFirst={visibleIndex === 0}
+        isLast={visibleIndex === visibleItems.length - 1}
+        isSelected={selectedItemId === item.id}
+        isHovered={hoveredItemId === item.id}
+        isExpanded={expandedItemIds.has(item.id)}
+        sequence={sequenceByItem.get(item.id) ?? itemIndex + 1}
+        syncState={syncStateByItem.get(item.id)}
+        notePreview={notePreviewsByItem.get(item.id)}
+        locale={locale}
+        onRouteLegSelect={selectRouteLeg}
+        onRouteLegHover={setHoveredRouteLegId}
+        onRouteTravelModeChange={onRouteTravelModeChange}
         t={t}
         itemT={itemT}
       />
@@ -347,10 +453,7 @@ export function TripItineraryPanel({
           onDragStart={handleItemDragStart}
           onDragOver={handleItemDragOver}
           onDragEnd={handleItemDragEnd}
-          onDragCancel={() => {
-            setActiveId(null);
-            setOverId(null);
-          }}
+          onDragCancel={resetDragState}
         >
           <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
             {isVirtualized ? (
@@ -384,6 +487,9 @@ export function TripItineraryPanel({
               </div>
             )}
           </SortableContext>
+          <DragOverlay adjustScale={false} dropAnimation={null} zIndex={60}>
+            {renderDragOverlay()}
+          </DragOverlay>
         </DndContext>
       ) : (
         <div className="grid gap-3 rounded-md border border-dashed bg-card p-4 text-sm text-muted-foreground">
@@ -422,6 +528,7 @@ function StopSequenceRow({
   tripId,
   item,
   place,
+  defaultTimezone,
   currentUserId,
   routeSummary,
   routeTravelModeOptions,
@@ -433,6 +540,7 @@ function StopSequenceRow({
   isLast,
   isSelected,
   isHovered,
+  isExpanded,
   sequence,
   syncState,
   notePreview,
@@ -445,6 +553,7 @@ function StopSequenceRow({
   onRouteLegSelect,
   onRouteLegHover,
   onRouteTravelModeChange,
+  onExpandedChange,
   onNewItemTypeChange,
   onSubmitPlaceInsertion,
   t,
@@ -453,6 +562,7 @@ function StopSequenceRow({
   tripId: string;
   item: ItineraryItem;
   place?: PlaceDto | undefined;
+  defaultTimezone?: string | null | undefined;
   currentUserId?: string | undefined;
   routeSummary?:
     | (RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never)
@@ -466,6 +576,7 @@ function StopSequenceRow({
   isLast: boolean;
   isSelected: boolean;
   isHovered: boolean;
+  isExpanded: boolean;
   sequence: number;
   syncState?: ItemSyncState | undefined;
   notePreview?: StopNotePreviewState | undefined;
@@ -478,6 +589,7 @@ function StopSequenceRow({
   onRouteLegSelect: (routeLegId?: string) => void;
   onRouteLegHover: (routeLegId?: string) => void;
   onRouteTravelModeChange: (routeLegId: string, travelMode: MapTravelMode) => void;
+  onExpandedChange: (isExpanded: boolean) => void;
   onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlaceInsertion: (place: PlaceDto) => Promise<void>;
   t: ReturnType<typeof useTranslations>;
@@ -534,16 +646,126 @@ function StopSequenceRow({
             tripId={tripId}
             item={item}
             place={place}
+            defaultTimezone={defaultTimezone}
             currentUserId={currentUserId}
             routeSummary={routeSummary}
             syncState={syncState}
             isRouteFocused={isRouteFocused}
+            isExpanded={isExpanded}
+            onExpandedChange={onExpandedChange}
             notePreview={notePreview}
             dragHandleProps={dragHandleProps}
           />
         )}
       </StopSequenceItem>
     </div>
+  );
+}
+
+function StopSequenceRowPreview({
+  width,
+  height,
+  tripId,
+  item,
+  place,
+  defaultTimezone,
+  currentUserId,
+  routeSummary,
+  routeTravelModeOptions,
+  showRouteLeg,
+  isRouteLegSelected,
+  isRouteLegHovered,
+  isRouteFocused,
+  isFirst,
+  isLast,
+  isSelected,
+  isHovered,
+  isExpanded,
+  sequence,
+  syncState,
+  notePreview,
+  locale,
+  onRouteLegSelect,
+  onRouteLegHover,
+  onRouteTravelModeChange,
+  t,
+  itemT
+}: {
+  width: number;
+  height: number;
+  tripId: string;
+  item: ItineraryItem;
+  place?: PlaceDto | undefined;
+  defaultTimezone?: string | null | undefined;
+  currentUserId?: string | undefined;
+  routeSummary?:
+    | (RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never)
+    | undefined;
+  routeTravelModeOptions: StopRouteTravelModeOption[];
+  showRouteLeg: boolean;
+  isRouteLegSelected: boolean;
+  isRouteLegHovered: boolean;
+  isRouteFocused: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  isSelected: boolean;
+  isHovered: boolean;
+  isExpanded: boolean;
+  sequence: number;
+  syncState?: ItemSyncState | undefined;
+  notePreview?: StopNotePreviewState | undefined;
+  locale: string;
+  onRouteLegSelect: (routeLegId?: string) => void;
+  onRouteLegHover: (routeLegId?: string) => void;
+  onRouteTravelModeChange: (routeLegId: string, travelMode: MapTravelMode) => void;
+  t: ReturnType<typeof useTranslations>;
+  itemT: ReturnType<typeof useTranslations>;
+}) {
+  const routeSegment =
+    showRouteLeg && routeSummary
+      ? ({
+          id: routeSummary.id,
+          travelMode: routeSummary.travelMode,
+          travelModeLabel: t(`routeModes.${routeSummary.travelMode}`),
+          travelModeSelectLabel: t("travelModeLabel"),
+          routeModePickerTitle: t("routeModePickerTitle"),
+          travelModeOptions: routeTravelModeOptions,
+          metrics: formatRouteMetrics(routeSummary, locale, t, itemT),
+          routeSelectLabel: formatRouteSegmentAriaLabel(routeSummary, locale, t, itemT),
+          isSelected: isRouteLegSelected,
+          isHovered: isRouteLegHovered,
+          onFocusRoute: () => onRouteLegSelect(routeSummary.id),
+          onHover: (nextIsHovered) => onRouteLegHover(nextIsHovered ? routeSummary.id : undefined),
+          onTravelModeChange: (travelMode) => onRouteTravelModeChange(routeSummary.id, travelMode)
+        } satisfies StopRouteSegment)
+      : undefined;
+
+  return (
+    <StopSequenceItemPreview
+      width={width}
+      height={height}
+      sequence={sequence}
+      label={t("stopLabel", { stop: sequence })}
+      isFirst={isFirst}
+      isLast={isLast}
+      isSelected={isSelected}
+      isActive={isHovered || isRouteFocused}
+      routeSegment={routeSegment}
+    >
+      <ItineraryItemCard
+        tripId={tripId}
+        item={item}
+        place={place}
+        defaultTimezone={defaultTimezone}
+        currentUserId={currentUserId}
+        routeSummary={routeSummary}
+        syncState={syncState}
+        isRouteFocused={isRouteFocused}
+        isExpanded={isExpanded}
+        notePreview={notePreview}
+        dragHandleProps={inertDragHandleProps}
+      />
+    </StopSequenceItemPreview>
   );
 }
 

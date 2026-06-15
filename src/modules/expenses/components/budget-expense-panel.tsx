@@ -9,10 +9,12 @@ import { FieldError } from "@/components/shared/field-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
 import { NotePanel } from "@/modules/notes/components/note-panel";
 import { getPlaceMap } from "@/modules/trips/utils/trip-editor.utils";
 import type { PlaceDto } from "@/services/api/contracts";
+import { semanticColorClassNames } from "@/theme";
 
 import {
   useCreateExpenseMutation,
@@ -297,7 +299,12 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
       ) : null}
 
       {budgetQuery.isError || expensesQuery.isError ? (
-        <div className="grid gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <div
+          className={cn(
+            "grid gap-2 rounded-md border p-3 text-sm",
+            semanticColorClassNames.errorSubtle
+          )}
+        >
           <span>{t("loadError")}</span>
           <div className="flex flex-wrap gap-2">
             {budgetQuery.isError ? (

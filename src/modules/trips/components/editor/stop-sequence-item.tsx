@@ -6,6 +6,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { tripStateColorClassNames } from "@/theme";
 
 import { StopSequenceRail, type StopRouteSegment } from "./stop-sequence-rail";
 
@@ -26,6 +27,24 @@ interface StopSequenceItemProps {
   routeSegment?: StopRouteSegment | undefined;
   children: (dragHandleProps: StopSequenceDragHandleProps) => ReactNode;
   insertionSlot?: ReactNode;
+}
+
+interface StopSequenceItemFrameProps {
+  sequence: number;
+  label: string;
+  isFirst: boolean;
+  isLast: boolean;
+  isSelected: boolean;
+  isActive: boolean;
+  isDragging?: boolean | undefined;
+  routeSegment?: StopRouteSegment | undefined;
+  children: ReactNode;
+  insertionSlot?: ReactNode;
+}
+
+interface StopSequenceItemPreviewProps extends StopSequenceItemFrameProps {
+  width: number;
+  height: number;
 }
 
 export function StopSequenceItem({
@@ -57,30 +76,101 @@ export function StopSequenceItem({
         transition
       }}
       className={cn(
-        "scroll-mt-24",
-        isOver && "border-t-2 border-primary pt-2",
+        "relative scroll-mt-24",
+        isOver && [
+          "before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-0.5",
+          tripStateColorClassNames.insertionIndicator
+        ],
         isDragging && "relative z-20 opacity-80"
       )}
     >
-      <div className="flex gap-4">
-        <StopSequenceRail
-          sequence={sequence}
-          label={label}
-          isFirst={isFirst}
-          isLast={isLast}
-          isSelected={isSelected}
-          isActive={isActive}
-          isDragging={isDragging}
-          routeSegment={routeSegment}
-        />
-        <div className={cn("min-w-0 flex-1", routeSegment ? "pt-9" : "pt-2")}>
-          {children({
-            attributes,
-            listeners
-          })}
+      <StopSequenceItemFrame
+        sequence={sequence}
+        label={label}
+        isFirst={isFirst}
+        isLast={isLast}
+        isSelected={isSelected}
+        isActive={isActive}
+        isDragging={isDragging}
+        routeSegment={routeSegment}
+        insertionSlot={insertionSlot}
+      >
+        {children({
+          attributes,
+          listeners
+        })}
+      </StopSequenceItemFrame>
+    </div>
+  );
+}
 
-          {insertionSlot ? <div className="mt-1">{insertionSlot}</div> : null}
-        </div>
+export function StopSequenceItemPreview({
+  width,
+  height,
+  sequence,
+  label,
+  isFirst,
+  isLast,
+  isSelected,
+  isActive,
+  routeSegment,
+  children,
+  insertionSlot
+}: StopSequenceItemPreviewProps) {
+  return (
+    <div
+      className="pointer-events-none"
+      style={{
+        height,
+        width
+      }}
+      aria-hidden="true"
+    >
+      <StopSequenceItemFrame
+        sequence={sequence}
+        label={label}
+        isFirst={isFirst}
+        isLast={isLast}
+        isSelected={isSelected}
+        isActive={isActive}
+        isDragging
+        routeSegment={routeSegment}
+        insertionSlot={insertionSlot}
+      >
+        {children}
+      </StopSequenceItemFrame>
+    </div>
+  );
+}
+
+function StopSequenceItemFrame({
+  sequence,
+  label,
+  isFirst,
+  isLast,
+  isSelected,
+  isActive,
+  isDragging = false,
+  routeSegment,
+  children,
+  insertionSlot
+}: StopSequenceItemFrameProps) {
+  return (
+    <div className="flex gap-4">
+      <StopSequenceRail
+        sequence={sequence}
+        label={label}
+        isFirst={isFirst}
+        isLast={isLast}
+        isSelected={isSelected}
+        isActive={isActive}
+        isDragging={isDragging}
+        routeSegment={routeSegment}
+      />
+      <div className={cn("min-w-0 flex-1", routeSegment ? "pt-9" : "pt-2")}>
+        {children}
+
+        {insertionSlot ? <div className="mt-1">{insertionSlot}</div> : null}
       </div>
     </div>
   );

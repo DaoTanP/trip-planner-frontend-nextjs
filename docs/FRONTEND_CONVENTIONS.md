@@ -59,6 +59,12 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 ## Styling
 
 - Use Tailwind utilities and design tokens from `globals.css`.
+- Define raw color literals only in `src/theme/**` or `src/app/globals.css`.
+- Themeable UI colors should use CSS variables; map SDK paint colors should use domain-owned TS tokens.
+- Keep color ownership domain-driven: semantic colors feed status and sync colors, and trip state colors feed route and marker colors.
+- Use UI state color tokens for reusable non-domain control states such as selected popover options.
+- Keep route and marker color modules independent; neither module should import from the other.
+- Use deterministic collaboration color helpers instead of indexing a palette in components.
 - Keep cards for repeated items, forms, modals, and framed tools.
 - Avoid nested cards.
 - Avoid decorative gradients and single-hue palettes.

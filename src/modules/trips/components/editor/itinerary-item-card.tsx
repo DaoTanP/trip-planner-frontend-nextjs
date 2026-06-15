@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   ChevronDown,
   ChevronUp,
+  Circle,
   GripVertical,
   MapPin,
   MessageSquare,
@@ -17,7 +18,7 @@ import {
   Utensils
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,13 @@ import { NotePanel } from "@/modules/notes/components/note-panel";
 import type { CollaborativeNote } from "@/modules/notes/types/note.types";
 import type { PlaceDto } from "@/services/api/contracts";
 import { usePlannerStore } from "@/stores/use-planner-store";
+import {
+  collaborationColorClassNames,
+  getItineraryItemTypeCategoryColor,
+  syncColorClassNames,
+  syncStateBadgeClassNames,
+  tripStateColorClassNames
+} from "@/theme";
 
 import type { StopNotePreviewState } from "../../hooks/use-itinerary-note-previews";
 import {
@@ -48,18 +56,22 @@ import {
   type ItemSyncState,
   type RouteSummaryByItem
 } from "../../utils/planner-workspace.utils";
+import { DurationMetadataEditor, ScheduleMetadataEditor } from "./itinerary-item-metadata-editors";
 import { PlaceSearchBox } from "./place-search-box";
 
 interface ItineraryItemCardProps {
   tripId: string;
   item: ItineraryItem;
   place?: PlaceDto | undefined;
+  defaultTimezone?: string | null | undefined;
   currentUserId?: string | undefined;
   routeSummary?:
     | (RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never)
     | undefined;
   syncState?: ItemSyncState | undefined;
   isRouteFocused?: boolean | undefined;
+  isExpanded?: boolean | undefined;
+  onExpandedChange?: ((isExpanded: boolean) => void) | undefined;
   notePreview?: StopNotePreviewState | undefined;
   dragHandleProps: {
     attributes: DraggableAttributes;
@@ -78,14 +90,19 @@ const typeIcons = {
   OTHER: Sparkles
 } satisfies Record<ItineraryItemType, typeof Sparkles>;
 
+const summaryCharacterLimit = 150;
+
 export function ItineraryItemCard({
   tripId,
   item,
   place,
+  defaultTimezone,
   currentUserId,
   routeSummary,
   syncState,
   isRouteFocused = false,
+  isExpanded: controlledIsExpanded,
+  onExpandedChange,
   notePreview,
   dragHandleProps
 }: ItineraryItemCardProps) {
@@ -97,7 +114,8 @@ export function ItineraryItemCard({
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
   const updateItem = useUpdateItineraryItemMutation(tripId);
   const deleteItem = useDeleteItineraryItemMutation(tripId);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const summaryTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const [internalIsExpanded, setInternalIsExpanded] = useState(false);
   const [isAssigningPlace, setIsAssigningPlace] = useState(false);
   const [isSummaryFocused, setIsSummaryFocused] = useState(false);
   const [draft, setDraft] = useState(() => ({
@@ -107,12 +125,13 @@ export function ItineraryItemCard({
   const summary = draft.version === item.version ? draft.summary : (item.summary ?? "");
   const firstType = item.types[0] ?? "OTHER";
   const TypeIcon = typeIcons[firstType];
+  const typeColor = getItineraryItemTypeCategoryColor(firstType);
+  const isExpanded = controlledIsExpanded ?? internalIsExpanded;
   const isSelected = selectedItemId === item.id;
   const isHovered = hoveredItemId === item.id;
   const tags = getItemMetadataList(item, "tags");
   const reminder = getItemMetadataString(item, "reminder");
   const bookingState = getItemMetadataString(item, "bookingState");
-  const scheduleLabel = useMemo(() => formatSchedule(item, locale, t), [item, locale, t]);
   const updatedAt = useMemo(
     () =>
       new Intl.DateTimeFormat(locale, {
@@ -142,8 +161,30 @@ export function ItineraryItemCard({
     enabled: isSummaryFocused || isAssigningPlace
   });
 
+  useEffect(() => {
+    const textarea = summaryTextareaRef.current;
+
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [summary]);
+
   function patchItem(payload: UpdateItineraryItemPayload) {
     updateItem.mutate({ itemId: item.id, payload });
+  }
+
+  async function commitItemUpdate(payload: UpdateItineraryItemPayload) {
+    await updateItem.mutateAsync({ itemId: item.id, payload });
+  }
+
+  function setExpanded(nextValue: boolean | ((current: boolean) => boolean)) {
+    const nextIsExpanded = typeof nextValue === "function" ? nextValue(isExpanded) : nextValue;
+
+    setInternalIsExpanded(nextIsExpanded);
+    onExpandedChange?.(nextIsExpanded);
   }
 
   function handleSummaryBlur() {
@@ -175,34 +216,68 @@ export function ItineraryItemCard({
     <article
       className={cn(
         "group w-full rounded-md border bg-card p-3 shadow-sm transition-colors",
-        isSelected && "border-primary ring-2 ring-primary/20",
-        isHovered && !isSelected && "border-accent ring-1 ring-accent/30",
-        isRouteFocused && !isSelected && "bg-accent/10",
-        syncState === "conflicted" && "border-destructive ring-2 ring-destructive/20"
+        isSelected && tripStateColorClassNames.selectedFrame,
+        isHovered && !isSelected && tripStateColorClassNames.hoverFrame,
+        isRouteFocused && !isSelected && tripStateColorClassNames.focusedSurface,
+        syncState === "conflicted" && syncColorClassNames.conflictFrame
       )}
       onMouseEnter={() => setHoveredItemId(item.id)}
       onMouseLeave={() => setHoveredItemId(undefined)}
       onClick={() => selectItem(item.id, item.placeId)}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
         <div className="min-w-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            <span>{scheduleLabel}</span>
+          <div className="flex min-w-0 items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-2">
+                <h3 className="min-w-0 truncate text-base font-semibold leading-tight">
+                  {placeName}
+                </h3>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-normal",
+                    typeColor.badgeClassName
+                  )}
+                  title={t(`types.${firstType}`)}
+                >
+                  {firstType}
+                </span>
+              </div>
+            </div>
             {syncState === "conflicted" ? (
               <span
-                className={cn("rounded-md px-1.5 py-0.5", "bg-destructive/10 text-destructive")}
+                className={cn(
+                  "shrink-0 rounded-md px-1.5 py-0.5 text-xs",
+                  syncColorClassNames.conflictBadge
+                )}
               >
                 {t(`sync.${syncState}`)}
               </span>
             ) : null}
           </div>
 
-          <div className="mt-1 min-w-0">
-            <h3 className="truncate text-lg font-semibold leading-tight">{placeName}</h3>
-            {placeAddress ? (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">{placeAddress}</p>
-            ) : null}
+          <div className="mt-2" onClick={(event) => event.stopPropagation()}>
+            <textarea
+              ref={summaryTextareaRef}
+              value={summary}
+              rows={1}
+              maxLength={summaryCharacterLimit}
+              className="block min-h-8 w-full resize-none overflow-hidden rounded-md border-0 bg-transparent py-1.5 text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 focus:bg-muted/40"
+              placeholder={t("summaryPlaceholder")}
+              onChange={(event) =>
+                setDraft({
+                  version: item.version,
+                  summary: event.target.value.slice(0, summaryCharacterLimit)
+                })
+              }
+              onFocus={() => setIsSummaryFocused(true)}
+              onBlur={handleSummaryBlur}
+            />
           </div>
+
+          {placeAddress ? (
+            <p className="mt-1 truncate text-xs text-muted-foreground">{placeAddress}</p>
+          ) : null}
 
           {isAssigningPlace ? (
             <div className="mt-3" onClick={(event) => event.stopPropagation()}>
@@ -223,19 +298,43 @@ export function ItineraryItemCard({
             item={item}
             placeId={place?.id}
             notePreview={notePreview}
-            planningLine={item.summary}
             isExpanded={isExpanded}
-            onExpand={() => setIsExpanded(true)}
+            onExpand={() => setExpanded(true)}
           />
 
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+            <ScheduleMetadataEditor
+              startsAt={item.startsAt}
+              timezone={item.timezone}
+              defaultTimezone={defaultTimezone}
+              disabled={updateItem.isPending}
+              onCommit={({ startsAt, timezone }) =>
+                commitItemUpdate({
+                  startsAt,
+                  timezone,
+                  expectedVersion: item.version
+                })
+              }
+            />
+            <DurationMetadataEditor
+              durationMinutes={item.durationMinutes}
+              disabled={updateItem.isPending}
+              onCommit={(durationMinutes) =>
+                commitItemUpdate({
+                  durationMinutes,
+                  expectedVersion: item.version
+                })
+              }
+            />
             <span className="inline-flex items-center gap-1">
-              <TypeIcon className="size-3" aria-hidden="true" />
-              {item.types.map((type) => t(`types.${type}`)).join(" / ")}
+              <Circle className="size-3 shrink-0" aria-hidden="true" />
+              {statusLabel}
             </span>
-            <span>{statusLabel}</span>
-            {item.durationMinutes ? (
-              <span>{t("duration", { minutes: item.durationMinutes })}</span>
+            {notePreview?.noteCount !== null && notePreview?.noteCount !== undefined ? (
+              <span className="inline-flex items-center gap-1">
+                <MessageSquare className="size-3.5 shrink-0" aria-hidden="true" />
+                {notePreview.noteCount}
+              </span>
             ) : null}
             {activePresence.length > 0 ? <StopPresenceIndicator entries={activePresence} /> : null}
           </div>
@@ -245,24 +344,6 @@ export function ItineraryItemCard({
               className="mt-3 grid gap-3 border-t pt-3 text-xs text-muted-foreground"
               onClick={(event) => event.stopPropagation()}
             >
-              <label className="grid gap-1">
-                <span className="font-medium text-foreground">{t("summaryLabel")}</span>
-                <textarea
-                  value={summary}
-                  rows={3}
-                  className="min-h-20 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder={t("summaryPlaceholder")}
-                  onChange={(event) =>
-                    setDraft({
-                      version: item.version,
-                      summary: event.target.value
-                    })
-                  }
-                  onFocus={() => setIsSummaryFocused(true)}
-                  onBlur={handleSummaryBlur}
-                />
-              </label>
-
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
@@ -289,6 +370,10 @@ export function ItineraryItemCard({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-muted-foreground">
+                  <TypeIcon className="size-3" aria-hidden="true" />
+                  {item.types.map((type) => t(`types.${type}`)).join(" / ")}
+                </span>
                 <select
                   value={firstType}
                   aria-label={t("typeLabel")}
@@ -339,7 +424,14 @@ export function ItineraryItemCard({
                   <span className="rounded-md border px-1.5 py-0.5">{reminder}</span>
                 ) : null}
                 {syncState && syncState !== "conflicted" ? (
-                  <span>{t(`sync.${syncState}`)}</span>
+                  <span
+                    className={cn(
+                      "rounded-md border px-1.5 py-0.5",
+                      syncStateBadgeClassNames[syncState]
+                    )}
+                  >
+                    {t(`sync.${syncState}`)}
+                  </span>
                 ) : null}
                 <span className="truncate">{t("editedAt", { value: updatedAt })}</span>
               </div>
@@ -356,7 +448,7 @@ export function ItineraryItemCard({
             aria-label={isExpanded ? t("collapse") : t("expand")}
             onClick={(event) => {
               event.stopPropagation();
-              setIsExpanded((current) => !current);
+              setExpanded((current) => !current);
             }}
           >
             {isExpanded ? (
@@ -407,7 +499,6 @@ function StopNotesPreview({
   item,
   placeId,
   notePreview,
-  planningLine,
   isExpanded,
   onExpand
 }: {
@@ -415,7 +506,6 @@ function StopNotesPreview({
   item: ItineraryItem;
   placeId?: string | undefined;
   notePreview?: StopNotePreviewState | undefined;
-  planningLine: string | null;
   isExpanded: boolean;
   onExpand: () => void;
 }) {
@@ -443,7 +533,7 @@ function StopNotesPreview({
     );
   }
 
-  const previewCapacity = planningLine ? 2 : 3;
+  const previewCapacity = 3;
   const notes = notePreview?.notes ?? [];
   const visibleNotes = notes.slice(0, previewCapacity);
   const noteCount = notePreview?.noteCount ?? null;
@@ -453,7 +543,7 @@ function StopNotesPreview({
     notes.length > visibleNotes.length ||
     (hiddenCount ?? 0) > 0;
 
-  if (!planningLine && visibleNotes.length === 0) {
+  if (visibleNotes.length === 0) {
     return hasMoreNotes ? (
       <div className="mt-2">
         <MoreNotesButton hiddenCount={hiddenCount} onExpand={onExpand} />
@@ -464,7 +554,6 @@ function StopNotesPreview({
   return (
     <div className="mt-2 grid gap-1.5">
       <ul className="grid gap-1 text-sm text-foreground">
-        {planningLine ? <li className="line-clamp-2 min-w-0">{planningLine}</li> : null}
         {visibleNotes.map((note) => (
           <NotePreviewLine key={note.id} note={note} />
         ))}
@@ -489,8 +578,16 @@ function StopPresenceIndicator({ entries }: { entries: PresenceEntry[] }) {
       : t("presence.viewing", { name: primaryEntry.userName });
 
   return (
-    <span className="inline-flex min-w-0 items-center gap-1 rounded-md bg-accent/10 px-1.5 py-0.5 text-accent-foreground">
-      <span className="size-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
+    <span
+      className={cn(
+        "inline-flex min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5",
+        collaborationColorClassNames.presencePill
+      )}
+    >
+      <span
+        className={cn("size-1.5 shrink-0 rounded-full", collaborationColorClassNames.presenceDot)}
+        aria-hidden="true"
+      />
       <span className="truncate">
         {remainingCount > 0
           ? `${primaryLabel} / ${t("presence.more", { count: remainingCount })}`
@@ -528,39 +625,6 @@ function MoreNotesButton({
 
 function NotePreviewLine({ note }: { note: CollaborativeNote }) {
   return <li className="line-clamp-2 min-w-0">{note.body}</li>;
-}
-
-function formatSchedule(
-  item: ItineraryItem,
-  locale: string,
-  t: ReturnType<typeof useTranslations>
-) {
-  if (!item.startsAt) {
-    return t("unscheduled");
-  }
-
-  const timezone = item.timezone;
-  const start = new Date(item.startsAt);
-  const dateFormatter = new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "short",
-    timeZone: timezone
-  });
-  const timeFormatter = new Intl.DateTimeFormat(locale, {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: timezone
-  });
-  const startLabel = `${dateFormatter.format(start)} / ${timeFormatter.format(start)}`;
-
-  if (item.durationMinutes === null) {
-    return startLabel;
-  }
-
-  const end = new Date(start.getTime() + item.durationMinutes * 60_000);
-  const endLabel = timeFormatter.format(end);
-
-  return `${startLabel} - ${endLabel}`;
 }
 
 function formatDistance(meters: number | null, locale: string) {

@@ -1,5 +1,9 @@
 import type { MapMarker } from "@/modules/map/providers/shared/map-marker.types";
-import type { MapRoute, MapRoutePoint } from "@/modules/map/providers/shared/map-route.types";
+import type {
+  MapRoute,
+  MapRoutePoint,
+  MapTravelMode
+} from "@/modules/map/providers/shared/map-route.types";
 import type { MapViewport } from "@/modules/map/providers/shared/map-provider.types";
 
 export type {
@@ -17,6 +21,7 @@ export type {
   MapTravelMode,
   RoutePoint
 } from "@/modules/map/providers/shared/map-route.types";
+export { mapTravelModes } from "@/modules/map/providers/shared/map-route.types";
 
 export interface TripMapProps {
   markers: MapMarker[];
@@ -41,6 +46,7 @@ export type DerivedRouteLeg = {
   toItemId: string;
   fromPlaceId: string;
   toPlaceId: string;
+  travelMode: MapTravelMode;
   distanceMeters?: number | undefined;
   durationSeconds?: number | undefined;
   geometry?: {

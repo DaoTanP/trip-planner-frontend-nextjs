@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -22,7 +22,15 @@ import { useCreateItineraryItemMutation } from "@/modules/itinerary/mutations/us
 import { mapConfig } from "@/modules/map/config/map.config";
 import { MapProviderError } from "@/modules/map/providers/shared/map-provider-error";
 import { mapRouteQueryOptions } from "@/modules/map/queries/map-route.queries";
-import type { MapMarker, MapViewport } from "@/modules/map/types/map.types";
+import type {
+  DerivedRouteLeg,
+  MapMarker,
+  MapRoute,
+  MapRoutePoint,
+  MapRouteRequest,
+  MapTravelMode,
+  MapViewport
+} from "@/modules/map/types/map.types";
 import { getRouteRenderPoints } from "@/modules/map/utils/map-route-render.utils";
 import {
   itineraryInfiniteQueryOptions,
@@ -42,8 +50,6 @@ import { usePlannerStore } from "@/stores/use-planner-store";
 
 import { tripDetailQueryOptions } from "../../queries/trip.queries";
 import {
-  buildDerivedRouteLegs,
-  getAdjacentRouteLegIds,
   getRouteLegAdjacentItemIds,
   getRouteLegPoints,
   getItineraryMapMarkers,
@@ -78,6 +84,24 @@ type MapStopCandidate = {
   place: ReverseGeocodeResult;
 };
 
+type RouteLegRequest = {
+  id: string;
+  fromItemId: string;
+  toItemId: string;
+  fromPlaceId: string;
+  toPlaceId: string;
+  travelMode: MapTravelMode;
+  fromPoint: MapRoutePoint;
+  toPoint: MapRoutePoint;
+};
+
+type RouteGroupRequest = {
+  id: string;
+  travelMode: MapTravelMode;
+  legs: RouteLegRequest[];
+  request: MapRouteRequest;
+};
+
 type EditorTab = "stops" | "budget" | "notes";
 
 const defaultMapViewport: MapViewport = {
@@ -106,7 +130,6 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const selectedItemFocusRequestId = usePlannerStore((state) => state.selectedItemFocusRequestId);
   const hoveredItemId = usePlannerStore((state) => state.hoveredItemId);
   const selectedRouteLegId = usePlannerStore((state) => state.selectedRouteLegId);
-  const hoveredRouteLegId = usePlannerStore((state) => state.hoveredRouteLegId);
   const selectItem = usePlannerStore((state) => state.selectItem);
   const selectRouteLeg = usePlannerStore((state) => state.selectRouteLeg);
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
@@ -115,6 +138,30 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const [reverseGeocodingTripId, setReverseGeocodingTripId] = useState<string | undefined>();
   const [isAddingMapStop, setIsAddingMapStop] = useState(false);
   const [activeTab, setActiveTab] = useState<EditorTab>("stops");
+  const [routeTravelModeByLegState, setRouteTravelModeByLegState] = useState<{
+    tripId: string;
+    travelModes: Record<string, MapTravelMode>;
+  }>(() => ({
+    tripId,
+    travelModes: {}
+  }));
+  const routeTravelModeByLeg = useMemo(
+    () =>
+      routeTravelModeByLegState.tripId === tripId ? routeTravelModeByLegState.travelModes : {},
+    [routeTravelModeByLegState, tripId]
+  );
+  const setRouteLegTravelMode = useCallback(
+    (routeLegId: string, travelMode: MapTravelMode) => {
+      setRouteTravelModeByLegState((current) => ({
+        tripId,
+        travelModes: {
+          ...(current.tripId === tripId ? current.travelModes : {}),
+          [routeLegId]: travelMode
+        }
+      }));
+    },
+    [tripId]
+  );
   const [viewportState, setViewportState] = useState<{
     tripId: string;
     viewport: MapViewport;
@@ -134,6 +181,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const addMapStopLockRef = useRef(false);
   const selectedFocusKeyRef = useRef<string | undefined>(undefined);
   const selectionContextKeyRef = useRef<string | undefined>(undefined);
+  const skipNextSelectionDraftCancelRef = useRef(false);
   const currentUser = sessionQuery.data?.user;
   useTripPresenceConnection({ tripId, user: currentUser });
   usePresenceSource({
@@ -179,21 +227,57 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     () => getProviderRouteRequestPoints(markers),
     [markers]
   );
-  const routeRequest = useMemo(
-    () => ({
-      points: providerRouteRequestPoints,
-      travelMode: "driving" as const
-    }),
-    [providerRouteRequestPoints]
-  );
-  const routeQuery = useQuery(mapRouteQueryOptions(routeRequest));
-  const routeError = routeQuery.error;
-  const routeResult = routeError || isRouteDataIncomplete ? undefined : routeQuery.data;
   const routePointCount = providerRouteRequestPoints.length;
-  const renderedRoute = useMemo(() => getRouteRenderPoints(routeResult), [routeResult]);
+  const routeCanBeRequested = routePointCount >= 2;
+  const routeLegRequests = useMemo(
+    () => buildRouteLegRequests(markers, routeTravelModeByLeg),
+    [markers, routeTravelModeByLeg]
+  );
+  const routeGroups = useMemo(() => buildRouteGroups(routeLegRequests), [routeLegRequests]);
+  const routeGroupQueries = useQueries({
+    queries: routeGroups.map((routeGroup) => mapRouteQueryOptions(routeGroup.request))
+  });
+  const routeError = routeGroupQueries.reduce<Error | undefined>((currentError, query) => {
+    if (currentError) {
+      return currentError;
+    }
+
+    return query.error instanceof Error ? query.error : undefined;
+  }, undefined);
+  const areRouteGroupsResolved =
+    !isRouteDataIncomplete &&
+    routeCanBeRequested &&
+    routeGroups.length > 0 &&
+    routeGroupQueries.length === routeGroups.length &&
+    routeGroupQueries.every((query) => query.data !== undefined && query.error === null);
+  const routeResult = useMemo(
+    () =>
+      areRouteGroupsResolved
+        ? buildAggregateRouteResult(
+            routeGroupQueries.map((query) => query.data),
+            providerRouteRequestPoints
+          )
+        : undefined,
+    [areRouteGroupsResolved, providerRouteRequestPoints, routeGroupQueries]
+  );
   const routeLegs = useMemo(
-    () => buildDerivedRouteLegs(routeSourceItems, places, routeResult),
-    [places, routeResult, routeSourceItems]
+    () =>
+      buildRouteLegsFromRouteGroups(
+        routeGroups,
+        routeGroupQueries.map((query) => query.data)
+      ),
+    [routeGroups, routeGroupQueries]
+  );
+  const renderedRoute = useMemo(
+    () =>
+      areRouteGroupsResolved
+        ? getRouteLegPoints(
+            routeLegs.map((routeLeg) => routeLeg.id),
+            routeLegs,
+            markers
+          )
+        : [],
+    [areRouteGroupsResolved, markers, routeLegs]
   );
   const routeGapCount = useMemo(() => {
     if (placesQuery.isError || isRouteDataIncomplete) {
@@ -212,19 +296,17 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       return typeof place.latitude !== "number" || typeof place.longitude !== "number";
     }).length;
   }, [isRouteDataIncomplete, places, placesQuery.isError, routeSourceItems]);
-  const focusedRouteLegId = hoveredRouteLegId ?? selectedRouteLegId;
   const focusedRouteItemIds = useMemo(
-    () => getRouteLegAdjacentItemIds(focusedRouteLegId, routeLegs),
-    [focusedRouteLegId, routeLegs]
+    () => getRouteLegAdjacentItemIds(selectedRouteLegId, routeLegs),
+    [routeLegs, selectedRouteLegId]
   );
   const focusedMarkerIds = useMemo(
     () => focusedRouteItemIds.map((itemId) => `item:${itemId}`),
     [focusedRouteItemIds]
   );
   const activeRouteLegIds = useMemo(
-    () =>
-      focusedRouteLegId ? [focusedRouteLegId] : getAdjacentRouteLegIds(selectedItemId, routeLegs),
-    [focusedRouteLegId, routeLegs, selectedItemId]
+    () => (selectedRouteLegId ? [selectedRouteLegId] : []),
+    [selectedRouteLegId]
   );
   const activeRoute = useMemo(
     () => (routeResult ? getRouteLegPoints(activeRouteLegIds, routeLegs, markers) : []),
@@ -244,6 +326,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     () => buildItemSyncStateMap(syncDebug.queueEntries, tripId),
     [syncDebug.queueEntries, tripId]
   );
+  const statsRouteLegs = useMemo(
+    () => (areRouteGroupsResolved ? routeLegs : []),
+    [areRouteGroupsResolved, routeLegs]
+  );
   const stats = useMemo(
     () =>
       buildPlannerStats({
@@ -252,7 +338,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         items: completeRouteItems ?? items,
         places,
         route: routeResult,
-        routeLegs,
+        routeLegs: statsRouteLegs,
         budgetSummary: budgetQuery.data
       }),
     [
@@ -260,8 +346,8 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       completeRouteItems,
       items,
       places,
-      routeLegs,
       routeResult,
+      statsRouteLegs,
       tripQuery.data?.expenseCount,
       tripQuery.data?.noteCount
     ]
@@ -293,6 +379,12 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       selectionContextKeyRef.current !== undefined &&
       selectionContextKeyRef.current !== selectionContextKey
     ) {
+      if (skipNextSelectionDraftCancelRef.current) {
+        skipNextSelectionDraftCancelRef.current = false;
+        selectionContextKeyRef.current = selectionContextKey;
+        return;
+      }
+
       cancelMapStopDraft();
     }
 
@@ -383,13 +475,8 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       cancelMapStopDraft();
       setActiveTab("stops");
       selectItem(marker.itemId, marker.placeId);
-      setViewport({
-        latitude: marker.latitude,
-        longitude: marker.longitude,
-        zoom: Math.max(viewport.zoom, 14)
-      });
     },
-    [cancelMapStopDraft, selectItem, setViewport, viewport.zoom]
+    [cancelMapStopDraft, selectItem]
   );
 
   const handleMarkerHover = useCallback(
@@ -403,6 +490,11 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     async (point: { latitude: number; longitude: number }) => {
       if (addMapStopLockRef.current) {
         return;
+      }
+
+      if (selectedItemId) {
+        skipNextSelectionDraftCancelRef.current = true;
+        selectItem(undefined, undefined);
       }
 
       const requestId = reverseGeocodeRequestIdRef.current + 1;
@@ -434,7 +526,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         }
       }
     },
-    [locale, t, tripId]
+    [locale, selectItem, selectedItemId, t, tripId]
   );
 
   function handleDismissMapStopCandidate() {
@@ -500,11 +592,13 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       behavior: "smooth"
     });
   };
-  const routeCanBeRequested = routePointCount >= 2;
+  const refetchRouteGroups = () => {
+    routeGroupQueries.forEach((query) => void query.refetch());
+  };
   const isRouteLoading =
     !isRouteDataIncomplete &&
     routeCanBeRequested &&
-    routeQuery.isFetching &&
+    routeGroupQueries.some((query) => query.isFetching) &&
     !routeResult &&
     !routeError;
   const renderMapWorkspace = (mapId?: string) => (
@@ -574,12 +668,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           <MapNotice>
             <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
             <span className="min-w-0 flex-1">{getRouteErrorMessage(routeError, t)}</span>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => void routeQuery.refetch()}
-            >
+            <Button type="button" size="sm" variant="secondary" onClick={refetchRouteGroups}>
               <RefreshCw aria-hidden="true" />
               {t("retry")}
             </Button>
@@ -718,6 +807,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
               places={places}
               currentUserId={currentUser?.id}
               routeSummaryByItem={routeSummaryByItem}
+              onRouteTravelModeChange={setRouteLegTravelMode}
               focusedRouteItemIds={focusedRouteItemIds}
               syncStateByItem={syncStateByItem}
               hasNextPage={itineraryQuery.hasNextPage}
@@ -749,6 +839,151 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       </div>
     </div>
   );
+}
+
+function buildRouteLegRequests(
+  markers: MapMarker[],
+  travelModeByLeg: Record<string, MapTravelMode>
+): RouteLegRequest[] {
+  return markers.slice(1).flatMap((marker, index) => {
+    const previousMarker = markers[index];
+
+    if (!previousMarker?.itemId || !previousMarker.placeId || !marker.itemId || !marker.placeId) {
+      return [];
+    }
+
+    const id = `leg:${previousMarker.itemId}:${marker.itemId}`;
+    const travelMode = travelModeByLeg[id] ?? "driving";
+
+    return [
+      {
+        id,
+        fromItemId: previousMarker.itemId,
+        toItemId: marker.itemId,
+        fromPlaceId: previousMarker.placeId,
+        toPlaceId: marker.placeId,
+        travelMode,
+        fromPoint: {
+          latitude: previousMarker.latitude,
+          longitude: previousMarker.longitude
+        },
+        toPoint: {
+          latitude: marker.latitude,
+          longitude: marker.longitude
+        }
+      }
+    ];
+  });
+}
+
+function buildRouteGroups(routeLegRequests: RouteLegRequest[]): RouteGroupRequest[] {
+  const groups: RouteGroupRequest[] = [];
+
+  routeLegRequests.forEach((routeLeg) => {
+    const previousGroup = groups.at(-1);
+
+    if (previousGroup?.travelMode === routeLeg.travelMode) {
+      previousGroup.legs.push(routeLeg);
+      previousGroup.request.points.push(routeLeg.toPoint);
+      previousGroup.id = buildRouteGroupId(previousGroup);
+      return;
+    }
+
+    const group: RouteGroupRequest = {
+      id: `group:${routeLeg.id}:${routeLeg.travelMode}`,
+      travelMode: routeLeg.travelMode,
+      legs: [routeLeg],
+      request: {
+        points: [routeLeg.fromPoint, routeLeg.toPoint],
+        travelMode: routeLeg.travelMode
+      }
+    };
+
+    groups.push(group);
+  });
+
+  return groups;
+}
+
+function buildRouteGroupId(group: RouteGroupRequest) {
+  const firstLeg = group.legs[0];
+  const lastLeg = group.legs.at(-1);
+
+  return `group:${firstLeg?.id ?? "empty"}:${lastLeg?.id ?? "empty"}:${group.travelMode}`;
+}
+
+function buildRouteLegsFromRouteGroups(
+  routeGroups: RouteGroupRequest[],
+  routes: Array<MapRoute | undefined>
+): DerivedRouteLeg[] {
+  return routeGroups.flatMap((routeGroup, groupIndex) => {
+    const route = routes[groupIndex];
+
+    return routeGroup.legs.map((routeLeg, legIndex) => {
+      const providerLeg = route?.legs[legIndex];
+
+      return {
+        id: routeLeg.id,
+        fromItemId: routeLeg.fromItemId,
+        toItemId: routeLeg.toItemId,
+        fromPlaceId: routeLeg.fromPlaceId,
+        toPlaceId: routeLeg.toPlaceId,
+        travelMode: routeLeg.travelMode,
+        ...(providerLeg?.distanceMeters !== undefined
+          ? { distanceMeters: providerLeg.distanceMeters ?? undefined }
+          : {}),
+        ...(providerLeg?.durationSeconds !== undefined
+          ? { durationSeconds: providerLeg.durationSeconds ?? undefined }
+          : {}),
+        ...(providerLeg?.points?.length
+          ? {
+              geometry: {
+                type: "LineString" as const,
+                coordinates: providerLeg.points.map(
+                  (point) => [point.longitude, point.latitude] as [number, number]
+                )
+              }
+            }
+          : {})
+      };
+    });
+  });
+}
+
+function buildAggregateRouteResult(
+  routes: Array<MapRoute | undefined>,
+  fallbackPoints: MapRoutePoint[]
+): MapRoute | undefined {
+  const resolvedRoutes = routes.filter((route): route is MapRoute => route !== undefined);
+  const provider = resolvedRoutes[0]?.provider;
+
+  if (!provider || resolvedRoutes.length !== routes.length || resolvedRoutes.length === 0) {
+    return undefined;
+  }
+
+  const points = resolvedRoutes.flatMap((route, index) => {
+    const routePoints = getRouteRenderPoints(route);
+
+    return index === 0 ? routePoints : routePoints.slice(1);
+  });
+
+  return {
+    provider,
+    points: points.length >= 2 ? points : fallbackPoints,
+    distanceMeters: sumNullableRouteValues(resolvedRoutes.map((route) => route.distanceMeters)),
+    durationSeconds: sumNullableRouteValues(resolvedRoutes.map((route) => route.durationSeconds)),
+    legs: resolvedRoutes.flatMap((route) => route.legs)
+  };
+}
+
+function sumNullableRouteValues(values: Array<number | null>) {
+  const numericValues = values.filter((value): value is number => typeof value === "number");
+
+  if (numericValues.length !== values.length) {
+    return null;
+  }
+
+  return numericValues.reduce((total, value) => total + value, 0);
 }
 
 function getRouteErrorMessage(error: Error, t: ReturnType<typeof useTranslations>) {

@@ -6,7 +6,8 @@ import type {
   DerivedRouteLeg,
   MapMarker,
   MapRoute,
-  MapRoutePoint
+  MapRoutePoint,
+  MapTravelMode
 } from "@/modules/map/types/map.types";
 import type { PlaceDto } from "@/services/api/contracts";
 
@@ -129,7 +130,8 @@ export function buildItineraryReorderIntent(
 export function buildDerivedRouteLegs(
   items: ItineraryItem[],
   places: PlaceDto[],
-  route?: MapRoute | undefined
+  route?: MapRoute | undefined,
+  travelMode: MapTravelMode = "driving"
 ): DerivedRouteLeg[] {
   const markers = getItineraryMapMarkers(items, places);
 
@@ -149,6 +151,7 @@ export function buildDerivedRouteLegs(
         toItemId: marker.itemId,
         fromPlaceId: previousMarker.placeId,
         toPlaceId: marker.placeId,
+        travelMode,
         ...(routeLeg?.distanceMeters !== undefined
           ? { distanceMeters: routeLeg.distanceMeters ?? undefined }
           : {}),

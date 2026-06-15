@@ -109,6 +109,7 @@
     "itinerary": {
       "title": "Stops",
       "items": "{count, plural, =0 {No stops} =1 {# stop} other {# stops}}",
+      "stopLabel": "Stop {stop}",
       "visibleItems": "{visible} of {total} visible",
       "empty": "Search for a place to create the first itinerary stop.",
       "filteredEmpty": "No stops match the current filters.",
@@ -129,6 +130,21 @@
       "loadMore": "Load more stops",
       "loadingMore": "Loading stops",
       "routeDistanceKilometers": "{value} km",
+      "travelModeLabel": "Travel mode",
+      "routeModePickerTitle": "Choose travel mode",
+      "routeSegmentAriaLabel": "{mode} route, {metrics}",
+      "routeModes": {
+        "driving": "Driving",
+        "walking": "Walking",
+        "bicycling": "Cycling",
+        "transit": "Transit"
+      },
+      "routeModeDescriptions": {
+        "driving": "Fastest road route",
+        "walking": "Walkable city route",
+        "bicycling": "Bike-friendly route",
+        "transit": "Public transport routing"
+      },
       "groupCount": "{count, plural, =1 {# stop} other {# stops}}",
       "grouping": {
         "day": "Date",
@@ -160,6 +176,12 @@
       "collapse": "Collapse stop",
       "routeSummary": "{mode}, {distance} km, {duration}",
       "routeDuration": "{minutes, plural, =1 {# min} other {# min}}",
+      "routeModes": {
+        "driving": "Driving",
+        "walking": "Walking",
+        "bicycling": "Cycling",
+        "transit": "Transit"
+      },
       "notes": "{count, plural, =1 {# note} other {# notes}}",
       "moreNotes": "+{count, plural, =1 {# more note} other {# more notes}}",
       "moreNotesUnknown": "More notes",

@@ -6,7 +6,7 @@ import type {
   TripExpensesDto
 } from "@/services/api/contracts";
 import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
-import type { DerivedRouteLeg, MapRoute } from "@/modules/map/types/map.types";
+import type { DerivedRouteLeg, MapRoute, MapTravelMode } from "@/modules/map/types/map.types";
 import type { SyncMutationQueueEntry, SyncMutationState } from "@/modules/sync/types/sync.types";
 import type { PlannerFilters } from "@/stores/use-planner-store";
 
@@ -33,7 +33,7 @@ export type RouteSummaryByItem = Map<
   string,
   {
     id: string;
-    travelMode: string;
+    travelMode: MapTravelMode;
     distanceMeters: number | null;
     durationSeconds: number | null;
   }
@@ -156,7 +156,7 @@ export function buildRouteSummaryByItem(routeLegs: DerivedRouteLeg[]): RouteSumm
       routeLeg.toItemId,
       {
         id: routeLeg.id,
-        travelMode: "route",
+        travelMode: routeLeg.travelMode,
         distanceMeters: routeLeg.distanceMeters ?? null,
         durationSeconds: routeLeg.durationSeconds ?? null
       }

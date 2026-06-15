@@ -109,6 +109,7 @@
     "itinerary": {
       "title": "Diem dung",
       "items": "{count, plural, =0 {Chua co diem dung} other {# diem dung}}",
+      "stopLabel": "Diem dung {stop}",
       "visibleItems": "Hien thi {visible} / {total}",
       "empty": "Tim dia diem de tao diem dung dau tien.",
       "filteredEmpty": "Khong co diem dung nao khop bo loc.",
@@ -129,6 +130,21 @@
       "loadMore": "Tai them diem dung",
       "loadingMore": "Dang tai diem dung",
       "routeDistanceKilometers": "{value} km",
+      "travelModeLabel": "Che do di chuyen",
+      "routeModePickerTitle": "Chon cach di chuyen",
+      "routeSegmentAriaLabel": "Tuyen {mode}, {metrics}",
+      "routeModes": {
+        "driving": "Lai xe",
+        "walking": "Di bo",
+        "bicycling": "Di xe dap",
+        "transit": "Cong cong"
+      },
+      "routeModeDescriptions": {
+        "driving": "Tuyen duong nhanh nhat",
+        "walking": "Lo trinh di bo trong thanh pho",
+        "bicycling": "Lo trinh than thien voi xe dap",
+        "transit": "Dinh tuyen bang giao thong cong cong"
+      },
       "groupCount": "{count, plural, other {# diem dung}}",
       "grouping": {
         "day": "Ngay xep lich",
@@ -160,6 +176,12 @@
       "collapse": "Thu gon diem dung",
       "routeSummary": "{mode}, {distance} km, {duration}",
       "routeDuration": "{minutes, plural, other {# phut}}",
+      "routeModes": {
+        "driving": "Lai xe",
+        "walking": "Di bo",
+        "bicycling": "Di xe dap",
+        "transit": "Cong cong"
+      },
       "notes": "{count, plural, other {# ghi chu}}",
       "moreNotes": "+{count, plural, other {# ghi chu nua}}",
       "moreNotesUnknown": "Them ghi chu",

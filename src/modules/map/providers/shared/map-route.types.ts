@@ -1,6 +1,8 @@
 import type { MapRouteProviderId } from "./map-provider.types";
 
-export type MapTravelMode = "driving" | "walking" | "bicycling" | "transit";
+export const mapTravelModes = ["driving", "walking", "bicycling", "transit"] as const;
+
+export type MapTravelMode = (typeof mapTravelModes)[number];
 
 export interface RoutePoint {
   latitude: number;

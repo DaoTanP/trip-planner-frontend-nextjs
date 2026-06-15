@@ -10,6 +10,7 @@ import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig, resolveTileUrl } from "@/modules/map/config/map.config";
 import type { MapRoutePoint, TripMapProps } from "@/modules/map/types/map.types";
 import { getBoundsCenter, getPointBounds } from "@/modules/map/utils/bounds";
+import { markerColorClassNames, routeColors } from "@/theme";
 import {
   latitudeToWorldY,
   longitudeToWorldX,
@@ -245,7 +246,7 @@ export function OpenStreetMapProvider({
         });
       }}
     >
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(15,23,42,.08)_1px,transparent_1px),linear-gradient(0deg,rgba(15,23,42,.08)_1px,transparent_1px)] bg-[size:48px_48px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,var(--fallback-map-grid-line)_1px,transparent_1px),linear-gradient(0deg,var(--fallback-map-grid-line)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
       {tiles.map((tile) => (
         // OSM tiles are provider-controlled raster assets; Next Image optimization is not useful here.
@@ -267,24 +268,30 @@ export function OpenStreetMapProvider({
         <svg className="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
           {routePoints ? (
             <polyline
+              className="pointer-events-auto"
               points={routePoints}
               fill="none"
-              stroke="rgb(37 99 235)"
+              stroke={routeColors.default.hex}
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="5"
               strokeOpacity="0.72"
+              pointerEvents="stroke"
+              onClick={(event) => event.stopPropagation()}
             />
           ) : null}
           {activeRoutePoints ? (
             <polyline
+              className="pointer-events-auto"
               points={activeRoutePoints}
               fill="none"
-              stroke="rgb(249 115 22)"
+              stroke={routeColors.active.hex}
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="7"
               strokeOpacity="0.9"
+              pointerEvents="stroke"
+              onClick={(event) => event.stopPropagation()}
             />
           ) : null}
         </svg>
@@ -292,16 +299,18 @@ export function OpenStreetMapProvider({
 
       {markers.map((marker) => {
         const projected = projectPoint(marker, { ...viewport, zoom });
-        const isActive = marker.id === selectedMarkerId;
-        const isHovered = marker.id === hoveredMarkerId || focusedMarkerIdSet.has(marker.id);
+        const isSelected = marker.id === selectedMarkerId;
+        const isEmphasized = marker.id === hoveredMarkerId || focusedMarkerIdSet.has(marker.id);
 
         return (
           <button
             key={marker.id}
             type="button"
             className={cn(
-              "absolute z-20 flex size-10 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full border-2 border-background bg-primary text-xs font-bold text-primary-foreground shadow-lg transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2",
-              (isActive || isHovered) && "scale-110 bg-accent text-accent-foreground"
+              "absolute z-20 flex size-10 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full border-2 border-background text-xs font-bold shadow-lg transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2",
+              markerColorClassNames.default,
+              isSelected && ["scale-110", markerColorClassNames.selected],
+              !isSelected && isEmphasized && ["scale-105", markerColorClassNames.hover]
             )}
             style={{
               left: `calc(50% + ${projected.x}px)`,

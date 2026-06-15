@@ -45,6 +45,7 @@ export interface GoogleMarker {
 }
 
 export interface GooglePolyline {
+  addListener: (eventName: string, handler: () => void) => GoogleMapsEventListener;
   setMap: (map: GoogleMap | null) => void;
   setOptions: (options: GooglePolylineOptions) => void;
   setPath: (path: GoogleLatLngLiteral[]) => void;

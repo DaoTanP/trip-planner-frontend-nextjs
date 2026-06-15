@@ -4,16 +4,27 @@ import { memo, useMemo } from "react";
 import { Layer, Source, type LayerProps } from "react-map-gl/maplibre";
 
 import type { MapMarker } from "@/modules/map/types/map.types";
+import { markerColors } from "@/theme";
 
 export const mapLibreMarkerPointLayerId = "trip-marker-point";
 const markerSourceId = "trip-markers";
 export const mapLibreMarkerClusterLayerId = "trip-marker-cluster";
-const markerClusterCountLayerId = "trip-marker-cluster-count";
-const markerLabelLayerId = "trip-marker-label";
+export const mapLibreMarkerClusterCountLayerId = "trip-marker-cluster-count";
+export const mapLibreMarkerLabelLayerId = "trip-marker-label";
+export const mapLibreMarkerShadowLayerId = "trip-marker-shadow";
 
-export const mapLibreMarkerInteractiveLayerIds = [
+export const mapLibreMarkerFeatureLayerIds = [
+  mapLibreMarkerShadowLayerId,
   mapLibreMarkerPointLayerId,
-  mapLibreMarkerClusterLayerId
+  mapLibreMarkerLabelLayerId
+];
+export const mapLibreMarkerClusterFeatureLayerIds = [
+  mapLibreMarkerClusterLayerId,
+  mapLibreMarkerClusterCountLayerId
+];
+export const mapLibreMarkerInteractiveLayerIds = [
+  ...mapLibreMarkerFeatureLayerIds,
+  ...mapLibreMarkerClusterFeatureLayerIds
 ];
 
 type MarkerFeature = {
@@ -28,7 +39,9 @@ type MarkerFeature = {
     placeId: string | null;
     label: string;
     stopOrder: number;
-    isActive: boolean;
+    isFocused: boolean;
+    isHovered: boolean;
+    isSelected: boolean;
   };
 };
 
@@ -50,15 +63,15 @@ const clusterLayer: LayerProps = {
   source: markerSourceId,
   filter: ["has", "point_count"],
   paint: {
-    "circle-color": "#0f766e",
+    "circle-color": markerColors.cluster.hex,
     "circle-radius": ["step", ["get", "point_count"], 18, 20, 24, 60, 30],
-    "circle-stroke-color": "#ffffff",
+    "circle-stroke-color": markerColors.stroke.hex,
     "circle-stroke-width": 3
   }
 };
 
 const clusterCountLayer: LayerProps = {
-  id: markerClusterCountLayerId,
+  id: mapLibreMarkerClusterCountLayerId,
   type: "symbol",
   source: markerSourceId,
   filter: ["has", "point_count"],
@@ -68,21 +81,21 @@ const clusterCountLayer: LayerProps = {
     "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"]
   },
   paint: {
-    "text-color": "#ffffff"
+    "text-color": markerColors.label.hex
   }
 };
 
 const markerShadowLayer: LayerProps = {
-  id: "trip-marker-shadow",
+  id: mapLibreMarkerShadowLayerId,
   type: "circle",
   source: markerSourceId,
   filter: ["!", ["has", "point_count"]],
   paint: {
-    "circle-color": "#000000",
+    "circle-color": markerColors.shadow.hex,
 
-    "circle-opacity": ["case", ["get", "isActive"], 0.25, 0.25],
+    "circle-opacity": ["case", ["get", "isSelected"], 0.28, ["get", "isHovered"], 0.24, 0.18],
 
-    "circle-radius": ["case", ["get", "isActive"], 24, 20],
+    "circle-radius": ["case", ["get", "isSelected"], 24, ["get", "isHovered"], 22, 19],
 
     // "circle-translate": [0, 2],
 
@@ -96,32 +109,37 @@ const markerLayer: LayerProps = {
   source: markerSourceId,
   filter: ["!", ["has", "point_count"]],
   paint: {
-    "circle-color": ["case", ["get", "isActive"], "#f97316", "#2563eb"],
+    "circle-color": [
+      "case",
+      ["get", "isSelected"],
+      markerColors.selected.hex,
+      ["get", "isHovered"],
+      markerColors.hover.hex,
+      markerColors.default.hex
+    ],
 
-    "circle-radius": ["case", ["get", "isActive"], 18, 15],
+    "circle-radius": ["case", ["get", "isSelected"], 18, ["get", "isHovered"], 16, 15],
 
-    "circle-stroke-color": "#ffffff",
+    "circle-stroke-color": markerColors.stroke.hex,
 
-    "circle-stroke-width": ["case", ["get", "isActive"], 4, 3]
+    "circle-stroke-width": ["case", ["get", "isSelected"], 4, ["get", "isFocused"], 4, 3]
   }
 };
 
 const markerLabelLayer: LayerProps = {
-  id: markerLabelLayerId,
+  id: mapLibreMarkerLabelLayerId,
   type: "symbol",
   source: markerSourceId,
   filter: ["!", ["has", "point_count"]],
   layout: {
     "text-field": ["to-string", ["get", "stopOrder"]],
-    "text-size": ["case", ["get", "isActive"], 18, 15],
+    "text-size": ["case", ["get", "isSelected"], 18, 15],
     "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
     "text-allow-overlap": true,
     "text-ignore-placement": true
   },
   paint: {
-    "text-color": "#ffffff"
-    // "text-halo-color": "#dddddd",
-    // "text-halo-width": 1
+    "text-color": markerColors.label.hex
   }
 };
 
@@ -147,10 +165,9 @@ export const MapLibreMarkerLayer = memo(function MapLibreMarkerLayer({
           placeId: marker.placeId ?? null,
           label: marker.label,
           stopOrder: marker.stopOrder,
-          isActive:
-            marker.id === selectedMarkerId ||
-            marker.id === hoveredMarkerId ||
-            focusedMarkerIdSet.has(marker.id)
+          isFocused: focusedMarkerIdSet.has(marker.id),
+          isHovered: marker.id === hoveredMarkerId,
+          isSelected: marker.id === selectedMarkerId
         }
       }))
     }),
@@ -163,14 +180,14 @@ export const MapLibreMarkerLayer = memo(function MapLibreMarkerLayer({
       type="geojson"
       data={markerData}
       cluster
-      clusterRadius={44}
-      clusterMaxZoom={14}
+      clusterRadius={24}
+      clusterMaxZoom={16}
     >
-      <Layer {...clusterLayer} />
-      <Layer {...clusterCountLayer} />
       <Layer {...markerShadowLayer} />
       <Layer {...markerLayer} />
       <Layer {...markerLabelLayer} />
+      <Layer {...clusterLayer} />
+      <Layer {...clusterCountLayer} />
     </Source>
   );
 });

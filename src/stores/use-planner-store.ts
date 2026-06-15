@@ -65,17 +65,10 @@ export const usePlannerStore = create<PlannerState>()(
         set((state) => ({
           selectedItemId,
           selectedPlaceId,
-          selectedItemFocusRequestId: state.selectedItemFocusRequestId + 1,
-          selectedRouteLegId: undefined
+          selectedItemFocusRequestId: state.selectedItemFocusRequestId + 1
         })),
       setHoveredItemId: (hoveredItemId) => set({ hoveredItemId }),
-      selectRouteLeg: (selectedRouteLegId) =>
-        set({
-          selectedRouteLegId,
-          selectedItemId: undefined,
-          selectedPlaceId: undefined,
-          selectedItemFocusRequestId: 0
-        }),
+      selectRouteLeg: (selectedRouteLegId) => set({ selectedRouteLegId }),
       setHoveredRouteLegId: (hoveredRouteLegId) => set({ hoveredRouteLegId }),
       setFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
       clearFilters: () => set({ filters: defaultFilters }),

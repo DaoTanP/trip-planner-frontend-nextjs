@@ -16,14 +16,19 @@ import { clampZoom, hasViewportChanged, normalizeViewport } from "@/modules/map/
 
 import { loadMapLibre } from "./maplibre-loader";
 import {
-  mapLibreMarkerClusterLayerId,
+  mapLibreMarkerClusterFeatureLayerIds,
+  mapLibreMarkerFeatureLayerIds,
   mapLibreMarkerInteractiveLayerIds,
-  mapLibreMarkerPointLayerId,
   MapLibreMarkerLayer
 } from "./maplibre-marker-layer";
-import { MapLibreRouteLayer } from "./maplibre-route-layer";
+import { mapLibreRouteInteractiveLayerIds, MapLibreRouteLayer } from "./maplibre-route-layer";
 import type { MapLibreMapRef } from "./maplibre.types";
 import { viewportFromMap } from "./maplibre.types";
+
+const mapLibreInteractiveLayerIds = [
+  ...mapLibreMarkerInteractiveLayerIds,
+  ...mapLibreRouteInteractiveLayerIds
+];
 
 export function MapLibreMap({
   markers,
@@ -122,8 +127,8 @@ export function MapLibreMap({
 
   const getMarkerFromEvent = useCallback(
     (event: MapLayerMouseEvent) => {
-      const markerFeature = event.features?.find(
-        (feature) => feature.layer.id === mapLibreMarkerPointLayerId
+      const markerFeature = event.features?.find((feature) =>
+        mapLibreMarkerFeatureLayerIds.includes(feature.layer.id)
       );
       const markerId = markerFeature?.properties?.markerId;
 
@@ -134,7 +139,17 @@ export function MapLibreMap({
 
   const hasClusterFromEvent = useCallback(
     (event: MapLayerMouseEvent) =>
-      event.features?.some((feature) => feature.layer.id === mapLibreMarkerClusterLayerId) === true,
+      event.features?.some((feature) =>
+        mapLibreMarkerClusterFeatureLayerIds.includes(feature.layer.id)
+      ) === true,
+    []
+  );
+
+  const hasRouteFromEvent = useCallback(
+    (event: MapLayerMouseEvent) =>
+      event.features?.some((feature) =>
+        mapLibreRouteInteractiveLayerIds.includes(feature.layer.id)
+      ) === true,
     []
   );
 
@@ -171,12 +186,23 @@ export function MapLibreMap({
         return;
       }
 
+      if (hasRouteFromEvent(event)) {
+        return;
+      }
+
       onMapClick?.({
         latitude: event.lngLat.lat,
         longitude: event.lngLat.lng
       });
     },
-    [getMarkerFromEvent, handleClusterSelect, handleMarkerSelect, hasClusterFromEvent, onMapClick]
+    [
+      getMarkerFromEvent,
+      handleClusterSelect,
+      handleMarkerSelect,
+      hasClusterFromEvent,
+      hasRouteFromEvent,
+      onMapClick
+    ]
   );
 
   const handleMapMouseMove = useCallback(
@@ -278,7 +304,7 @@ export function MapLibreMap({
         dragRotate={false}
         touchPitch={false}
         reuseMaps
-        interactiveLayerIds={mapLibreMarkerInteractiveLayerIds}
+        interactiveLayerIds={mapLibreInteractiveLayerIds}
         style={{ height: "100%", width: "100%" }}
         onLoad={() => {
           setIsMapReady(true);
@@ -295,13 +321,13 @@ export function MapLibreMap({
           }
         }}
       >
-        <MapLibreRouteLayer route={route} activeRoute={activeRoute} />
         <MapLibreMarkerLayer
           markers={markers}
           hoveredMarkerId={hoveredMarkerId}
           focusedMarkerIds={focusedMarkerIds}
           selectedMarkerId={selectedMarkerId}
         />
+        <MapLibreRouteLayer route={route} activeRoute={activeRoute} />
       </ReactMap>
 
       {hasLoadError ? (

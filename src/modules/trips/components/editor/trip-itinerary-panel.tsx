@@ -16,18 +16,18 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy
 } from "@dnd-kit/sortable";
-import { ArrowDown, Filter, Plus, Search, X } from "lucide-react";
+import { Filter, Plus, Search, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import {
   useCreateItineraryItemMutation,
   useReorderItineraryItemsMutation
 } from "@/modules/itinerary/mutations/use-itinerary-mutations";
 import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
+import { mapTravelModes, type MapTravelMode } from "@/modules/map/types/map.types";
 import type { PlaceDto } from "@/services/api/contracts";
 import { usePlannerStore } from "@/stores/use-planner-store";
 
@@ -47,6 +47,8 @@ import {
 import { buildItineraryReorderIntent, getPlaceMap } from "../../utils/trip-editor.utils";
 import { ItineraryItemCard } from "./itinerary-item-card";
 import { PlaceSearchBox } from "./place-search-box";
+import type { StopRouteSegment, StopRouteTravelModeOption } from "./stop-sequence-rail";
+import { StopSequenceItem } from "./stop-sequence-item";
 
 interface TripItineraryPanelProps {
   tripId: string;
@@ -54,6 +56,7 @@ interface TripItineraryPanelProps {
   places: PlaceDto[];
   currentUserId?: string | undefined;
   routeSummaryByItem: RouteSummaryByItem;
+  onRouteTravelModeChange: (routeLegId: string, travelMode: MapTravelMode) => void;
   focusedRouteItemIds: string[];
   syncStateByItem: Map<string, ItemSyncState>;
   hasNextPage?: boolean;
@@ -62,6 +65,7 @@ interface TripItineraryPanelProps {
 }
 
 type InsertionAnchor = "start" | string;
+type RouteSummary = RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never;
 
 const stopSequenceEstimateSize = 250;
 
@@ -71,6 +75,7 @@ export function TripItineraryPanel({
   places,
   currentUserId,
   routeSummaryByItem,
+  onRouteTravelModeChange,
   focusedRouteItemIds,
   syncStateByItem,
   hasNextPage = false,
@@ -85,6 +90,7 @@ export function TripItineraryPanel({
   const filters = usePlannerStore((state) => state.filters);
   const isFilterBarOpen = usePlannerStore((state) => state.isFilterBarOpen);
   const selectedItemId = usePlannerStore((state) => state.selectedItemId);
+  const hoveredItemId = usePlannerStore((state) => state.hoveredItemId);
   const selectedRouteLegId = usePlannerStore((state) => state.selectedRouteLegId);
   const hoveredRouteLegId = usePlannerStore((state) => state.hoveredRouteLegId);
   const selectRouteLeg = usePlannerStore((state) => state.selectRouteLeg);
@@ -115,6 +121,15 @@ export function TripItineraryPanel({
     [orderedItems]
   );
   const focusedRouteItemIdSet = useMemo(() => new Set(focusedRouteItemIds), [focusedRouteItemIds]);
+  const routeTravelModeOptions = useMemo<StopRouteTravelModeOption[]>(
+    () =>
+      mapTravelModes.map((mode) => ({
+        value: mode,
+        label: t(`routeModes.${mode}`),
+        description: t(`routeModeDescriptions.${mode}`)
+      })),
+    [t]
+  );
   const virtualWindow = useVirtualWindow({
     itemCount: visibleItems.length,
     estimateSize: stopSequenceEstimateSize,
@@ -221,10 +236,10 @@ export function TripItineraryPanel({
     setActiveInsertion(anchor);
   }
 
-  const renderStop = (item: ItineraryItem) => {
+  const renderStop = (item: ItineraryItem, visibleIndex: number) => {
     const routeSummary = routeSummaryByItem.get(item.id);
     const itemIndex = orderedIndexByItem.get(item.id) ?? 0;
-    const shouldShowRouteLeg = itemIndex > 0 && Boolean(routeSummary);
+    const shouldShowRouteLeg = visibleIndex > 0 && itemIndex > 0 && Boolean(routeSummary);
     const isRouteLegSelected = routeSummary !== undefined && selectedRouteLegId === routeSummary.id;
     const isRouteLegHovered = routeSummary !== undefined && hoveredRouteLegId === routeSummary.id;
     const insertionAnchor = item.id;
@@ -237,10 +252,15 @@ export function TripItineraryPanel({
         place={item.placeId ? placeMap.get(item.placeId) : undefined}
         currentUserId={currentUserId}
         routeSummary={routeSummary}
+        routeTravelModeOptions={routeTravelModeOptions}
         showRouteLeg={shouldShowRouteLeg}
         isRouteLegSelected={isRouteLegSelected}
         isRouteLegHovered={isRouteLegHovered}
         isRouteFocused={focusedRouteItemIdSet.has(item.id)}
+        isFirst={visibleIndex === 0}
+        isLast={visibleIndex === visibleItems.length - 1}
+        isSelected={selectedItemId === item.id}
+        isHovered={hoveredItemId === item.id}
         sequence={sequenceByItem.get(item.id) ?? itemIndex + 1}
         syncState={syncStateByItem.get(item.id)}
         notePreview={notePreviewsByItem.get(item.id)}
@@ -252,6 +272,7 @@ export function TripItineraryPanel({
         onInsertionChange={handleInsertionChange}
         onRouteLegSelect={selectRouteLeg}
         onRouteLegHover={setHoveredRouteLegId}
+        onRouteTravelModeChange={onRouteTravelModeChange}
         onNewItemTypeChange={setNewItemType}
         onSubmitPlaceInsertion={(place) => handleSubmitPlace(insertionAnchor, place)}
         t={t}
@@ -345,20 +366,22 @@ export function TripItineraryPanel({
                     return (
                       <div
                         key={item.id}
-                        className="absolute left-0 right-0 pb-2"
+                        className="absolute left-0 right-0"
                         style={{
                           height: virtualItem.size,
                           transform: `translateY(${virtualItem.start}px)`
                         }}
                       >
-                        {renderStop(item)}
+                        {renderStop(item, virtualItem.index)}
                       </div>
                     );
                   })}
                 </div>
               </div>
             ) : (
-              <div className="grid gap-1">{visibleItems.map((item) => renderStop(item))}</div>
+              <div className="grid">
+                {visibleItems.map((item, index) => renderStop(item, index))}
+              </div>
             )}
           </SortableContext>
         </DndContext>
@@ -401,10 +424,15 @@ function StopSequenceRow({
   place,
   currentUserId,
   routeSummary,
+  routeTravelModeOptions,
   showRouteLeg,
   isRouteLegSelected,
   isRouteLegHovered,
   isRouteFocused,
+  isFirst,
+  isLast,
+  isSelected,
+  isHovered,
   sequence,
   syncState,
   notePreview,
@@ -416,6 +444,7 @@ function StopSequenceRow({
   onInsertionChange,
   onRouteLegSelect,
   onRouteLegHover,
+  onRouteTravelModeChange,
   onNewItemTypeChange,
   onSubmitPlaceInsertion,
   t,
@@ -428,10 +457,15 @@ function StopSequenceRow({
   routeSummary?:
     | (RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never)
     | undefined;
+  routeTravelModeOptions: StopRouteTravelModeOption[];
   showRouteLeg: boolean;
   isRouteLegSelected: boolean;
   isRouteLegHovered: boolean;
   isRouteFocused: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  isSelected: boolean;
+  isHovered: boolean;
   sequence: number;
   syncState?: ItemSyncState | undefined;
   notePreview?: StopNotePreviewState | undefined;
@@ -443,78 +477,82 @@ function StopSequenceRow({
   onInsertionChange: (anchor: InsertionAnchor | null) => void;
   onRouteLegSelect: (routeLegId?: string) => void;
   onRouteLegHover: (routeLegId?: string) => void;
+  onRouteTravelModeChange: (routeLegId: string, travelMode: MapTravelMode) => void;
   onNewItemTypeChange: (type: ItineraryItem["types"][number]) => void;
   onSubmitPlaceInsertion: (place: PlaceDto) => Promise<void>;
   t: ReturnType<typeof useTranslations>;
   itemT: ReturnType<typeof useTranslations>;
 }) {
+  const insertionSlot = (
+    <InlineAddStop
+      tripId={tripId}
+      anchor={item.id}
+      activeInsertion={activeInsertion}
+      newItemType={newItemType}
+      onInsertionChange={onInsertionChange}
+      onNewItemTypeChange={onNewItemTypeChange}
+      onSubmitPlace={onSubmitPlaceInsertion}
+      t={t}
+      itemT={itemT}
+    />
+  );
+  const routeSegment =
+    showRouteLeg && routeSummary
+      ? ({
+          id: routeSummary.id,
+          travelMode: routeSummary.travelMode,
+          travelModeLabel: t(`routeModes.${routeSummary.travelMode}`),
+          travelModeSelectLabel: t("travelModeLabel"),
+          routeModePickerTitle: t("routeModePickerTitle"),
+          travelModeOptions: routeTravelModeOptions,
+          metrics: formatRouteMetrics(routeSummary, locale, t, itemT),
+          routeSelectLabel: formatRouteSegmentAriaLabel(routeSummary, locale, t, itemT),
+          isSelected: isRouteLegSelected,
+          isHovered: isRouteLegHovered,
+          onFocusRoute: () => onRouteLegSelect(routeSummary.id),
+          onHover: (nextIsHovered) => onRouteLegHover(nextIsHovered ? routeSummary.id : undefined),
+          onTravelModeChange: (travelMode) => onRouteTravelModeChange(routeSummary.id, travelMode)
+        } satisfies StopRouteSegment)
+      : undefined;
+
   return (
-    <div
-      id={`stop-sequence-item-${item.id}`}
-      className={cn(
-        "scroll-mt-24",
-        overId === item.id && activeId !== item.id && "border-t-2 border-primary pt-2"
-      )}
-    >
-      {showRouteLeg && routeSummary ? (
-        <RouteLegSeparator
-          routeSummary={routeSummary}
-          locale={locale}
-          isSelected={isRouteLegSelected}
-          isHovered={isRouteLegHovered}
-          onSelect={onRouteLegSelect}
-          onHover={onRouteLegHover}
-          t={t}
-          itemT={itemT}
-        />
-      ) : null}
-
-      <ItineraryItemCard
-        tripId={tripId}
-        item={item}
-        place={place}
-        currentUserId={currentUserId}
-        routeSummary={routeSummary}
-        syncState={syncState}
+    <div className="grid">
+      <StopSequenceItem
+        itemId={item.id}
         sequence={sequence}
-        isRouteFocused={isRouteFocused}
-        notePreview={notePreview}
-      />
-
-      <InlineAddStop
-        tripId={tripId}
-        anchor={item.id}
-        activeInsertion={activeInsertion}
-        newItemType={newItemType}
-        onInsertionChange={onInsertionChange}
-        onNewItemTypeChange={onNewItemTypeChange}
-        onSubmitPlace={onSubmitPlaceInsertion}
-        t={t}
-        itemT={itemT}
-      />
+        label={t("stopLabel", { stop: sequence })}
+        isFirst={isFirst}
+        isLast={isLast}
+        isSelected={isSelected}
+        isActive={isHovered || isRouteFocused}
+        isOver={overId === item.id && activeId !== item.id}
+        routeSegment={routeSegment}
+        insertionSlot={insertionSlot}
+      >
+        {(dragHandleProps) => (
+          <ItineraryItemCard
+            tripId={tripId}
+            item={item}
+            place={place}
+            currentUserId={currentUserId}
+            routeSummary={routeSummary}
+            syncState={syncState}
+            isRouteFocused={isRouteFocused}
+            notePreview={notePreview}
+            dragHandleProps={dragHandleProps}
+          />
+        )}
+      </StopSequenceItem>
     </div>
   );
 }
 
-function RouteLegSeparator({
-  routeSummary,
-  locale,
-  isSelected,
-  isHovered,
-  onSelect,
-  onHover,
-  t,
-  itemT
-}: {
-  routeSummary: RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never;
-  locale: string;
-  isSelected: boolean;
-  isHovered: boolean;
-  onSelect: (routeLegId?: string) => void;
-  onHover: (routeLegId?: string) => void;
-  t: ReturnType<typeof useTranslations>;
-  itemT: ReturnType<typeof useTranslations>;
-}) {
+function formatRouteMetrics(
+  routeSummary: RouteSummary,
+  locale: string,
+  t: ReturnType<typeof useTranslations>,
+  itemT: ReturnType<typeof useTranslations>
+) {
   const distance =
     routeSummary.distanceMeters === null
       ? null
@@ -527,34 +565,30 @@ function RouteLegSeparator({
       : itemT("routeDuration", {
           minutes: Math.max(1, Math.round(routeSummary.durationSeconds / 60))
         });
-  const details = [duration, distance].filter(Boolean);
-  const isFocused = isSelected || isHovered;
+  return [duration, distance].filter((detail): detail is string => Boolean(detail));
+}
 
-  return (
-    <button
-      type="button"
-      className={cn(
-        "grid w-full grid-cols-[2.25rem_1fr] items-center gap-2 rounded-md py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-2",
-        isFocused && "bg-accent/10 text-foreground ring-1 ring-accent/30"
-      )}
-      aria-pressed={isSelected}
-      onClick={() => onSelect(isSelected ? undefined : routeSummary.id)}
-      onMouseEnter={() => onHover(routeSummary.id)}
-      onMouseLeave={() => onHover(undefined)}
-    >
-      <span className="flex justify-center">
-        <ArrowDown className="size-4" aria-hidden="true" />
-      </span>
-      <span className="grid min-w-0 gap-0.5">
-        <span className="truncate">{routeSummary.travelMode}</span>
-        {details.length > 0 ? (
-          <span className="truncate text-[0.7rem] text-muted-foreground">
-            {details.join(" · ")}
-          </span>
-        ) : null}
-      </span>
-    </button>
-  );
+function formatRouteMetricsLabel(
+  routeSummary: RouteSummary,
+  locale: string,
+  t: ReturnType<typeof useTranslations>,
+  itemT: ReturnType<typeof useTranslations>
+) {
+  const metrics = formatRouteMetrics(routeSummary, locale, t, itemT);
+
+  return metrics.length > 0 ? metrics.join(" \u00b7 ") : t(`routeModes.${routeSummary.travelMode}`);
+}
+
+function formatRouteSegmentAriaLabel(
+  routeSummary: RouteSummary,
+  locale: string,
+  t: ReturnType<typeof useTranslations>,
+  itemT: ReturnType<typeof useTranslations>
+) {
+  return t("routeSegmentAriaLabel", {
+    mode: t(`routeModes.${routeSummary.travelMode}`),
+    metrics: formatRouteMetricsLabel(routeSummary, locale, t, itemT)
+  });
 }
 
 function InlineAddStop({
@@ -584,7 +618,7 @@ function InlineAddStop({
     return (
       <button
         type="button"
-        className="ml-11 flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2"
+        className="flex h-8 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2"
         onClick={() => onInsertionChange(anchor)}
       >
         <Plus className="size-3.5" aria-hidden="true" />
@@ -594,7 +628,7 @@ function InlineAddStop({
   }
 
   return (
-    <div className="ml-11 grid gap-2 rounded-md border border-dashed bg-background p-2">
+    <div className="grid gap-2 rounded-md border border-dashed bg-background p-2">
       <div className="grid gap-2 sm:grid-cols-[auto_1fr_auto]">
         <select
           value={newItemType}

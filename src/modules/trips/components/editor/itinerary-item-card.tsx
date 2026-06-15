@@ -1,7 +1,6 @@
 "use client";
 
-import { CSS } from "@dnd-kit/utilities";
-import { useSortable } from "@dnd-kit/sortable";
+import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
 import {
   BedDouble,
   CalendarCheck,
@@ -60,9 +59,12 @@ interface ItineraryItemCardProps {
     | (RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never)
     | undefined;
   syncState?: ItemSyncState | undefined;
-  sequence: number;
   isRouteFocused?: boolean | undefined;
   notePreview?: StopNotePreviewState | undefined;
+  dragHandleProps: {
+    attributes: DraggableAttributes;
+    listeners: DraggableSyntheticListeners;
+  };
 }
 
 type ItineraryItemType = ItineraryItem["types"][number];
@@ -83,9 +85,9 @@ export function ItineraryItemCard({
   currentUserId,
   routeSummary,
   syncState,
-  sequence,
   isRouteFocused = false,
-  notePreview
+  notePreview,
+  dragHandleProps
 }: ItineraryItemCardProps) {
   const t = useTranslations("trip.editor.item");
   const locale = useLocale();
@@ -105,13 +107,6 @@ export function ItineraryItemCard({
   const summary = draft.version === item.version ? draft.summary : (item.summary ?? "");
   const firstType = item.types[0] ?? "OTHER";
   const TypeIcon = typeIcons[firstType];
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
-    data: {
-      type: "itinerary-item"
-    }
-  });
-
   const isSelected = selectedItemId === item.id;
   const isHovered = hoveredItemId === item.id;
   const tags = getItemMetadataList(item, "tags");
@@ -178,39 +173,18 @@ export function ItineraryItemCard({
 
   return (
     <article
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition
-      }}
       className={cn(
-        "group rounded-md border bg-card p-3 shadow-sm transition-colors",
+        "group w-full rounded-md border bg-card p-3 shadow-sm transition-colors",
         isSelected && "border-primary ring-2 ring-primary/20",
         isHovered && !isSelected && "border-accent ring-1 ring-accent/30",
         isRouteFocused && !isSelected && "bg-accent/10",
-        syncState === "conflicted" && "border-destructive ring-2 ring-destructive/20",
-        isDragging && "relative z-20 opacity-80"
+        syncState === "conflicted" && "border-destructive ring-2 ring-destructive/20"
       )}
       onMouseEnter={() => setHoveredItemId(item.id)}
       onMouseLeave={() => setHoveredItemId(undefined)}
       onClick={() => selectItem(item.id, item.placeId)}
     >
-      <div className="grid grid-cols-[2.25rem_1fr_auto] gap-2">
-        <div className="grid justify-items-center gap-1">
-          <span className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-            {sequence}
-          </span>
-          <button
-            type="button"
-            className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2"
-            aria-label={t("drag")}
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <span>{scheduleLabel}</span>
@@ -305,7 +279,7 @@ export function ItineraryItemCard({
                     <Route className="size-3 shrink-0" aria-hidden="true" />
                     <span className="truncate">
                       {t("routeSummary", {
-                        mode: routeSummary.travelMode,
+                        mode: t(`routeModes.${routeSummary.travelMode}`),
                         distance: formatDistance(routeSummary.distanceMeters, locale),
                         duration: formatRouteDuration(routeSummary.durationSeconds, t)
                       })}
@@ -390,6 +364,17 @@ export function ItineraryItemCard({
             ) : (
               <ChevronDown className="size-4" aria-hidden="true" />
             )}
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-8 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+            aria-label={t("drag")}
+            {...dragHandleProps.attributes}
+            {...dragHandleProps.listeners}
+          >
+            <GripVertical className="size-4" aria-hidden="true" />
           </Button>
           <Button
             type="button"

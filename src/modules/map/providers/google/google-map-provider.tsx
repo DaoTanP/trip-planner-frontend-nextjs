@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig } from "@/modules/map/config/map.config";
 import type { MapMarker, MapRoutePoint, TripMapProps } from "@/modules/map/types/map.types";
+import { markerColors, routeColors } from "@/theme";
 
 import { loadGoogleMaps } from "./google-map-loader";
 import type {
@@ -27,7 +28,7 @@ const markerPath = "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-
 function createMarkerLabel(marker: MapMarker): GoogleMarkerLabel {
   return {
     text: String(marker.stopOrder),
-    color: "#ffffff",
+    color: markerColors.label.hex,
     fontSize: "11px",
     fontWeight: "700"
   };
@@ -35,15 +36,20 @@ function createMarkerLabel(marker: MapMarker): GoogleMarkerLabel {
 
 function createMarkerIcon(
   googleMaps: GoogleMapsApi,
-  state: "default" | "active"
+  state: "default" | "emphasis" | "selected"
 ): GoogleMarkerIcon {
   return {
     path: markerPath,
-    fillColor: state === "active" ? "#0f766e" : "#2563eb",
+    fillColor:
+      state === "selected"
+        ? markerColors.selected.hex
+        : state === "emphasis"
+          ? markerColors.hover.hex
+          : markerColors.default.hex,
     fillOpacity: 1,
-    strokeColor: "#ffffff",
+    strokeColor: markerColors.stroke.hex,
     strokeWeight: 2,
-    scale: state === "active" ? 1.75 : 1.55,
+    scale: state === "selected" ? 1.75 : state === "emphasis" ? 1.65 : 1.55,
     anchor: new googleMaps.Point(12, 24)
   };
 }
@@ -215,9 +221,15 @@ export function GoogleMapProvider({
         marker.setMap(null);
       });
       markerInstances.clear();
-      polylineRef.current?.setMap(null);
+      if (polylineRef.current) {
+        googleMaps?.event.clearInstanceListeners(polylineRef.current);
+        polylineRef.current.setMap(null);
+      }
       polylineRef.current = null;
-      activePolylineRef.current?.setMap(null);
+      if (activePolylineRef.current) {
+        googleMaps?.event.clearInstanceListeners(activePolylineRef.current);
+        activePolylineRef.current.setMap(null);
+      }
       activePolylineRef.current = null;
       mapRef.current = null;
     };
@@ -248,15 +260,14 @@ export function GoogleMapProvider({
     const activeIds = new Set(markers.map((marker) => marker.id));
 
     markers.forEach((marker) => {
-      const isActive =
-        marker.id === selectedMarkerId ||
-        marker.id === hoveredMarkerId ||
-        focusedMarkerIdSet.has(marker.id);
+      const isSelected = marker.id === selectedMarkerId;
+      const isEmphasized = marker.id === hoveredMarkerId || focusedMarkerIdSet.has(marker.id);
+      const markerState = isSelected ? "selected" : isEmphasized ? "emphasis" : "default";
       const position = {
         lat: marker.latitude,
         lng: marker.longitude
       };
-      const icon = createMarkerIcon(googleMaps, isActive ? "active" : "default");
+      const icon = createMarkerIcon(googleMaps, markerState);
       const label = createMarkerLabel(marker);
       const existingMarker = markersRef.current.get(marker.id);
 
@@ -265,7 +276,7 @@ export function GoogleMapProvider({
         existingMarker.setTitle(marker.label);
         existingMarker.setLabel(label);
         existingMarker.setIcon(icon);
-        existingMarker.setZIndex(isActive ? 20 : 10);
+        existingMarker.setZIndex(isSelected ? 30 : isEmphasized ? 20 : 10);
         return;
       }
 
@@ -276,7 +287,7 @@ export function GoogleMapProvider({
         optimized: true,
         position,
         title: marker.label,
-        zIndex: isActive ? 20 : 10
+        zIndex: isSelected ? 30 : isEmphasized ? 20 : 10
       });
       googleMarker.addListener("click", () => {
         const currentMarker = markerDataRef.current.get(marker.id);
@@ -357,16 +368,19 @@ export function GoogleMapProvider({
     }
 
     if (routePath.length < 2) {
-      polylineRef.current?.setMap(null);
+      if (polylineRef.current) {
+        googleMaps.event.clearInstanceListeners(polylineRef.current);
+        polylineRef.current.setMap(null);
+      }
       polylineRef.current = null;
       return;
     }
 
     const path = routePath.map(toGoogleLatLngLiteral);
     const options = {
-      clickable: false,
+      clickable: true,
       geodesic: true,
-      strokeColor: "#2563eb",
+      strokeColor: routeColors.default.hex,
       strokeOpacity: 0.78,
       strokeWeight: 5
     };
@@ -377,6 +391,7 @@ export function GoogleMapProvider({
         map,
         path
       });
+      polylineRef.current.addListener("click", () => undefined);
       return;
     }
 
@@ -393,16 +408,19 @@ export function GoogleMapProvider({
     }
 
     if (!activeRoute || activeRoute.length < 2) {
-      activePolylineRef.current?.setMap(null);
+      if (activePolylineRef.current) {
+        googleMaps.event.clearInstanceListeners(activePolylineRef.current);
+        activePolylineRef.current.setMap(null);
+      }
       activePolylineRef.current = null;
       return;
     }
 
     const path = activeRoute.map(toGoogleLatLngLiteral);
     const options = {
-      clickable: false,
+      clickable: true,
       geodesic: true,
-      strokeColor: "#f97316",
+      strokeColor: routeColors.active.hex,
       strokeOpacity: 0.92,
       strokeWeight: 7
     };
@@ -413,6 +431,7 @@ export function GoogleMapProvider({
         map,
         path
       });
+      activePolylineRef.current.addListener("click", () => undefined);
       return;
     }
 

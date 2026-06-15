@@ -4,14 +4,18 @@ import { Layer, Source, type LayerProps } from "react-map-gl/maplibre";
 import { memo, useMemo } from "react";
 
 import type { MapRoutePoint } from "@/modules/map/types/map.types";
+import { routeColors } from "@/theme";
+
+import { mapLibreMarkerShadowLayerId } from "./maplibre-marker-layer";
 
 const routeSourceId = "trip-route";
-const routeLayerId = "trip-route-line";
+export const mapLibreRouteLayerId = "trip-route-line";
 const activeRouteSourceId = "trip-active-route";
-const activeRouteLayerId = "trip-active-route-line";
+export const mapLibreActiveRouteLayerId = "trip-active-route-line";
+export const mapLibreRouteInteractiveLayerIds = [mapLibreRouteLayerId, mapLibreActiveRouteLayerId];
 
 const routeLayer: LayerProps = {
-  id: routeLayerId,
+  id: mapLibreRouteLayerId,
   type: "line",
   source: routeSourceId,
   layout: {
@@ -19,14 +23,14 @@ const routeLayer: LayerProps = {
     "line-join": "round"
   },
   paint: {
-    "line-color": "#2563eb",
-    "line-opacity": 0.78,
+    "line-color": routeColors.default.hex,
+    "line-opacity": 0.9,
     "line-width": 5
   }
 };
 
 const activeRouteLayer: LayerProps = {
-  id: activeRouteLayerId,
+  id: mapLibreActiveRouteLayerId,
   type: "line",
   source: activeRouteSourceId,
   layout: {
@@ -34,8 +38,8 @@ const activeRouteLayer: LayerProps = {
     "line-join": "round"
   },
   paint: {
-    "line-color": "#f97316",
-    "line-opacity": 0.92,
+    "line-color": routeColors.active.hex,
+    "line-opacity": 0.9,
     "line-width": 7
   }
 };
@@ -80,12 +84,12 @@ export const MapLibreRouteLayer = memo(function MapLibreRouteLayer({
     <>
       {route.length > 1 ? (
         <Source id={routeSourceId} type="geojson" data={routeData}>
-          <Layer {...routeLayer} />
+          <Layer {...routeLayer} beforeId={mapLibreMarkerShadowLayerId} />
         </Source>
       ) : null}
       {activeRoute.length > 1 ? (
         <Source id={activeRouteSourceId} type="geojson" data={activeRouteData}>
-          <Layer {...activeRouteLayer} />
+          <Layer {...activeRouteLayer} beforeId={mapLibreMarkerShadowLayerId} />
         </Source>
       ) : null}
     </>

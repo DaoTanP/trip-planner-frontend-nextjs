@@ -228,6 +228,19 @@ Error shape:
 
 Frontend code should use stable `error.code` values for localized UX and treat backend `message` as a fallback/debug value.
 
+## Backend Domain Boundaries
+
+`trip-planner-backend-expressjs` is the source of truth for product data and API contracts. Endpoint builders in this repo are relative to the configured `/api/v1` base, and feature modules should stay aligned with the synced contract copy under `src/services/api/contracts`.
+
+The trip editor is stop-first and place-backed:
+
+- `Trip` is the planning aggregate root, but trip detail is metadata and counts, not a nested editor graph. Query itinerary, places, notes, collaborators, expenses, budget, and mutation events through their own resources.
+- `ItineraryItem` is a flat trip-scoped stop record. Persist backend fields such as `placeId`, `types[]`, `status`, `timezone`, optional `summary`, optional schedule fields, and backend ordering intent. Do not reintroduce `TripDay`, `Destination`, persisted route segments, or route-cache entities.
+- `Place` records are reusable global locations. Provider search results, reverse geocode results, map clicks, and manual place forms are temporary inputs until the place resolution boundary returns a backend `Place`; stop creation uses only the resolved `place.id`.
+- `Expense` rows are the spending source of truth. `Budget` is limit/currency configuration plus derived summaries, not a ledger. Notes use the unified `/notes` resource for trip, itinerary item, expense, and place targets.
+- Collaborator management actions should remain disabled or read-only unless the backend contract exposes the corresponding invite, role update, accept, or remove endpoints.
+- Route geometry, route legs, distance, and duration are frontend-derived from ordered stop coordinates through provider routing. They are never persisted, synchronized, repaired, or written back to the backend.
+
 ## Auth Flow
 
 Auth is prepared for:
@@ -370,6 +383,8 @@ Provider route results normalize to provider-independent route DTOs:
 - encoded polyline for rendering/provider diagnostics only, not backend persistence.
 - route legs for multi-stop expansion.
 - distance and duration totals for estimation.
+
+Travel mode is owned by each derived route leg in editor UI state, not by the trip or itinerary as a global setting. The editor groups adjacent legs with the same mode before calling the provider-neutral `getMapRoute(points)` boundary, then expands the provider result back into per-leg geometry, duration, and distance. These segment preferences remain non-persistent derived route state unless the backend later exposes a route-preference contract.
 
 Place results normalize before reaching UI:
 

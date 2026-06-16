@@ -15,6 +15,8 @@ export interface StopSequenceDragHandleProps {
   listeners: DraggableSyntheticListeners;
 }
 
+export type StopSequenceDropIndicatorPosition = "before" | "after";
+
 interface StopSequenceItemProps {
   itemId: string;
   sequence: number;
@@ -23,7 +25,7 @@ interface StopSequenceItemProps {
   isLast: boolean;
   isSelected: boolean;
   isActive: boolean;
-  isOver: boolean;
+  dropIndicatorPosition?: StopSequenceDropIndicatorPosition | null | undefined;
   routeSegment?: StopRouteSegment | undefined;
   children: (dragHandleProps: StopSequenceDragHandleProps) => ReactNode;
   insertionSlot?: ReactNode;
@@ -55,7 +57,7 @@ export function StopSequenceItem({
   isLast,
   isSelected,
   isActive,
-  isOver,
+  dropIndicatorPosition,
   routeSegment,
   children,
   insertionSlot
@@ -77,11 +79,12 @@ export function StopSequenceItem({
       }}
       className={cn(
         "relative scroll-mt-24",
-        isOver && [
-          "before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-0.5",
+        dropIndicatorPosition && [
+          "before:absolute before:inset-x-0 before:z-10 before:h-0.5",
+          dropIndicatorPosition === "before" ? "before:top-0" : "before:bottom-0",
           tripStateColorClassNames.insertionIndicator
         ],
-        isDragging && "relative z-20 opacity-80"
+        isDragging && "opacity-0"
       )}
     >
       <StopSequenceItemFrame

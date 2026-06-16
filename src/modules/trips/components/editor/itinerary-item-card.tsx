@@ -468,7 +468,7 @@ export function ItineraryItemCard({
             type="button"
             size="icon"
             variant="ghost"
-            className="size-8 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+            className="size-8 cursor-grab touch-none opacity-100 active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100"
             aria-label={t("drag")}
             {...dragHandleProps.attributes}
             {...dragHandleProps.listeners}

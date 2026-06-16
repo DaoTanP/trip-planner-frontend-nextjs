@@ -5,7 +5,9 @@ import {
   DragOverlay,
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MeasuringStrategy,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -20,6 +22,7 @@ import {
 import { Filter, Plus, Search, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +57,7 @@ import type { StopRouteSegment, StopRouteTravelModeOption } from "./stop-sequenc
 import {
   StopSequenceItem,
   StopSequenceItemPreview,
+  type StopSequenceDropIndicatorPosition,
   type StopSequenceDragHandleProps
 } from "./stop-sequence-item";
 
@@ -77,6 +81,12 @@ interface TripItineraryPanelProps {
 type InsertionAnchor = "start" | string;
 type RouteSummary = RouteSummaryByItem extends Map<string, infer TRoute> ? TRoute : never;
 type DragPreviewSize = { width: number; height: number };
+
+const dndMeasuring = {
+  droppable: {
+    strategy: MeasuringStrategy.Always
+  }
+};
 
 const stopSequenceEstimateSize = 250;
 const inertDragHandleProps: StopSequenceDragHandleProps = {
@@ -133,7 +143,8 @@ export function TripItineraryPanel({
     [tripTimezone]
   );
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
   const orderedItems = useMemo(() => sortStopSequence(items), [items]);
@@ -187,6 +198,20 @@ export function TripItineraryPanel({
   );
   const hasActiveFilters =
     filters.query.trim().length > 0 || filters.type !== "ALL" || filters.status !== "ALL";
+  const activeDropIndicatorPosition = useMemo<StopSequenceDropIndicatorPosition | null>(() => {
+    if (!activeId || !overId || activeId === overId) {
+      return null;
+    }
+
+    const activeIndex = orderedIndexByItem.get(activeId);
+    const overIndex = orderedIndexByItem.get(overId);
+
+    if (activeIndex === undefined || overIndex === undefined) {
+      return null;
+    }
+
+    return activeIndex < overIndex ? "after" : "before";
+  }, [activeId, orderedIndexByItem, overId]);
 
   useEffect(() => {
     if (!selectedItemId || selectedRowIndex < 0) {
@@ -328,8 +353,9 @@ export function TripItineraryPanel({
         sequence={sequenceByItem.get(item.id) ?? itemIndex + 1}
         syncState={syncStateByItem.get(item.id)}
         notePreview={notePreviewsByItem.get(item.id)}
-        activeId={activeId}
-        overId={overId}
+        dropIndicatorPosition={
+          overId === item.id && activeId !== item.id ? activeDropIndicatorPosition : null
+        }
         locale={locale}
         activeInsertion={activeInsertion}
         newItemType={newItemType}
@@ -399,6 +425,14 @@ export function TripItineraryPanel({
     );
   };
 
+  const dragOverlay = (
+    <DragOverlay adjustScale={false} dropAnimation={null} zIndex={60}>
+      {renderDragOverlay()}
+    </DragOverlay>
+  );
+  const dragOverlayPortal =
+    typeof document === "undefined" ? null : createPortal(dragOverlay, document.body);
+
   return (
     <section className="grid gap-2">
       {isFilterBarOpen || hasActiveFilters ? (
@@ -462,6 +496,7 @@ export function TripItineraryPanel({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          measuring={dndMeasuring}
           onDragStart={handleItemDragStart}
           onDragOver={handleItemDragOver}
           onDragEnd={handleItemDragEnd}
@@ -484,7 +519,7 @@ export function TripItineraryPanel({
                         className="absolute left-0 right-0"
                         style={{
                           height: virtualItem.size,
-                          transform: `translateY(${virtualItem.start}px)`
+                          top: virtualItem.start
                         }}
                       >
                         {renderStop(item, virtualItem.index)}
@@ -499,9 +534,7 @@ export function TripItineraryPanel({
               </div>
             )}
           </SortableContext>
-          <DragOverlay adjustScale={false} dropAnimation={null} zIndex={60}>
-            {renderDragOverlay()}
-          </DragOverlay>
+          {dragOverlayPortal}
         </DndContext>
       ) : (
         <div className="grid gap-3 rounded-md border border-dashed bg-card p-4 text-sm text-muted-foreground">
@@ -556,8 +589,7 @@ function StopSequenceRow({
   sequence,
   syncState,
   notePreview,
-  activeId,
-  overId,
+  dropIndicatorPosition,
   locale,
   activeInsertion,
   newItemType,
@@ -593,8 +625,7 @@ function StopSequenceRow({
   sequence: number;
   syncState?: ItemSyncState | undefined;
   notePreview?: StopNotePreviewState | undefined;
-  activeId: string | null;
-  overId: string | null;
+  dropIndicatorPosition: StopSequenceDropIndicatorPosition | null;
   locale: string;
   activeInsertion: InsertionAnchor | null;
   newItemType: ItineraryItem["types"][number];
@@ -653,7 +684,7 @@ function StopSequenceRow({
         isLast={isLast}
         isSelected={isSelected}
         isActive={isHovered || isRouteFocused}
-        isOver={overId === item.id && activeId !== item.id}
+        dropIndicatorPosition={dropIndicatorPosition}
         routeSegment={routeSegment}
         insertionSlot={insertionSlot}
       >

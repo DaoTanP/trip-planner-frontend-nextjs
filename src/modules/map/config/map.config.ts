@@ -4,13 +4,13 @@ const defaultLatitude = readNumber(process.env.NEXT_PUBLIC_MAP_DEFAULT_LAT, 16.0
 const defaultLongitude = readNumber(process.env.NEXT_PUBLIC_MAP_DEFAULT_LNG, 108.2068);
 const defaultZoom = readNumber(process.env.NEXT_PUBLIC_MAP_DEFAULT_ZOOM, 12);
 const explicitOsrmRouteUrl = process.env.NEXT_PUBLIC_OSRM_ROUTE_URL?.trim() ?? "";
-const developmentOsrmRouteUrl = "https://router.project-osrm.org/route/v1";
+const developmentOsrmRouteUrl = "https://routing.openstreetmap.de/routed-{backend}/route/v1";
 const isProductionRuntime = process.env.NODE_ENV === "production";
 const osrmRouteUrl = explicitOsrmRouteUrl || (isProductionRuntime ? "" : developmentOsrmRouteUrl);
 
 if (!explicitOsrmRouteUrl && !isProductionRuntime && process.env.NODE_ENV !== "test") {
   console.warn(
-    "NEXT_PUBLIC_OSRM_ROUTE_URL is not set. Development routing will use the public OSRM demo service; production disables routing until an OSRM URL is configured."
+    "NEXT_PUBLIC_OSRM_ROUTE_URL is not set. Development routing will use routing.openstreetmap.de; production disables routing until an OSRM URL is configured."
   );
 }
 

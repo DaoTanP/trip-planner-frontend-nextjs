@@ -29,7 +29,7 @@ export function RouteSummary({ route }: RouteSummaryProps) {
   });
 
   return (
-    <div className="absolute bottom-3 right-3 z-30 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
+    <div className="absolute bottom-3 right-3 z-30 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow-md">
       <Route className="size-3.5 shrink-0" aria-hidden="true" />
       <span className="truncate">{t("routeSummary", { distance, duration })}</span>
     </div>

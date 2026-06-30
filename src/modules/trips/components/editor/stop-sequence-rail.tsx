@@ -10,11 +10,11 @@ import {
   type MutableRefObject
 } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, Plus, RefreshCw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { MapTravelMode } from "@/modules/map/types/map.types";
-import { getTravelModeConfig, markerColorClassNames, routeColorClassNames } from "@/theme";
+import { getTravelModeConfig, routeColorClassNames } from "@/theme";
 
 export interface StopRouteTravelModeOption {
   value: MapTravelMode;
@@ -22,22 +22,36 @@ export interface StopRouteTravelModeOption {
   description?: string | undefined;
 }
 
-export interface StopRouteSegment {
+interface BaseStopRouteSegment {
   id: string;
+  metrics: string[];
+  routeSelectLabel: string;
+  isSelected: boolean;
+  isHovered: boolean;
+  isPending?: boolean | undefined;
+  addStopLabel?: string | undefined;
+  isAddStopActive?: boolean | undefined;
+  onAddStop?: (() => void) | undefined;
+}
+
+export interface StopRouteTravelSegment extends BaseStopRouteSegment {
+  kind?: "route";
   travelMode: MapTravelMode;
   travelModeLabel: string;
   travelModeSelectLabel: string;
   routeModePickerTitle: string;
   travelModeOptions: StopRouteTravelModeOption[];
-  metrics: string[];
-  routeSelectLabel: string;
-  isSelected: boolean;
-  isHovered: boolean;
   onSelectRoute: () => void;
   onTravelModePopoverOpenChange: (isOpen: boolean) => void;
   onHover: (isHovered: boolean) => void;
   onTravelModeChange: (travelMode: MapTravelMode) => void;
 }
+
+export interface StopRouteGapSegment extends BaseStopRouteSegment {
+  kind: "gap";
+}
+
+export type StopRouteSegment = StopRouteTravelSegment | StopRouteGapSegment;
 
 interface StopSequenceRailProps {
   sequence: number;
@@ -67,6 +81,14 @@ interface RouteSegmentProps {
   segment: StopRouteSegment;
 }
 
+interface RouteTravelSegmentProps {
+  segment: StopRouteTravelSegment;
+}
+
+interface RouteGapSegmentProps {
+  segment: StopRouteGapSegment;
+}
+
 type RouteModePickerPosition = {
   left: number;
   top: number;
@@ -88,8 +110,8 @@ export function StopSequenceRail({
   routeSegment
 }: StopSequenceRailProps) {
   return (
-    <div className="flex w-12 shrink-0 flex-col items-center self-stretch">
-      <div className={cn("relative flex w-full justify-center", routeSegment ? "h-9" : "h-2")}>
+    <div className="flex w-8 shrink-0 flex-col items-center self-stretch">
+      <div className={cn("relative flex w-full justify-center", routeSegment ? "h-7" : "h-1.5")}>
         <StopConnector isVisible={!isFirst} className="h-full" />
         {routeSegment ? <RouteSegment segment={routeSegment} /> : null}
       </div>
@@ -100,12 +122,20 @@ export function StopSequenceRail({
         isActive={isActive}
         isDragging={isDragging}
       />
-      <StopConnector isVisible={!isLast} className="min-h-8 flex-1" />
+      <StopConnector isVisible={!isLast} className="min-h-5 flex-1" />
     </div>
   );
 }
 
 export function RouteSegment({ segment }: RouteSegmentProps) {
+  if (segment.kind === "gap") {
+    return <RouteGapSegment segment={segment} />;
+  }
+
+  return <RouteTravelSegment segment={segment} />;
+}
+
+function RouteTravelSegment({ segment }: RouteTravelSegmentProps) {
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -115,7 +145,7 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
   const onPopoverOpenChangeRef = useRef(segment.onTravelModePopoverOpenChange);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerPosition, setPickerPosition] = useState<RouteModePickerPosition | null>(null);
-  const isFocused = segment.isSelected || segment.isHovered;
+  const isFocused = segment.isSelected || segment.isHovered || segment.isPending;
 
   const setPickerOpen = useCallback((nextValue: boolean | ((current: boolean) => boolean)) => {
     const currentIsOpen = isPickerOpenRef.current;
@@ -272,15 +302,17 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
       onMouseEnter={() => segment.onHover(true)}
       onMouseLeave={() => segment.onHover(false)}
     >
-      <span className="h-px w-10 bg-border" aria-hidden="true" />
+      <span className="h-px w-5 bg-border" aria-hidden="true" />
+      {segment.onAddStop ? <RouteAddStopButton segment={segment} /> : null}
       <div className="relative min-w-0">
         <button
           ref={triggerRef}
           type="button"
           className={cn(
-            "group inline-flex min-h-8 max-w-[min(22rem,calc(100vw-5rem))] min-w-0 items-center gap-3 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
-            "hover:bg-muted/70 hover:text-foreground hover:shadow-sm focus-visible:outline-2",
-            isFocused && routeColorClassNames.focusedSegment
+            "group inline-flex min-h-6 max-w-[min(22rem,calc(100vw-5rem))] min-w-0 items-center gap-1.5 rounded-sm px-1 py-0.5 text-left text-xs transition-colors",
+            "hover:text-foreground focus-visible:outline-2",
+            segment.isPending && "cursor-progress",
+            isFocused && "text-foreground"
           )}
           aria-label={segment.routeSelectLabel}
           aria-haspopup="menu"
@@ -300,10 +332,6 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
         >
           <RouteModeChip segment={segment} />
           <RouteMetrics segment={segment} />
-          <ChevronDown
-            className={cn("size-3 shrink-0 transition-transform", isPickerOpen && "rotate-180")}
-            aria-hidden="true"
-          />
         </button>
         {isPickerOpen && pickerPosition && typeof document !== "undefined"
           ? createPortal(
@@ -324,6 +352,22 @@ export function RouteSegment({ segment }: RouteSegmentProps) {
   );
 }
 
+function RouteGapSegment({ segment }: RouteGapSegmentProps) {
+  return (
+    <div
+      className="absolute left-1/2 top-1/2 z-20 flex -translate-y-1/2 items-center whitespace-nowrap text-left text-xs text-muted-foreground/80"
+      aria-label={segment.routeSelectLabel}
+    >
+      <span className="h-px w-5 border-t border-dashed border-border" aria-hidden="true" />
+      {segment.onAddStop ? <RouteAddStopButton segment={segment} /> : null}
+      <span className="inline-flex min-h-6 min-w-0 items-center gap-1.5 rounded-sm px-1 py-0.5">
+        <span aria-hidden="true">{"->"}</span>
+        <RouteMetrics segment={segment} />
+      </span>
+    </div>
+  );
+}
+
 export function StopMarker({
   sequence,
   label,
@@ -333,11 +377,12 @@ export function StopMarker({
 }: StopMarkerProps) {
   return (
     <span
+      title={String(sequence)}
       className={cn(
-        "relative z-10 flex size-8 items-center justify-center rounded-full border bg-background text-xs font-semibold text-foreground shadow-sm transition-colors",
-        isActive && markerColorClassNames.active,
-        isSelected && markerColorClassNames.selectedBadge,
-        isDragging && "ring-2 ring-ring"
+        "relative z-10 flex size-7 items-center justify-center rounded-md border bg-muted text-xs font-semibold leading-none text-muted-foreground transition-[background-color,border-color,color,box-shadow]",
+        isActive && "border-marker-focused bg-marker-focused/10 text-marker-focused",
+        isSelected && "border-accent bg-accent text-white",
+        isDragging && "ring-2 ring-ring ring-offset-2"
       )}
       aria-label={label}
     >
@@ -346,11 +391,35 @@ export function StopMarker({
   );
 }
 
-function RouteModeChip({ segment }: RouteSegmentProps) {
+function RouteAddStopButton({ segment }: { segment: StopRouteSegment }) {
+  if (!segment.onAddStop) {
+    return null;
+  }
+
   return (
-    <span className="inline-flex min-w-0 items-center gap-1.5 font-medium text-foreground">
+    <button
+      type="button"
+      className={cn(
+        "inline-flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2",
+        segment.isAddStopActive && "bg-muted text-foreground"
+      )}
+      aria-label={segment.addStopLabel}
+      title={segment.addStopLabel}
+      onClick={(event) => {
+        event.stopPropagation();
+        segment.onAddStop?.();
+      }}
+    >
+      <Plus className="size-3.5" aria-hidden="true" />
+    </button>
+  );
+}
+
+function RouteModeChip({ segment }: RouteTravelSegmentProps) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
       <TravelModeIcon travelMode={segment.travelMode} />
-      <span className="truncate">{segment.travelModeLabel}</span>
+      <span className="sr-only">{segment.travelModeLabel}</span>
     </span>
   );
 }
@@ -361,8 +430,11 @@ function RouteMetrics({ segment }: RouteSegmentProps) {
   }
 
   return (
-    <span className="min-w-0 truncate text-muted-foreground group-hover:text-current">
-      {segment.metrics.join(" \u00b7 ")}
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground group-hover:text-current">
+      {segment.isPending ? (
+        <RefreshCw className="size-3 shrink-0 animate-spin" aria-hidden="true" />
+      ) : null}
+      <span className="min-w-0 truncate">{segment.metrics.join(" \u00b7 ")}</span>
     </span>
   );
 }
@@ -375,7 +447,7 @@ function RouteModePicker({
   optionRefs,
   onModeChange,
   onOptionKeyDown
-}: RouteSegmentProps & {
+}: RouteTravelSegmentProps & {
   menuId: string;
   menuRef: MutableRefObject<HTMLDivElement | null>;
   position: RouteModePickerPosition;
@@ -389,7 +461,7 @@ function RouteModePicker({
       ref={menuRef}
       role="menu"
       aria-label={segment.travelModeSelectLabel}
-      className="fixed z-[100] rounded-md border bg-background p-1 shadow-lg"
+      className="fixed z-[100] rounded-md border bg-background p-1 shadow-sm"
       style={{
         left: position.left,
         top: position.top,
@@ -453,7 +525,7 @@ export function StopConnector({ isVisible, className }: StopConnectorProps) {
   return (
     <span
       aria-hidden="true"
-      className={cn("w-px bg-border", !isVisible && "bg-transparent", className)}
+      className={cn("w-px bg-border/80", !isVisible && "bg-transparent", className)}
     />
   );
 }

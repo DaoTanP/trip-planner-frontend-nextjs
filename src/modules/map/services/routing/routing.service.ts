@@ -1,7 +1,7 @@
 import type { MapRoute, MapRouteRequest } from "@/modules/map/types/map.types";
 
 import { osrmRoutingProvider } from "./providers/osrm-routing.provider";
-import type { MapRouteInput, RoutingProvider } from "./routing.types";
+import type { RoutingProvider } from "./routing.types";
 
 const defaultRoutingProvider: RoutingProvider = osrmRoutingProvider;
 
@@ -13,10 +13,9 @@ export function getRoutingProviderId() {
   return defaultRoutingProvider.id;
 }
 
-export async function getMapRoute(input: MapRouteInput, signal?: AbortSignal): Promise<MapRoute> {
-  return defaultRoutingProvider.getRoute(toRouteRequest(input), signal);
-}
-
-function toRouteRequest(input: MapRouteInput): MapRouteRequest {
-  return Array.isArray(input) ? { points: input, travelMode: "driving" } : input;
+export async function getMapRoute(
+  request: MapRouteRequest,
+  signal?: AbortSignal
+): Promise<MapRoute> {
+  return defaultRoutingProvider.getRoute(request, signal);
 }

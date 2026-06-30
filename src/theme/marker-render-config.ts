@@ -15,6 +15,7 @@ export const markerRenderConfig = {
       selected: 1.75
     },
     strokeWeight: 2,
+    selectedStrokeWeight: 4,
     zIndex: {
       default: 10,
       emphasis: 20,
@@ -49,6 +50,9 @@ export const markerRenderConfig = {
       number,
       number
     ],
+    markerHaloFillColor: "rgba(0, 0, 0, 0)",
+    markerHaloCircleRadius: 24,
+    markerHaloStrokeWidth: 3,
     markerStrokeWidth: ["case", ["get", "isSelected"], 4, ["get", "isFocused"], 4, 3] as [
       "case",
       ["get", string],

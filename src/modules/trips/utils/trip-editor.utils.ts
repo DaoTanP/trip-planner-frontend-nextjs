@@ -10,6 +10,7 @@ import type {
   MapTravelMode
 } from "@/modules/map/types/map.types";
 import type { PlaceDto } from "@/services/api/contracts";
+import { getItineraryItemTypeCategoryKey } from "@/theme";
 
 export const orderStride = 65_536;
 
@@ -45,7 +46,9 @@ export function getItineraryMapMarkers(items: ItineraryItem[], places: PlaceDto[
       placeId: place.id,
       label: place.name,
       latitude: place.latitude,
-      longitude: place.longitude
+      longitude: place.longitude,
+      categoryKey: getItineraryItemTypeCategoryKey(item.types[0] ?? "OTHER"),
+      status: item.status
     });
   });
 

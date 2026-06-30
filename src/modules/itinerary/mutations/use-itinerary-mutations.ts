@@ -374,6 +374,7 @@ export function useDeleteItineraryItemMutation(tripId: string) {
       void queryClient.invalidateQueries({ queryKey: itineraryKeys.items(tripId) });
       void queryClient.invalidateQueries({ queryKey: itineraryKeys.routeItems(tripId) });
       void queryClient.invalidateQueries({ queryKey: placeKeys.byTrip(tripId) });
+      void queryClient.invalidateQueries({ queryKey: tripKeys.routePreferences(tripId) });
     }
   });
 }

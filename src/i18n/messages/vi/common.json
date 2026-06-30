@@ -57,7 +57,7 @@
     },
     "notFound": {
       "title": "Không tìm thấy trang",
-      "description": "Trang có thể đã được di chuyển hoặc địa chỉ không chính xác."
+      "description": "Nếu bạn vừa ở đây, hãy làm mới trang, hoặc quay về trang chủ và chọn chuyến đi tiếp theo từ đó."
     },
     "page": {
       "title": "Không thể tải trang này",

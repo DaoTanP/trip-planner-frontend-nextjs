@@ -24,7 +24,7 @@ export function mapRouteQueryOptions(request: MapRouteRequest) {
 function normalizeRouteRequest(request: MapRouteRequest): MapRouteRequest {
   return {
     points: request.points.filter(isValidRoutePoint).map(normalizeRoutePoint),
-    travelMode: request.travelMode ?? "driving",
+    travelMode: request.travelMode,
     ...(request.optimizeWaypoints ? { optimizeWaypoints: true } : {})
   };
 }

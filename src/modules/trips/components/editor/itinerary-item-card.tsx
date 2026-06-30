@@ -46,8 +46,7 @@ import {
   getItineraryItemTypeCategoryColor,
   statusColorClassNames,
   syncColorClassNames,
-  syncStateBadgeClassNames,
-  tripStateColorClassNames
+  syncStateBadgeClassNames
 } from "@/theme";
 
 import type { StopNotePreviewState } from "../../hooks/use-itinerary-note-previews";
@@ -75,6 +74,8 @@ interface ItineraryItemCardProps {
   isExpanded?: boolean | undefined;
   onExpandedChange?: ((isExpanded: boolean) => void) | undefined;
   notePreview?: StopNotePreviewState | undefined;
+  isReorderEnabled?: boolean | undefined;
+  isDragPreview?: boolean | undefined;
   dragHandleProps: {
     attributes: DraggableAttributes;
     listeners: DraggableSyntheticListeners;
@@ -106,6 +107,8 @@ export function ItineraryItemCard({
   isExpanded: controlledIsExpanded,
   onExpandedChange,
   notePreview,
+  isReorderEnabled = false,
+  isDragPreview = false,
   dragHandleProps
 }: ItineraryItemCardProps) {
   const t = useTranslations("trip.editor.item");
@@ -147,6 +150,14 @@ export function ItineraryItemCard({
   const placeName = place?.name ?? t("unknownPlace");
   const placeAddress = place?.formattedAddress ?? place?.address;
   const statusLabel = t(`statuses.${item.status}`);
+  const scheduleParts = useMemo(
+    () => formatStopScheduleParts(item.startsAt, item.timezone, defaultTimezone, locale, t),
+    [defaultTimezone, item.startsAt, item.timezone, locale, t]
+  );
+  const durationLabel = useMemo(
+    () => formatItemDuration(item.durationMinutes, t),
+    [item.durationMinutes, t]
+  );
   const presenceEntries = useEntityPresenceEntries({
     tripId,
     entityType: "ITINERARY_ITEM",
@@ -216,55 +227,172 @@ export function ItineraryItemCard({
 
   return (
     <article
+      data-itinerary-item-card={item.id}
       className={cn(
-        "group w-full rounded-md border bg-card p-3 shadow-sm transition-colors",
-        isSelected && tripStateColorClassNames.selectedFrame,
-        isHovered && !isSelected && tripStateColorClassNames.hoverFrame,
-        isRouteFocused && !isSelected && tripStateColorClassNames.focusedSurface,
-        syncState === "conflicted" && syncColorClassNames.conflictFrame
+        "group w-full rounded-md border border-border/70 bg-card px-3 py-2 transition-[background-color,border-color,box-shadow]",
+        isSelected && "border-accent/40 bg-accent-subtle shadow-[inset_2px_0_0_var(--accent)]",
+        isHovered && !isSelected && "bg-muted/30",
+        isRouteFocused && !isSelected && "bg-trip-state-focused/10",
+        syncState === "conflicted" && "bg-destructive/10 shadow-[inset_3px_0_0_var(--destructive)]",
+        isDragPreview && "border-border shadow-md"
       )}
       onMouseEnter={() => setHoveredItemId(item.id)}
       onMouseLeave={() => setHoveredItemId(undefined)}
       onClick={() => selectItem(item.id, item.placeId)}
     >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+      <div className="grid min-h-10 grid-cols-[3.1rem_minmax(0,1fr)_auto] items-center gap-2.5 sm:grid-cols-[minmax(3.25rem,4rem)_minmax(0,1fr)_auto_auto] sm:gap-3">
+        <div className="min-w-0 text-right tabular-nums">
+          <span className="block truncate text-[0.6875rem] leading-4 text-muted-foreground">
+            {scheduleParts.date}
+          </span>
+          <span className="block truncate text-xs font-medium leading-4 text-foreground">
+            {scheduleParts.time}
+          </span>
+        </div>
+
         <div className="min-w-0">
-          <div className="flex min-w-0 items-start gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-center gap-2">
-                <h3 className="min-w-0 truncate text-base font-semibold leading-tight">
-                  {placeName}
-                </h3>
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="min-w-0 truncate text-sm font-semibold leading-5">{placeName}</h3>
+            <span
+              className={cn(
+                "hidden shrink-0 items-center gap-1 rounded-sm px-2 py-0.5 text-[0.6875rem] font-medium tracking-normal sm:inline-flex",
+                typeColor.badgeClassName
+              )}
+              title={t(`types.${firstType}`)}
+            >
+              <TypeIcon className="size-3" aria-hidden="true" />
+              {t(`types.${firstType}`)}
+            </span>
+          </div>
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[0.6875rem] leading-4 text-muted-foreground sm:hidden">
+            <span
+              className={cn(
+                "inline-flex min-w-0 items-center gap-1 rounded-sm px-1.5 py-0.5 font-medium",
+                typeColor.badgeClassName
+              )}
+            >
+              <TypeIcon className="size-3 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 truncate">{t(`types.${firstType}`)}</span>
+            </span>
+            <span aria-hidden="true">{"\u00b7"}</span>
+            <span className="shrink-0">{durationLabel}</span>
+            {item.status !== "PLANNED" ? (
+              <>
+                <span aria-hidden="true">{"\u00b7"}</span>
                 <span
                   className={cn(
-                    "shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-normal",
-                    typeColor.badgeClassName
+                    "inline-flex min-w-0 items-center gap-1 rounded-sm border px-1.5 py-0.5 font-medium",
+                    statusColorClassNames.itineraryItem[item.status]
                   )}
-                  title={t(`types.${firstType}`)}
                 >
-                  {firstType}
+                  <Circle className="size-3 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 truncate">{statusLabel}</span>
                 </span>
-              </div>
-            </div>
-            {syncState === "conflicted" ? (
-              <span
-                className={cn(
-                  "shrink-0 rounded-md px-1.5 py-0.5 text-xs",
-                  syncColorClassNames.conflictBadge
-                )}
-              >
-                {t(`sync.${syncState}`)}
-              </span>
+              </>
             ) : null}
           </div>
+        </div>
 
-          <div className="mt-2" onClick={(event) => event.stopPropagation()}>
+        <div className="hidden items-center gap-2 sm:flex">
+          <span className="max-w-24 truncate text-xs text-muted-foreground">{durationLabel}</span>
+          {item.status !== "PLANNED" ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs font-medium",
+                statusColorClassNames.itineraryItem[item.status]
+              )}
+            >
+              <Circle className="size-3 shrink-0" aria-hidden="true" />
+              {statusLabel}
+            </span>
+          ) : null}
+          {syncState === "conflicted" ? (
+            <span
+              className={cn(
+                "shrink-0 rounded-md px-1.5 py-0.5 text-xs",
+                syncColorClassNames.conflictBadge
+              )}
+            >
+              {t(`sync.${syncState}`)}
+            </span>
+          ) : null}
+          {activePresence.length > 0 ? <StopPresenceIndicator entries={activePresence} /> : null}
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-7"
+            aria-label={isExpanded ? t("collapse") : t("expand")}
+            onClick={(event) => {
+              event.stopPropagation();
+              setExpanded((current) => !current);
+            }}
+          >
+            {isExpanded ? (
+              <ChevronUp className="size-3.5" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="size-3.5" aria-hidden="true" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className={cn(
+              "size-7 touch-none text-muted-foreground transition-[opacity,color]",
+              isReorderEnabled && isDragPreview
+                ? "cursor-grabbing opacity-100 md:opacity-100"
+                : isReorderEnabled
+                  ? "cursor-grab opacity-100 active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+                  : "cursor-not-allowed opacity-0"
+            )}
+            aria-label={t("drag")}
+            disabled={!isReorderEnabled}
+            onClick={(event) => event.stopPropagation()}
+            {...dragHandleProps.attributes}
+            {...dragHandleProps.listeners}
+          >
+            <GripVertical className="size-3.5" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="hidden size-7 opacity-100 md:inline-flex md:opacity-0 md:group-hover:opacity-100"
+            aria-label={t("delete")}
+            disabled={deleteItem.isPending}
+            onClick={(event) => {
+              event.stopPropagation();
+              deleteItem.mutate({
+                itemId: item.id,
+                params: { clientMutationId: crypto.randomUUID() }
+              });
+              if (selectedItemId === item.id) {
+                selectItem(undefined, undefined);
+              }
+            }}
+          >
+            <Trash2 className="size-3.5" aria-hidden="true" />
+          </Button>
+        </div>
+      </div>
+
+      {isExpanded ? (
+        <div
+          className="mt-2 grid gap-3 border-t border-border/70 pt-3 text-xs text-muted-foreground"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="grid gap-1.5">
+            <label className="text-xs font-medium text-muted-foreground">{t("summaryLabel")}</label>
             <textarea
               ref={summaryTextareaRef}
               value={summary}
               rows={1}
               maxLength={summaryCharacterLimit}
-              className="block min-h-8 w-full resize-none overflow-hidden rounded-md border-0 bg-transparent py-1.5 text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-0 focus:bg-muted/40"
+              className="block min-h-9 w-full resize-none overflow-hidden rounded-sm border border-transparent bg-background/70 px-2.5 py-1.5 text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-border focus-visible:outline-2"
               placeholder={t("summaryPlaceholder")}
               onChange={(event) =>
                 setDraft({
@@ -278,33 +406,25 @@ export function ItineraryItemCard({
           </div>
 
           {placeAddress ? (
-            <p className="mt-1 truncate text-xs text-muted-foreground">{placeAddress}</p>
+            <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+              <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{placeAddress}</span>
+            </p>
           ) : null}
 
           {isAssigningPlace ? (
-            <div className="mt-3" onClick={(event) => event.stopPropagation()}>
-              <PlaceSearchBox
-                title={t("changePlace")}
-                tripId={tripId}
-                placeholder={t("placeSearchPlaceholder")}
-                className="border-dashed shadow-none"
-                actionLabel={(candidate) => t("changePlaceTo", { name: candidate.name })}
-                onClose={() => setIsAssigningPlace(false)}
-                onPlaceSelected={handlePlaceSelected}
-              />
-            </div>
+            <PlaceSearchBox
+              title={t("changePlace")}
+              tripId={tripId}
+              placeholder={t("placeSearchPlaceholder")}
+              className="border-dashed bg-background/70 shadow-none"
+              actionLabel={(candidate) => t("changePlaceTo", { name: candidate.name })}
+              onClose={() => setIsAssigningPlace(false)}
+              onPlaceSelected={handlePlaceSelected}
+            />
           ) : null}
 
-          <StopNotesPreview
-            tripId={tripId}
-            item={item}
-            placeId={place?.id}
-            notePreview={notePreview}
-            isExpanded={isExpanded}
-            onExpand={() => setExpanded(true)}
-          />
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border/70 pt-2">
             <ScheduleMetadataEditor
               startsAt={item.startsAt}
               timezone={item.timezone}
@@ -330,173 +450,130 @@ export function ItineraryItemCard({
             />
             <span
               className={cn(
-                "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5",
+                "inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 font-medium",
                 statusColorClassNames.itineraryItem[item.status]
               )}
             >
               <Circle className="size-3 shrink-0" aria-hidden="true" />
               {statusLabel}
             </span>
-            {notePreview?.noteCount !== null && notePreview?.noteCount !== undefined ? (
-              <span className="inline-flex items-center gap-1">
-                <MessageSquare className="size-3.5 shrink-0" aria-hidden="true" />
-                {notePreview.noteCount}
+            {syncState && syncState !== "conflicted" ? (
+              <span
+                className={cn(
+                  "rounded-sm border px-2 py-0.5 font-medium",
+                  syncStateBadgeClassNames[syncState]
+                )}
+              >
+                {t(`sync.${syncState}`)}
               </span>
             ) : null}
-            {activePresence.length > 0 ? <StopPresenceIndicator entries={activePresence} /> : null}
+            <span className="truncate">{t("editedAt", { value: updatedAt })}</span>
           </div>
 
-          {isExpanded ? (
-            <div
-              className="mt-3 grid gap-3 border-t pt-3 text-xs text-muted-foreground"
-              onClick={(event) => event.stopPropagation()}
+          <StopNotesPreview
+            tripId={tripId}
+            item={item}
+            notePreview={notePreview}
+            isExpanded
+            onExpand={() => setExpanded(true)}
+          />
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-1.5 text-xs"
+              onClick={() => setIsAssigningPlace((current) => !current)}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-1.5 text-xs"
-                  onClick={() => setIsAssigningPlace((current) => !current)}
-                >
-                  <MapPin className="size-3.5" aria-hidden="true" />
-                  {t("changePlace")}
-                </Button>
-                {routeSummary ? (
-                  <span className="inline-flex min-w-0 items-center gap-1">
-                    <Route className="size-3 shrink-0" aria-hidden="true" />
-                    <span className="truncate">
-                      {t("routeSummary", {
-                        mode: t(getTravelModeConfig(routeSummary.travelMode).labelKey),
-                        distance: formatDistance(routeSummary.distanceMeters, locale),
-                        duration: formatRouteDuration(routeSummary.durationSeconds, t)
-                      })}
-                    </span>
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1 text-muted-foreground">
-                  <TypeIcon className="size-3" aria-hidden="true" />
-                  {item.types.map((type) => t(`types.${type}`)).join(" / ")}
+              <MapPin className="size-3.5" aria-hidden="true" />
+              {t("changePlace")}
+            </Button>
+            {routeSummary ? (
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <Route className="size-3 shrink-0" aria-hidden="true" />
+                <span className="truncate">
+                  {t("routeSummary", {
+                    mode: t(getTravelModeConfig(routeSummary.travelMode).labelKey),
+                    distance: formatDistance(routeSummary.distanceMeters, locale),
+                    duration: formatRouteDuration(routeSummary.durationSeconds, t)
+                  })}
                 </span>
-                <select
-                  value={firstType}
-                  aria-label={t("typeLabel")}
-                  className="h-7 rounded-md border bg-background px-2 text-xs"
-                  disabled={updateItem.isPending}
-                  onChange={(event) =>
-                    patchItem({
-                      types: [event.target.value as ItineraryItemType],
-                      expectedVersion: item.version
-                    })
-                  }
-                >
-                  {itineraryItemTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {t(`types.${type}`)}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={item.status}
-                  aria-label={t("statusLabel")}
-                  className="h-7 rounded-md border bg-background px-2 text-xs"
-                  disabled={updateItem.isPending}
-                  onChange={(event) =>
-                    patchItem({
-                      status: event.target.value as ItineraryItem["status"],
-                      expectedVersion: item.version
-                    })
-                  }
-                >
-                  {(
-                    ["PLANNED", "BOOKED", "COMPLETED", "CANCELLED"] as ItineraryItem["status"][]
-                  ).map((status) => (
-                    <option key={status} value={status}>
-                      {t(`statuses.${status}`)}
-                    </option>
-                  ))}
-                </select>
-                {tags.map((tag) => (
-                  <span key={tag} className="rounded-md border px-1.5 py-0.5">
-                    {tag}
-                  </span>
-                ))}
-                {bookingState ? (
-                  <span className="rounded-md border px-1.5 py-0.5">{bookingState}</span>
-                ) : null}
-                {reminder ? (
-                  <span className="rounded-md border px-1.5 py-0.5">{reminder}</span>
-                ) : null}
-                {syncState && syncState !== "conflicted" ? (
-                  <span
-                    className={cn(
-                      "rounded-md border px-1.5 py-0.5",
-                      syncStateBadgeClassNames[syncState]
-                    )}
-                  >
-                    {t(`sync.${syncState}`)}
-                  </span>
-                ) : null}
-                <span className="truncate">{t("editedAt", { value: updatedAt })}</span>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col items-end gap-1">
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="size-8"
-            aria-label={isExpanded ? t("collapse") : t("expand")}
-            onClick={(event) => {
-              event.stopPropagation();
-              setExpanded((current) => !current);
-            }}
-          >
-            {isExpanded ? (
-              <ChevronUp className="size-4" aria-hidden="true" />
-            ) : (
-              <ChevronDown className="size-4" aria-hidden="true" />
-            )}
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="size-8 cursor-grab touch-none opacity-100 active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100"
-            aria-label={t("drag")}
-            {...dragHandleProps.attributes}
-            {...dragHandleProps.listeners}
-          >
-            <GripVertical className="size-4" aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="size-8 opacity-100 md:opacity-0 md:group-hover:opacity-100"
-            aria-label={t("delete")}
-            disabled={deleteItem.isPending}
-            onClick={(event) => {
-              event.stopPropagation();
-              deleteItem.mutate({
-                itemId: item.id,
-                params: { clientMutationId: crypto.randomUUID() }
-              });
-              if (selectedItemId === item.id) {
-                selectItem(undefined, undefined);
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1 text-muted-foreground">
+              <TypeIcon className="size-3" aria-hidden="true" />
+              {item.types.map((type) => t(`types.${type}`)).join(" / ")}
+            </span>
+            <select
+              value={firstType}
+              aria-label={t("typeLabel")}
+              className="h-7 rounded-sm border bg-background px-2 text-xs"
+              disabled={updateItem.isPending}
+              onChange={(event) =>
+                patchItem({
+                  types: [event.target.value as ItineraryItemType],
+                  expectedVersion: item.version
+                })
               }
-            }}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-          </Button>
+            >
+              {itineraryItemTypes.map((type) => (
+                <option key={type} value={type}>
+                  {t(`types.${type}`)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={item.status}
+              aria-label={t("statusLabel")}
+              className="h-7 rounded-sm border bg-background px-2 text-xs"
+              disabled={updateItem.isPending}
+              onChange={(event) =>
+                patchItem({
+                  status: event.target.value as ItineraryItem["status"],
+                  expectedVersion: item.version
+                })
+              }
+            >
+              {(["PLANNED", "BOOKED", "COMPLETED", "CANCELLED"] as ItineraryItem["status"][]).map(
+                (status) => (
+                  <option key={status} value={status}>
+                    {t(`statuses.${status}`)}
+                  </option>
+                )
+              )}
+            </select>
+            {tags.map((tag) => (
+              <span key={tag} className="rounded-sm border px-2 py-0.5">
+                {tag}
+              </span>
+            ))}
+            {bookingState ? (
+              <span className="rounded-sm border px-2 py-0.5">{bookingState}</span>
+            ) : null}
+            {reminder ? <span className="rounded-sm border px-2 py-0.5">{reminder}</span> : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-1.5 text-xs"
+              disabled={deleteItem.isPending}
+              onClick={() => {
+                deleteItem.mutate({
+                  itemId: item.id,
+                  params: { clientMutationId: crypto.randomUUID() }
+                });
+                if (selectedItemId === item.id) {
+                  selectItem(undefined, undefined);
+                }
+              }}
+            >
+              <Trash2 className="size-3.5" aria-hidden="true" />
+              {t("delete")}
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </article>
   );
 }
@@ -504,14 +581,12 @@ export function ItineraryItemCard({
 function StopNotesPreview({
   tripId,
   item,
-  placeId,
   notePreview,
   isExpanded,
   onExpand
 }: {
   tripId: string;
   item: ItineraryItem;
-  placeId?: string | undefined;
   notePreview?: StopNotePreviewState | undefined;
   isExpanded: boolean;
   onExpand: () => void;
@@ -520,7 +595,10 @@ function StopNotesPreview({
 
   if (isExpanded) {
     return (
-      <div className="mt-3 grid gap-4 border-t pt-3" onClick={(event) => event.stopPropagation()}>
+      <div
+        className="grid gap-3 border-t border-border/70 pt-2"
+        onClick={(event) => event.stopPropagation()}
+      >
         <section className="grid gap-2">
           <p className="text-xs font-medium text-muted-foreground">{t("stopNotes")}</p>
           <NotePanel
@@ -530,12 +608,6 @@ function StopNotesPreview({
             compact
           />
         </section>
-        {placeId ? (
-          <section className="grid gap-2">
-            <p className="text-xs font-medium text-muted-foreground">{t("placeNotes")}</p>
-            <NotePanel tripId={tripId} targetEntityType="PLACE" targetEntityId={placeId} compact />
-          </section>
-        ) : null}
       </div>
     );
   }
@@ -632,6 +704,93 @@ function MoreNotesButton({
 
 function NotePreviewLine({ note }: { note: CollaborativeNote }) {
   return <li className="line-clamp-2 min-w-0">{note.body}</li>;
+}
+
+function formatStopScheduleParts(
+  startsAt: string | null,
+  timezone: string | null | undefined,
+  defaultTimezone: string | null | undefined,
+  locale: string,
+  t: ReturnType<typeof useTranslations>
+) {
+  if (!startsAt) {
+    const unscheduled = t("unscheduled");
+
+    return {
+      date: unscheduled,
+      time: "--:--",
+      full: unscheduled
+    };
+  }
+
+  const date = new Date(startsAt);
+  const timeZone = getDisplayTimeZone(timezone, defaultTimezone);
+
+  if (Number.isNaN(date.getTime())) {
+    const unscheduled = t("unscheduled");
+
+    return {
+      date: unscheduled,
+      time: "--:--",
+      full: unscheduled
+    };
+  }
+
+  const dateLabel = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    timeZone
+  }).format(date);
+  const timeLabel = new Intl.DateTimeFormat(locale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone
+  }).format(date);
+
+  return {
+    date: dateLabel,
+    time: timeLabel,
+    full: `${dateLabel} ${timeLabel}`
+  };
+}
+
+function getDisplayTimeZone(
+  timezone: string | null | undefined,
+  defaultTimezone: string | null | undefined
+) {
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const candidate = timezone ?? defaultTimezone ?? browserTimezone;
+
+  return candidate && isValidTimeZone(candidate) ? candidate : "UTC";
+}
+
+function isValidTimeZone(timezone: string) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function formatItemDuration(minutes: number | null, t: ReturnType<typeof useTranslations>) {
+  if (minutes === null) {
+    return t("durationFlexible");
+  }
+
+  const totalMinutes = Math.max(0, Math.round(minutes));
+  const days = Math.floor(totalMinutes / 1_440);
+  const hours = Math.floor((totalMinutes % 1_440) / 60);
+  const remainingMinutes = totalMinutes % 60;
+  const parts = [
+    days > 0 ? t("durationParts.day", { count: days }) : null,
+    hours > 0 ? t("durationParts.hour", { count: hours }) : null,
+    remainingMinutes > 0 || (days === 0 && hours === 0)
+      ? t("durationParts.minute", { count: remainingMinutes })
+      : null
+  ];
+
+  return parts.filter((part): part is string => part !== null).join(" ");
 }
 
 function formatDistance(meters: number | null, locale: string) {

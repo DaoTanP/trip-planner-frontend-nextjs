@@ -3,9 +3,26 @@
 import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Map as MapIcon, MapPinPlus, RefreshCw, X } from "lucide-react";
-import { motion } from "framer-motion";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode
+} from "react";
+import {
+  AlertTriangle,
+  GripVertical,
+  Map as MapIcon,
+  MapPinPlus,
+  PanelRightClose,
+  PanelRightOpen,
+  RefreshCw,
+  Route,
+  X
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -51,7 +68,12 @@ import { useSyncDebug } from "@/modules/sync/hooks/use-sync-debug";
 import { usePlannerStore } from "@/stores/use-planner-store";
 import { semanticColorClassNames } from "@/theme";
 
-import { tripDetailQueryOptions } from "../../queries/trip.queries";
+import { useUpsertTripRoutePreferenceMutation } from "../../mutations/use-route-preference-mutations";
+import {
+  tripDetailQueryOptions,
+  tripRoutePreferencesQueryOptions
+} from "../../queries/trip.queries";
+import type { TripRoutePreference } from "../../types/trip.types";
 import {
   getRouteLegAdjacentItemIds,
   getRouteLegPoints,
@@ -62,7 +84,8 @@ import { getDefaultItineraryItemTimezone } from "../../utils/timezone.utils";
 import {
   buildItemSyncStateMap,
   buildPlannerStats,
-  buildRouteSummaryByItem
+  buildRouteSummaryByItem,
+  getScheduleOverlapIssue
 } from "../../utils/planner-workspace.utils";
 import { TripEditorHeader } from "./trip-editor-header";
 import { TripEditorSkeleton } from "./trip-editor-skeleton";
@@ -73,7 +96,7 @@ const LazyTripMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-[42dvh] min-h-72 max-h-[28rem] rounded-md border bg-muted md:h-[calc(100dvh-8rem)] md:max-h-none" />
+      <div className="h-[42dvh] min-h-72 max-h-[28rem] rounded-md border bg-muted md:h-dvh md:max-h-none md:rounded-none md:border-0" />
     )
   }
 );
@@ -86,6 +109,7 @@ type MapStopCandidate = {
   tripId: string;
   point: { latitude: number; longitude: number };
   place: ReverseGeocodeResult;
+  insertAfterItemId?: string | undefined;
 };
 
 type RouteLegRequest = {
@@ -97,22 +121,20 @@ type RouteLegRequest = {
   travelMode: MapTravelMode;
   fromPoint: MapRoutePoint;
   toPoint: MapRoutePoint;
-};
-
-type RouteGroupRequest = {
-  id: string;
-  travelMode: MapTravelMode;
-  legs: RouteLegRequest[];
   request: MapRouteRequest;
 };
 
-type EditorTab = "stops" | "budget" | "notes";
+type EditorTab = "stops" | "map" | "budget" | "notes" | "files";
 
 const defaultMapViewport: MapViewport = {
   latitude: mapConfig.defaultViewport.latitude,
   longitude: mapConfig.defaultViewport.longitude,
   zoom: mapConfig.defaultViewport.zoom
 };
+const defaultMapPaneWidthPercent = 34;
+const minMapPaneWidthPercent = 30;
+const maxMapPaneWidthPercent = 42;
+const stickyWorkspaceTopClassName = "lg:top-0";
 
 export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const locale = useLocale();
@@ -121,9 +143,11 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const tripQuery = useQuery(tripDetailQueryOptions(tripId));
   const itineraryQuery = useInfiniteQuery(itineraryInfiniteQueryOptions(tripId));
   const routeItemsQuery = useQuery(itineraryRouteItemsQueryOptions(tripId));
+  const routePreferencesQuery = useQuery(tripRoutePreferencesQueryOptions(tripId));
   const placesQuery = useQuery(tripPlacesQueryOptions(tripId));
   const budgetQuery = useQuery(tripBudgetQueryOptions(tripId));
   const createItem = useCreateItineraryItemMutation(tripId);
+  const upsertRoutePreference = useUpsertTripRoutePreferenceMutation(tripId);
   const resolvePlace = useResolvePlaceMutation();
   const sessionQuery = useSession();
   const syncDebug = useSyncDebug(tripId);
@@ -142,13 +166,8 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const [reverseGeocodingTripId, setReverseGeocodingTripId] = useState<string | undefined>();
   const [isAddingMapStop, setIsAddingMapStop] = useState(false);
   const [activeTab, setActiveTab] = useState<EditorTab>("stops");
-  const [routeTravelModeByLegState, setRouteTravelModeByLegState] = useState<{
-    tripId: string;
-    travelModes: Record<string, MapTravelMode>;
-  }>(() => ({
-    tripId,
-    travelModes: {}
-  }));
+  const [mapPaneWidthPercent, setMapPaneWidthPercent] = useState(defaultMapPaneWidthPercent);
+  const [isMapPaneCollapsed, setIsMapPaneCollapsed] = useState(false);
   const [expandedRouteLegState, setExpandedRouteLegState] = useState<{
     tripId: string;
     routeLegId?: string | undefined;
@@ -162,21 +181,24 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     tripId
   }));
   const routeTravelModeByLeg = useMemo(
-    () =>
-      routeTravelModeByLegState.tripId === tripId ? routeTravelModeByLegState.travelModes : {},
-    [routeTravelModeByLegState, tripId]
+    () => buildRouteTravelModeByLeg(routePreferencesQuery.data ?? []),
+    [routePreferencesQuery.data]
   );
   const setRouteLegTravelMode = useCallback(
     (routeLegId: string, travelMode: MapTravelMode) => {
-      setRouteTravelModeByLegState((current) => ({
-        tripId,
-        travelModes: {
-          ...(current.tripId === tripId ? current.travelModes : {}),
-          [routeLegId]: travelMode
-        }
-      }));
+      const routeLegItemIds = getRouteLegPreferenceItemIds(routeLegId);
+
+      if (!routeLegItemIds || (routeTravelModeByLeg[routeLegId] ?? "driving") === travelMode) {
+        return;
+      }
+
+      upsertRoutePreference.mutate({
+        fromItemId: routeLegItemIds.fromItemId,
+        toItemId: routeLegItemIds.toItemId,
+        payload: { travelMode }
+      });
     },
-    [tripId]
+    [routeTravelModeByLeg, upsertRoutePreference]
   );
   const [viewportState, setViewportState] = useState<{
     tripId: string;
@@ -195,6 +217,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const reverseGeocodeAbortRef = useRef<AbortController | null>(null);
   const reverseGeocodeRequestIdRef = useRef(0);
   const addMapStopLockRef = useRef(false);
+  const splitPaneRef = useRef<HTMLDivElement>(null);
   const selectedFocusKeyRef = useRef<string | undefined>(undefined);
   const selectionContextKeyRef = useRef<string | undefined>(undefined);
   const skipNextSelectionDraftCancelRef = useRef(false);
@@ -249,40 +272,39 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     () => buildRouteLegRequests(markers, routeTravelModeByLeg),
     [markers, routeTravelModeByLeg]
   );
-  const routeGroups = useMemo(() => buildRouteGroups(routeLegRequests), [routeLegRequests]);
-  const routeGroupQueries = useQueries({
-    queries: routeGroups.map((routeGroup) => mapRouteQueryOptions(routeGroup.request))
+  const routeLegQueries = useQueries({
+    queries: routeLegRequests.map((routeLeg) => mapRouteQueryOptions(routeLeg.request))
   });
-  const routeError = routeGroupQueries.reduce<Error | undefined>((currentError, query) => {
+  const routeError = routeLegQueries.reduce<Error | undefined>((currentError, query) => {
     if (currentError) {
       return currentError;
     }
 
     return query.error instanceof Error ? query.error : undefined;
   }, undefined);
-  const areRouteGroupsResolved =
+  const areRouteLegRoutesResolved =
     !isRouteDataIncomplete &&
     routeCanBeRequested &&
-    routeGroups.length > 0 &&
-    routeGroupQueries.length === routeGroups.length &&
-    routeGroupQueries.every((query) => query.data !== undefined && query.error === null);
+    routeLegRequests.length > 0 &&
+    routeLegQueries.length === routeLegRequests.length &&
+    routeLegQueries.every((query) => query.data !== undefined && query.error === null);
   const routeResult = useMemo(
     () =>
-      areRouteGroupsResolved
+      areRouteLegRoutesResolved
         ? buildAggregateRouteResult(
-            routeGroupQueries.map((query) => query.data),
+            routeLegQueries.map((query) => query.data),
             providerRouteRequestPoints
           )
         : undefined,
-    [areRouteGroupsResolved, providerRouteRequestPoints, routeGroupQueries]
+    [areRouteLegRoutesResolved, providerRouteRequestPoints, routeLegQueries]
   );
   const routeLegs = useMemo(
     () =>
-      buildRouteLegsFromRouteGroups(
-        routeGroups,
-        routeGroupQueries.map((query) => query.data)
+      buildRouteLegsFromRouteRequests(
+        routeLegRequests,
+        routeLegQueries.map((query) => query.data)
       ),
-    [routeGroups, routeGroupQueries]
+    [routeLegQueries, routeLegRequests]
   );
   const expandedRouteLegId =
     expandedRouteLegState.tripId === tripId &&
@@ -299,14 +321,14 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const mapFocusedRouteLegId = popoverRouteLegId ?? expandedRouteLegId;
   const renderedRoute = useMemo(
     () =>
-      areRouteGroupsResolved
+      areRouteLegRoutesResolved
         ? getRouteLegPoints(
             routeLegs.map((routeLeg) => routeLeg.id),
             routeLegs,
             markers
           )
         : [],
-    [areRouteGroupsResolved, markers, routeLegs]
+    [areRouteLegRoutesResolved, markers, routeLegs]
   );
   const routeGapCount = useMemo(() => {
     if (placesQuery.isError || isRouteDataIncomplete) {
@@ -356,8 +378,8 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     [syncDebug.queueEntries, tripId]
   );
   const statsRouteLegs = useMemo(
-    () => (areRouteGroupsResolved ? routeLegs : []),
-    [areRouteGroupsResolved, routeLegs]
+    () => (areRouteLegRoutesResolved ? routeLegs : []),
+    [areRouteLegRoutesResolved, routeLegs]
   );
   const stats = useMemo(
     () =>
@@ -381,6 +403,13 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       tripQuery.data?.noteCount
     ]
   );
+  const firstTimingIssue = useMemo(
+    () => getScheduleOverlapIssue(completeRouteItems ?? items),
+    [completeRouteItems, items]
+  );
+  const visibleActiveTab = mapLayout === "desktop" && activeTab === "map" ? "stops" : activeTab;
+  const isMobileMapOpen = visibleActiveTab === "map" && mapLayout === "mobile";
+
   useEffect(() => {
     setSelectedTripId(tripId);
 
@@ -515,6 +544,47 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     [setHoveredItemId]
   );
 
+  const handleIssueSummaryClick = useCallback(() => {
+    if (!firstTimingIssue) {
+      return;
+    }
+
+    cancelMapStopDraft();
+    setActiveTab("stops");
+    selectItem(firstTimingIssue.secondItem.id, firstTimingIssue.secondItem.placeId);
+  }, [cancelMapStopDraft, firstTimingIssue, selectItem]);
+
+  const handleMapPaneResizePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      const container = splitPaneRef.current;
+
+      if (!container) {
+        return;
+      }
+
+      const rect = container.getBoundingClientRect();
+
+      event.preventDefault();
+
+      const handlePointerMove = (moveEvent: PointerEvent) => {
+        const nextMapWidthPercent = ((rect.right - moveEvent.clientX) / rect.width) * 100;
+
+        setMapPaneWidthPercent(
+          clampNumber(nextMapWidthPercent, minMapPaneWidthPercent, maxMapPaneWidthPercent)
+        );
+      };
+
+      const handlePointerUp = () => {
+        document.removeEventListener("pointermove", handlePointerMove);
+        document.removeEventListener("pointerup", handlePointerUp);
+      };
+
+      document.addEventListener("pointermove", handlePointerMove);
+      document.addEventListener("pointerup", handlePointerUp, { once: true });
+    },
+    []
+  );
+
   const handleRouteSectionOpenChange = useCallback(
     (routeLegId: string, isOpen: boolean) => {
       setExpandedRouteLegState((current) => {
@@ -579,6 +649,13 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         return;
       }
 
+      const insertAfterItemId =
+        selectedItemId &&
+        (items.some((item) => item.id === selectedItemId) ||
+          routeSourceItems.some((item) => item.id === selectedItemId))
+          ? selectedItemId
+          : undefined;
+
       if (selectedItemId) {
         skipNextSelectionDraftCancelRef.current = true;
         selectItem(undefined, undefined);
@@ -599,7 +676,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           return;
         }
 
-        setMapStopCandidate({ tripId, point, place });
+        setMapStopCandidate({ tripId, point, place, insertAfterItemId });
       } catch {
         if (controller.signal.aborted) {
           return;
@@ -613,7 +690,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         }
       }
     },
-    [locale, selectItem, selectedItemId, t, tripId]
+    [items, locale, routeSourceItems, selectItem, selectedItemId, t, tripId]
   );
 
   function handleDismissMapStopCandidate() {
@@ -637,8 +714,14 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         timezone: getDefaultItineraryItemTimezone(tripQuery.data?.timezone),
         clientMutationId: crypto.randomUUID()
       } satisfies Parameters<typeof createItem.mutateAsync>[0];
+      const fallbackAfterItemId =
+        routeSourceItems[routeSourceItems.length - 1]?.id ?? items[items.length - 1]?.id;
+      const afterItemId = candidate.insertAfterItemId ?? fallbackAfterItemId;
 
-      const result = await createItem.mutateAsync(payload);
+      const result = await createItem.mutateAsync({
+        ...payload,
+        ...(afterItemId ? { afterItemId } : {})
+      });
       upsertTripPlaceInCache(queryClient, tripId, place);
       setActiveTab("stops");
       selectItem(result.item.id, place.id);
@@ -652,6 +735,40 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       setIsAddingMapStop(false);
     }
   }
+
+  function handleOpenMobileMap() {
+    cancelMapStopDraft();
+    setActiveTab("map");
+  }
+
+  function handleCloseMobileMap() {
+    cancelMapStopDraft();
+    setActiveTab("stops");
+  }
+
+  useEffect(() => {
+    if (!isMobileMapOpen) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      cancelMapStopDraft();
+      setActiveTab("stops");
+    };
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [cancelMapStopDraft, isMobileMapOpen]);
 
   if (tripQuery.isLoading || itineraryQuery.isLoading) {
     return <TripEditorSkeleton />;
@@ -673,23 +790,21 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   }
 
   const trip = tripQuery.data;
-  const handleJumpToMap = () => {
-    document.getElementById("trip-editor-mobile-map")?.scrollIntoView({
-      block: "start",
-      behavior: "smooth"
-    });
-  };
-  const refetchRouteGroups = () => {
-    routeGroupQueries.forEach((query) => void query.refetch());
+  const refetchRouteLegs = () => {
+    routeLegQueries.forEach((query) => void query.refetch());
   };
   const isRouteLoading =
     !isRouteDataIncomplete &&
     routeCanBeRequested &&
-    routeGroupQueries.some((query) => query.isFetching) &&
+    routeLegQueries.some((query) => query.isFetching) &&
     !routeResult &&
     !routeError;
-  const renderMapWorkspace = (mapId?: string) => (
-    <div id={mapId} className="relative scroll-mt-20">
+  const mapRouteSummary = formatMapRouteSummary(stats, locale, t);
+  const renderMapWorkspace = (mapId?: string, actions?: ReactNode) => (
+    <div
+      id={mapId}
+      className="relative scroll-mt-20 overflow-hidden rounded-md border border-border/80 bg-card lg:rounded-none lg:border-0"
+    >
       <LazyTripMap
         markers={markers}
         route={renderedRoute}
@@ -706,7 +821,10 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         onMapContextChange={cancelMapStopDraft}
         onMapClick={(point) => void handleMapClick(point)}
       />
-      <MapNoticeStack>
+      {actions ? (
+        <div className="absolute left-4 top-4 z-50 flex items-center gap-1">{actions}</div>
+      ) : null}
+      <MapNoticeStack className={actions ? "top-12" : undefined}>
         {placesQuery.isError ? (
           <MapNotice>
             <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
@@ -755,7 +873,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           <MapNotice>
             <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
             <span className="min-w-0 flex-1">{getRouteErrorMessage(routeError, t)}</span>
-            <Button type="button" size="sm" variant="secondary" onClick={refetchRouteGroups}>
+            <Button type="button" size="sm" variant="secondary" onClick={refetchRouteLegs}>
               <RefreshCw aria-hidden="true" />
               {t("retry")}
             </Button>
@@ -783,8 +901,14 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           </MapNotice>
         ) : null}
       </MapNoticeStack>
+      {mapRouteSummary && !currentMapStopCandidate ? (
+        <div className="absolute bottom-3 right-3 z-30 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-md border bg-background/95 px-3 py-2 text-sm font-medium text-foreground shadow-sm">
+          <Route className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="truncate">{mapRouteSummary}</span>
+        </div>
+      ) : null}
       {currentMapStopCandidate ? (
-        <div className="absolute inset-x-3 bottom-3 z-40 rounded-md border bg-background/95 p-3 text-sm shadow-lg">
+        <div className="absolute inset-x-3 bottom-3 z-40 rounded-md border bg-background/95 p-3 text-sm shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate font-medium">
@@ -825,16 +949,34 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       ) : null}
     </div>
   );
+  const desktopGridStyle =
+    mapLayout === "desktop" && !isMapPaneCollapsed
+      ? {
+          gridTemplateColumns: `minmax(0, ${100 - mapPaneWidthPercent}fr) 0.75rem minmax(20rem, ${mapPaneWidthPercent}fr)`
+        }
+      : undefined;
 
   return (
-    <div className="relative left-1/2 w-screen -translate-x-1/2 px-3 sm:px-4 lg:px-6">
-      <div className="mx-auto grid max-w-[112rem] gap-3 lg:grid-cols-[minmax(0,5fr)_minmax(20rem,5fr)] lg:items-start">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid gap-2"
-        >
-          <TripEditorHeader trip={trip} stats={stats} presenceEntries={presenceEntries} />
+    <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-x-hidden pb-0 lg:h-dvh lg:overflow-hidden">
+      <div
+        ref={splitPaneRef}
+        className={cn(
+          "grid w-full gap-0 lg:h-full lg:items-start",
+          isMapPaneCollapsed
+            ? "lg:grid-cols-[minmax(0,1fr)_auto]"
+            : "lg:grid-cols-[minmax(0,2fr)_0.75rem_minmax(20rem,1fr)]"
+        )}
+        style={desktopGridStyle}
+      >
+        <div className="flex flex-col gap-3 px-3 pb-4 sm:px-4 lg:h-dvh lg:min-h-0 lg:overflow-hidden lg:px-5">
+          <div className="sticky top-0 z-30 bg-background lg:static lg:z-auto">
+            <TripEditorHeader
+              trip={trip}
+              stats={stats}
+              presenceEntries={presenceEntries}
+              onIssueSummaryClick={firstTimingIssue ? handleIssueSummaryClick : undefined}
+            />
+          </div>
           {placesQuery.isError ? (
             <div
               className={cn(
@@ -855,14 +997,22 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
               </Button>
             </div>
           ) : null}
-          <div className="flex gap-1 rounded-md border bg-card p-1">
-            {(["stops", "budget", "notes"] as const).map((tab) => (
-              <Button
+          <div
+            className="flex flex-wrap items-center gap-x-5 gap-y-0 border-b border-border/70"
+            role="tablist"
+            aria-label={t("tabs.label")}
+          >
+            {(["stops", "map", "budget", "notes", "files"] as const).map((tab) => (
+              <button
                 key={tab}
                 type="button"
-                variant={activeTab === tab ? "secondary" : "ghost"}
-                size="sm"
-                aria-pressed={activeTab === tab}
+                role="tab"
+                aria-selected={visibleActiveTab === tab}
+                className={cn(
+                  "relative -mb-px h-9 shrink-0 border-b-2 px-0 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2",
+                  tab === "map" && "lg:hidden",
+                  visibleActiveTab === tab ? "border-accent text-accent" : "border-transparent"
+                )}
                 onClick={() => {
                   if (tab !== activeTab) {
                     cancelMapStopDraft();
@@ -871,69 +1021,192 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
                 }}
               >
                 {t(`tabs.${tab}`)}
-              </Button>
+              </button>
             ))}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="ml-auto lg:hidden"
-              onClick={handleJumpToMap}
-            >
-              <MapIcon aria-hidden="true" />
-              {t("map.jump")}
-            </Button>
           </div>
-          {mapLayout === "mobile" ? (
-            <div className="lg:hidden">{renderMapWorkspace("trip-editor-mobile-map")}</div>
-          ) : null}
-          {mapLayout === undefined ? (
-            <div className="lg:hidden">
-              <MapWorkspaceSkeleton />
-            </div>
-          ) : null}
-          {activeTab === "stops" ? (
-            <TripItineraryPanel
-              tripId={trip.id}
-              tripTimezone={trip.timezone}
-              items={items}
-              places={places}
-              currentUserId={currentUser?.id}
-              routeSummaryByItem={routeSummaryByItem}
-              onRouteTravelModeChange={setRouteLegTravelMode}
-              onRouteSectionOpenChange={handleRouteSectionOpenChange}
-              onRoutePopoverOpenChange={handleRoutePopoverOpenChange}
-              focusedRouteItemIds={focusedRouteItemIds}
-              syncStateByItem={syncStateByItem}
-              hasNextPage={itineraryQuery.hasNextPage}
-              isFetchingNextPage={itineraryQuery.isFetchingNextPage}
-              onLoadMore={() => void itineraryQuery.fetchNextPage()}
-            />
-          ) : null}
-          {activeTab === "budget" ? (
-            <BudgetExpensePanel tripId={trip.id} items={items} places={places} />
-          ) : null}
-          {activeTab === "notes" ? (
-            <NotePanel
-              tripId={trip.id}
-              targetEntityType="TRIP"
-              targetEntityId={trip.id}
-              title={t("notes.tripTitle")}
-            />
-          ) : null}
-        </motion.div>
+          <div className="min-w-0 px-1 pt-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
+            {visibleActiveTab === "stops" ? (
+              <TripItineraryPanel
+                tripId={trip.id}
+                tripTimezone={trip.timezone}
+                items={items}
+                places={places}
+                currentUserId={currentUser?.id}
+                routeSummaryByItem={routeSummaryByItem}
+                onRouteTravelModeChange={setRouteLegTravelMode}
+                onRouteSectionOpenChange={handleRouteSectionOpenChange}
+                onRoutePopoverOpenChange={handleRoutePopoverOpenChange}
+                focusedRouteItemIds={focusedRouteItemIds}
+                syncStateByItem={syncStateByItem}
+                hasNextPage={itineraryQuery.hasNextPage}
+                isFetchingNextPage={itineraryQuery.isFetchingNextPage}
+                onLoadMore={() => void itineraryQuery.fetchNextPage()}
+              />
+            ) : null}
+            {visibleActiveTab === "budget" ? (
+              <BudgetExpensePanel tripId={trip.id} items={items} places={places} />
+            ) : null}
+            {visibleActiveTab === "notes" ? (
+              <NotePanel
+                tripId={trip.id}
+                targetEntityType="TRIP"
+                targetEntityId={trip.id}
+                title={t("notes.tripTitle")}
+              />
+            ) : null}
+            {visibleActiveTab === "files" ? (
+              <div className="rounded-md border border-dashed bg-muted/20 p-5 text-sm text-muted-foreground">
+                {t("files.empty")}
+              </div>
+            ) : null}
+            {visibleActiveTab === "map" && mapLayout === undefined ? (
+              <div className="lg:hidden">
+                <MapWorkspaceSkeleton />
+              </div>
+            ) : null}
+          </div>
+        </div>
 
-        {mapLayout === "desktop" ? (
-          <aside className="hidden lg:sticky lg:top-20 lg:block">{renderMapWorkspace()}</aside>
+        {mapLayout === "desktop" && !isMapPaneCollapsed ? (
+          <div
+            className={cn(
+              "hidden h-dvh items-stretch justify-center lg:sticky lg:flex",
+              stickyWorkspaceTopClassName
+            )}
+          >
+            <button
+              type="button"
+              className="flex h-full w-3 cursor-col-resize items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2"
+              aria-label={t("map.resize")}
+              onPointerDown={handleMapPaneResizePointerDown}
+            >
+              <GripVertical className="size-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
+
+        {mapLayout === "desktop" && !isMapPaneCollapsed ? (
+          <aside className={cn("hidden lg:sticky lg:block", stickyWorkspaceTopClassName)}>
+            {renderMapWorkspace(
+              undefined,
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-md border bg-background/95 px-2.5 text-muted-foreground shadow-none hover:bg-muted hover:text-foreground"
+                aria-label={t("map.collapse")}
+                title={t("map.collapse")}
+                onClick={() => setIsMapPaneCollapsed(true)}
+              >
+                <PanelRightClose className="size-4" aria-hidden="true" />
+                <span>{t("map.collapse")}</span>
+              </Button>
+            )}
+          </aside>
+        ) : null}
+        {mapLayout === "desktop" && isMapPaneCollapsed ? (
+          <aside className={cn("hidden lg:sticky lg:block", stickyWorkspaceTopClassName)}>
+            <button
+              type="button"
+              className="flex size-9 items-center justify-center rounded-md border bg-background text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2"
+              aria-label={t("map.expand")}
+              title={t("map.expand")}
+              onClick={() => setIsMapPaneCollapsed(false)}
+            >
+              <PanelRightOpen className="size-4" aria-hidden="true" />
+            </button>
+          </aside>
         ) : null}
         {mapLayout === undefined ? (
-          <aside className="hidden lg:sticky lg:top-20 lg:block">
+          <aside className={cn("hidden lg:sticky lg:block", stickyWorkspaceTopClassName)}>
             <MapWorkspaceSkeleton />
           </aside>
         ) : null}
       </div>
+
+      {mapLayout === "mobile" && visibleActiveTab !== "map" ? (
+        <button
+          type="button"
+          className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 z-40 inline-flex h-11 max-w-[calc(100vw-8rem)] items-center gap-2 rounded-md border bg-background px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-2 lg:hidden"
+          onClick={handleOpenMobileMap}
+        >
+          <MapIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="truncate">{t("map.jump")}</span>
+          {mapRouteSummary ? (
+            <span className="hidden truncate text-xs font-normal text-muted-foreground sm:inline">
+              {mapRouteSummary}
+            </span>
+          ) : null}
+        </button>
+      ) : null}
+
+      {isMobileMapOpen ? (
+        <div
+          className="fixed inset-0 z-50 lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("map.label")}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-background/75"
+            aria-label={t("map.close")}
+            onClick={handleCloseMobileMap}
+          />
+          <div className="absolute inset-x-0 bottom-0 grid max-h-[86dvh] rounded-t-md border bg-background pb-[env(safe-area-inset-bottom)] shadow-md">
+            <div className="flex justify-center pt-2" aria-hidden="true">
+              <span className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+            </div>
+            <div className="flex min-w-0 items-center justify-between gap-3 border-b px-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{t("map.label")}</p>
+                {mapRouteSummary ? (
+                  <p className="truncate text-xs text-muted-foreground">{mapRouteSummary}</p>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0"
+                aria-label={t("map.close")}
+                onClick={handleCloseMobileMap}
+              >
+                <X className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
+            <div className="overflow-hidden p-3 pt-2">
+              {renderMapWorkspace("trip-editor-mobile-map")}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function buildRouteTravelModeByLeg(
+  routePreferences: TripRoutePreference[]
+): Record<string, MapTravelMode> {
+  return routePreferences.reduce<Record<string, MapTravelMode>>(
+    (travelModeByLeg, routePreference) => {
+      travelModeByLeg[`leg:${routePreference.fromItemId}:${routePreference.toItemId}`] =
+        routePreference.travelMode;
+
+      return travelModeByLeg;
+    },
+    {}
+  );
+}
+
+function getRouteLegPreferenceItemIds(routeLegId: string) {
+  const [prefix, fromItemId, toItemId] = routeLegId.split(":");
+
+  if (prefix !== "leg" || !fromItemId || !toItemId) {
+    return null;
+  }
+
+  return { fromItemId, toItemId };
 }
 
 function buildRouteLegRequests(
@@ -965,83 +1238,57 @@ function buildRouteLegRequests(
         toPoint: {
           latitude: marker.latitude,
           longitude: marker.longitude
+        },
+        request: {
+          points: [
+            {
+              latitude: previousMarker.latitude,
+              longitude: previousMarker.longitude
+            },
+            {
+              latitude: marker.latitude,
+              longitude: marker.longitude
+            }
+          ],
+          travelMode
         }
       }
     ];
   });
 }
 
-function buildRouteGroups(routeLegRequests: RouteLegRequest[]): RouteGroupRequest[] {
-  const groups: RouteGroupRequest[] = [];
-
-  routeLegRequests.forEach((routeLeg) => {
-    const previousGroup = groups.at(-1);
-
-    if (previousGroup?.travelMode === routeLeg.travelMode) {
-      previousGroup.legs.push(routeLeg);
-      previousGroup.request.points.push(routeLeg.toPoint);
-      previousGroup.id = buildRouteGroupId(previousGroup);
-      return;
-    }
-
-    const group: RouteGroupRequest = {
-      id: `group:${routeLeg.id}:${routeLeg.travelMode}`,
-      travelMode: routeLeg.travelMode,
-      legs: [routeLeg],
-      request: {
-        points: [routeLeg.fromPoint, routeLeg.toPoint],
-        travelMode: routeLeg.travelMode
-      }
-    };
-
-    groups.push(group);
-  });
-
-  return groups;
-}
-
-function buildRouteGroupId(group: RouteGroupRequest) {
-  const firstLeg = group.legs[0];
-  const lastLeg = group.legs.at(-1);
-
-  return `group:${firstLeg?.id ?? "empty"}:${lastLeg?.id ?? "empty"}:${group.travelMode}`;
-}
-
-function buildRouteLegsFromRouteGroups(
-  routeGroups: RouteGroupRequest[],
+function buildRouteLegsFromRouteRequests(
+  routeLegRequests: RouteLegRequest[],
   routes: Array<MapRoute | undefined>
 ): DerivedRouteLeg[] {
-  return routeGroups.flatMap((routeGroup, groupIndex) => {
-    const route = routes[groupIndex];
+  return routeLegRequests.map((routeLeg, index) => {
+    const route = routes[index];
+    const providerLeg = route?.legs[0];
 
-    return routeGroup.legs.map((routeLeg, legIndex) => {
-      const providerLeg = route?.legs[legIndex];
-
-      return {
-        id: routeLeg.id,
-        fromItemId: routeLeg.fromItemId,
-        toItemId: routeLeg.toItemId,
-        fromPlaceId: routeLeg.fromPlaceId,
-        toPlaceId: routeLeg.toPlaceId,
-        travelMode: routeLeg.travelMode,
-        ...(providerLeg?.distanceMeters !== undefined
-          ? { distanceMeters: providerLeg.distanceMeters ?? undefined }
-          : {}),
-        ...(providerLeg?.durationSeconds !== undefined
-          ? { durationSeconds: providerLeg.durationSeconds ?? undefined }
-          : {}),
-        ...(providerLeg?.points?.length
-          ? {
-              geometry: {
-                type: "LineString" as const,
-                coordinates: providerLeg.points.map(
-                  (point) => [point.longitude, point.latitude] as [number, number]
-                )
-              }
+    return {
+      id: routeLeg.id,
+      fromItemId: routeLeg.fromItemId,
+      toItemId: routeLeg.toItemId,
+      fromPlaceId: routeLeg.fromPlaceId,
+      toPlaceId: routeLeg.toPlaceId,
+      travelMode: routeLeg.travelMode,
+      ...(providerLeg?.distanceMeters !== undefined
+        ? { distanceMeters: providerLeg.distanceMeters ?? undefined }
+        : {}),
+      ...(providerLeg?.durationSeconds !== undefined
+        ? { durationSeconds: providerLeg.durationSeconds ?? undefined }
+        : {}),
+      ...(providerLeg?.points?.length
+        ? {
+            geometry: {
+              type: "LineString" as const,
+              coordinates: providerLeg.points.map(
+                (point) => [point.longitude, point.latitude] as [number, number]
+              )
             }
-          : {})
-      };
-    });
+          }
+        : {})
+    };
   });
 }
 
@@ -1116,15 +1363,49 @@ function getRouteErrorMessage(error: Error, t: ReturnType<typeof useTranslations
   return t("map.routeError");
 }
 
-function MapNoticeStack({ children }: { children: ReactNode }) {
+function formatMapRouteSummary(
+  stats: ReturnType<typeof buildPlannerStats>,
+  locale: string,
+  t: ReturnType<typeof useTranslations>
+) {
+  if (
+    stats.routeCount === 0 ||
+    stats.totalRouteDistanceMeters <= 0 ||
+    stats.totalRouteDurationSeconds <= 0
+  ) {
+    return null;
+  }
+
+  const kilometers = stats.totalRouteDistanceMeters / 1000;
+  const distance = t("map.routeDistanceKilometers", {
+    kilometers: new Intl.NumberFormat(locale, {
+      maximumFractionDigits: kilometers >= 10 ? 0 : 1
+    }).format(kilometers)
+  });
+  const duration = t("map.routeDurationMinutes", {
+    minutes: Math.max(1, Math.round(stats.totalRouteDurationSeconds / 60))
+  });
+
+  return t("map.routeSummary", { distance, duration });
+}
+
+function MapNoticeStack({
+  children,
+  className
+}: {
+  children: ReactNode;
+  className?: string | undefined;
+}) {
   return (
-    <div className="absolute left-3 right-3 top-3 z-40 grid gap-2 empty:hidden">{children}</div>
+    <div className={cn("absolute left-3 right-3 top-3 z-40 grid gap-2 empty:hidden", className)}>
+      {children}
+    </div>
   );
 }
 
 function MapNotice({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 rounded-md bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+    <div className="flex items-center gap-2 rounded-md border bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow-sm">
       {children}
     </div>
   );
@@ -1132,7 +1413,7 @@ function MapNotice({ children }: { children: ReactNode }) {
 
 function MapWorkspaceSkeleton() {
   return (
-    <div className="h-[42dvh] min-h-72 max-h-[28rem] rounded-md border bg-muted md:h-[calc(100dvh-8rem)] md:max-h-none" />
+    <div className="h-[42dvh] min-h-72 max-h-[28rem] rounded-md border bg-muted md:h-dvh md:max-h-none md:rounded-none md:border-0" />
   );
 }
 
@@ -1163,4 +1444,8 @@ function buildAutoFitMarkerBoundsKey(tripId: string, markers: MapMarker[]) {
     .join("|");
 
   return `${tripId}:${markerCoordinateKey}`;
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }

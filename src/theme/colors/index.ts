@@ -1,6 +1,7 @@
 export {
   categoryColors,
   getCategoryColor,
+  getCategoryMarkerHex,
   getItineraryItemTypeCategoryColor,
   getItineraryItemTypeCategoryKey,
   getPlaceCategoryColor,
@@ -9,7 +10,12 @@ export {
   PLACE_CATEGORY_TO_CATEGORY_KEY
 } from "./category-colors";
 export { collaborationColorClassNames, getCollaborationColor } from "./collaboration-colors";
-export { markerColorClassNames, markerColors } from "./marker-colors";
+export {
+  getMarkerPalette,
+  markerColorClassNames,
+  markerColors,
+  markerPalettes
+} from "./marker-colors";
 export { routeColorClassNames, routeColors } from "./route-colors";
 export { semanticColorClassNames } from "./semantic-colors";
 export { statusColorClassNames } from "./status-colors";

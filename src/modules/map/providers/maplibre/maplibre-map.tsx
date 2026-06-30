@@ -290,7 +290,7 @@ export function MapLibreMap({
 
   return (
     <section
-      className="trip-maplibre relative h-[42dvh] min-h-72 max-h-[28rem] overflow-hidden rounded-md border bg-muted md:h-[calc(100dvh-8rem)] md:max-h-none"
+      className="trip-maplibre relative h-[42dvh] min-h-72 max-h-[28rem] overflow-hidden rounded-md bg-muted md:h-dvh md:max-h-none md:rounded-none"
       aria-label={t("label")}
     >
       <ReactMap

@@ -8,7 +8,11 @@ import type { CollaborativeNote, CursorPage } from "@/modules/notes/types/note.t
 import { noteKeys } from "@/modules/notes/queries/note.queries";
 import { placeKeys } from "@/modules/places/queries/place.queries";
 import { tripKeys } from "@/modules/trips/queries/trip.queries";
-import type { TripDetail, TripExpensesPage } from "@/modules/trips/types/trip.types";
+import type {
+  TripDetail,
+  TripExpensesPage,
+  TripRoutePreference
+} from "@/modules/trips/types/trip.types";
 
 import { patchInfiniteItems, upsertById } from "./infinite-page-patcher";
 import type { EntityPatchPayload, TripMutationEvent } from "../types/sync.types";
@@ -201,7 +205,56 @@ export function patchItineraryItem(
       queryKey: placeKeys.byTrip(tripId),
       refetchType: "active"
     });
+  } else {
+    void queryClient.invalidateQueries({
+      queryKey: tripKeys.routePreferences(tripId),
+      refetchType: "active"
+    });
   }
+}
+
+export function patchRoutePreference(
+  queryClient: QueryClient,
+  tripId: string,
+  patch: EntityPatchPayload
+) {
+  if (patch.patchType === "ENTITY_DELETED") {
+    queryClient.setQueryData<TripRoutePreference[]>(tripKeys.routePreferences(tripId), (current) =>
+      current ? current.filter((routePreference) => routePreference.id !== patch.entityId) : current
+    );
+    return;
+  }
+
+  if (!patch.fields) {
+    void queryClient.invalidateQueries({
+      queryKey: tripKeys.routePreferences(tripId),
+      refetchType: "active"
+    });
+    return;
+  }
+
+  const nextRoutePreference = patch.fields as TripRoutePreference;
+
+  queryClient.setQueryData<TripRoutePreference[]>(tripKeys.routePreferences(tripId), (current) => {
+    if (!current) {
+      return [nextRoutePreference];
+    }
+
+    const existing = current.find(
+      (routePreference) =>
+        routePreference.id === patch.entityId ||
+        (routePreference.fromItemId === nextRoutePreference.fromItemId &&
+          routePreference.toItemId === nextRoutePreference.toItemId)
+    );
+
+    if (!existing) {
+      return [...current, nextRoutePreference];
+    }
+
+    return current.map((routePreference) =>
+      routePreference.id === existing.id ? nextRoutePreference : routePreference
+    );
+  });
 }
 
 export function patchNote(queryClient: QueryClient, patch: EntityPatchPayload) {
@@ -377,6 +430,9 @@ export function applyEntityPatch(
       break;
     case "ITINERARY_ITEM":
       patchItineraryItem(queryClient, tripId, patch);
+      break;
+    case "TRIP_ROUTE_PREFERENCE":
+      patchRoutePreference(queryClient, tripId, patch);
       break;
     case "NOTE":
       patchNote(queryClient, patch);

@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Check, MessageSquareReply, NotebookPen, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -72,36 +72,56 @@ function NoteComposer({
   filters,
   buttonLabel,
   placeholder,
+  compact = false,
   onComposingChange,
   onCreated
 }: {
   filters: ListNotesQuery;
   buttonLabel: string;
   placeholder: string;
+  compact?: boolean | undefined;
   onComposingChange?: ((isComposing: boolean) => void) | undefined;
   onCreated?: (() => void) | undefined;
 }) {
   const createNote = useCreateNoteMutation(filters);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [body, setBody] = useState("");
 
   useEffect(() => {
     onComposingChange?.(body.trim().length > 0);
   }, [body, onComposingChange]);
 
+  useEffect(() => {
+    if (!compact || !textareaRef.current) {
+      return;
+    }
+
+    textareaRef.current.style.height = "auto";
+    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+  }, [body, compact]);
+
   useEffect(() => () => onComposingChange?.(false), [onComposingChange]);
 
   return (
-    <div className="grid gap-3">
+    <div className={cn("grid", compact ? "gap-2" : "gap-3")}>
       <textarea
+        ref={textareaRef}
         value={body}
+        rows={compact ? 1 : undefined}
         onChange={(event) => setBody(event.target.value)}
         placeholder={placeholder}
-        className="min-h-20 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+        className={cn(
+          "rounded-md border border-input bg-background text-sm shadow-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2",
+          compact
+            ? "min-h-9 resize-none overflow-hidden px-2.5 py-1.5 leading-5"
+            : "min-h-20 px-3 py-2"
+        )}
       />
       <Button
         type="button"
         variant="secondary"
         size="sm"
+        className={compact ? "h-7 w-fit px-2 text-xs" : undefined}
         disabled={body.trim().length === 0 || createNote.isPending}
         onClick={() => {
           const clientMutationId = crypto.randomUUID();
@@ -138,16 +158,19 @@ function NoteComposer({
 function NoteItem({
   note,
   filters,
-  permissionContext
+  permissionContext,
+  compact = false
 }: {
   note: CollaborativeNote;
   filters: ListNotesQuery;
   permissionContext: NotePermissionContext;
+  compact?: boolean | undefined;
 }) {
   const t = useTranslations("trip.editor.notes");
   const locale = useLocale();
   const updateNote = useUpdateNoteMutation();
   const deleteNote = useDeleteNoteMutation();
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [draft, setDraft] = useState(note.body);
@@ -161,8 +184,17 @@ function NoteItem({
     timeStyle: "short"
   }).format(new Date(note.updatedAt));
 
+  useEffect(() => {
+    if (!compact || !isEditing || !editTextareaRef.current) {
+      return;
+    }
+
+    editTextareaRef.current.style.height = "auto";
+    editTextareaRef.current.style.height = `${editTextareaRef.current.scrollHeight}px`;
+  }, [compact, draft, isEditing]);
+
   return (
-    <article className="rounded-md bg-muted p-3 text-sm">
+    <article className={cn("rounded-md bg-muted text-sm", compact ? "p-2" : "p-3")}>
       <div className="mb-2 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate font-medium">{displayName}</p>
@@ -225,9 +257,16 @@ function NoteItem({
       ) : isEditing && permissions.canEdit ? (
         <div className="grid gap-2">
           <textarea
+            ref={editTextareaRef}
             value={draft}
+            rows={compact ? 1 : undefined}
             onChange={(event) => setDraft(event.target.value)}
-            className="min-h-20 rounded-md border border-input bg-background px-3 py-2 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2"
+            className={cn(
+              "rounded-md border border-input bg-background shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2",
+              compact
+                ? "min-h-9 resize-none overflow-hidden px-2.5 py-1.5 leading-5"
+                : "min-h-20 px-3 py-2"
+            )}
           />
           <div className="flex items-center gap-2">
             <Button
@@ -366,15 +405,23 @@ export function NotePanel(props: NotePanelProps) {
         filters={filters}
         buttonLabel={props.parentNoteId ? t("reply") : t("add")}
         placeholder={props.parentNoteId ? t("replyPlaceholder") : t("placeholder")}
+        compact={props.compact}
         onComposingChange={setIsComposing}
       />
 
       {notesQuery.isLoading ? (
-        <p className="mt-4 text-sm text-muted-foreground">{t("loading")}</p>
+        <p className={cn("text-sm text-muted-foreground", props.compact ? "mt-2" : "mt-4")}>
+          {t("loading")}
+        </p>
       ) : null}
 
       {notesQuery.isError ? (
-        <div className="mt-4 grid gap-2 rounded-md bg-muted p-3 text-sm text-muted-foreground">
+        <div
+          className={cn(
+            "grid gap-2 rounded-md bg-muted p-3 text-sm text-muted-foreground",
+            props.compact ? "mt-2" : "mt-4"
+          )}
+        >
           <span>{t("error")}</span>
           <Button
             type="button"
@@ -389,20 +436,23 @@ export function NotePanel(props: NotePanelProps) {
       ) : null}
 
       {!notesQuery.isLoading && !notesQuery.isError && notes.length > 0 ? (
-        <div className="mt-4 grid gap-2">
+        <div className={cn("grid gap-2", props.compact ? "mt-2" : "mt-4")}>
           {notes.map((note) => (
             <NoteItem
               key={note.id}
               note={note}
               filters={filters}
               permissionContext={permissionContext}
+              compact={props.compact}
             />
           ))}
         </div>
       ) : null}
 
       {!notesQuery.isLoading && !notesQuery.isError && notes.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">{t("empty")}</p>
+        <p className={cn("text-sm text-muted-foreground", props.compact ? "mt-2" : "mt-4")}>
+          {t("empty")}
+        </p>
       ) : null}
 
       {notesQuery.hasNextPage ? (

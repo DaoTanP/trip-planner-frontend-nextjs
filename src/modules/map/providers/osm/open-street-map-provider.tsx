@@ -10,7 +10,7 @@ import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig, resolveTileUrl } from "@/modules/map/config/map.config";
 import type { TripMapProps } from "@/modules/map/types/map.types";
 import { getViewportForPoints } from "@/modules/map/utils/bounds";
-import { markerColorClassNames, markerRenderConfig, routeColors, routeRenderConfig } from "@/theme";
+import { getCategoryColor, markerRenderConfig, routeColors, routeRenderConfig } from "@/theme";
 import {
   latitudeToWorldY,
   longitudeToWorldX,
@@ -216,7 +216,7 @@ export function OpenStreetMapProvider({
     <section
       ref={containerRef}
       className={cn(
-        "relative h-[42dvh] min-h-72 max-h-[28rem] touch-none overflow-hidden rounded-md border bg-muted md:h-[calc(100dvh-8rem)] md:max-h-none",
+        "relative h-[42dvh] min-h-72 max-h-[28rem] touch-none overflow-hidden rounded-md bg-muted md:h-dvh md:max-h-none md:rounded-none",
         isDragging ? "cursor-grabbing" : "cursor-grab"
       )}
       aria-label={t("label")}
@@ -301,22 +301,25 @@ export function OpenStreetMapProvider({
         const projected = projectPoint(marker, { ...viewport, zoom });
         const isSelected = marker.id === selectedMarkerId;
         const isEmphasized = marker.id === hoveredMarkerId || focusedMarkerIdSet.has(marker.id);
+        const markerCategoryColor = getCategoryColor(marker.categoryKey);
 
         return (
           <button
             key={marker.id}
             type="button"
             className={cn(
-              "absolute z-20 flex size-10 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full border-2 border-background text-xs font-bold shadow-lg transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2",
-              markerColorClassNames.default,
+              "absolute z-20 flex size-10 -translate-x-1/2 -translate-y-full items-center justify-center rounded-full border-2 border-background text-xs font-bold text-marker-label shadow-lg transition-[box-shadow,transform] hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2",
+              marker.status === "CANCELLED"
+                ? "bg-marker-muted"
+                : markerCategoryColor.markerClassName,
               isSelected && [
                 markerRenderConfig.osm.selectedScaleClassName,
-                markerColorClassNames.selected
+                "bg-accent ring-4 ring-accent/40"
               ],
               !isSelected &&
                 isEmphasized && [
                   markerRenderConfig.osm.emphasizedScaleClassName,
-                  markerColorClassNames.hover
+                  "ring-2 ring-border"
                 ]
             )}
             style={{

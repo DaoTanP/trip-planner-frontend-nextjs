@@ -348,7 +348,7 @@ Map-specific concepts are isolated in `modules/places`, `modules/map`, and `stor
 
 `src/modules/map` owns provider rendering, routing DTOs, provider errors, provider-neutral route requests, and provider math. `src/modules/places` owns provider-backed place search, backend place search fallback, place details, backend reverse geocoding, and mapping those results into backend place resolution payloads. Itinerary and trip editor components consume normalized contracts only.
 
-The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL JS is the default rendering engine, Google Maps remains a rendering adapter, and the OSM raster renderer remains available as a lightweight fallback path. Routing is provider-neutral and uses OSRM by default behind `getMapRoute(points)`. Production must set `NEXT_PUBLIC_OSRM_ROUTE_URL`; when it is missing, routing is reported as unavailable instead of falling back to the public OSRM demo service. Development may use the public demo fallback and logs a warning so the dependency is visible. Provider-specific code lives under:
+The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL JS is the default rendering engine, Google Maps remains a rendering adapter, and the OSM raster renderer remains available as a lightweight fallback path. Routing is provider-neutral and uses OSRM by default behind `getMapRoute({ points, travelMode })`. Production must set `NEXT_PUBLIC_OSRM_ROUTE_URL`; when it is missing, routing is reported as unavailable. Development defaults to `routing.openstreetmap.de` with car, bike, and foot backends, and logs a warning so the dependency is visible. Provider-specific code lives under:
 
 - `src/modules/map/providers/maplibre` for MapLibre GL JS and `react-map-gl` rendering, markers, viewport sync, and route layers.
 - `src/modules/map/providers/google` for Maps JavaScript loading, rendering, markers, and polylines.
@@ -358,9 +358,9 @@ The active map provider is selected by `NEXT_PUBLIC_MAP_PROVIDER`. MapLibre GL J
 - `src/modules/map/services/map-route.service.ts` and `src/modules/map/queries/map-route.queries.ts` for the public route boundary and TanStack Query integration.
 - `src/modules/map/providers/shared` for provider-independent marker, route, viewport, and bounds contracts.
 
-The trip editor derives map markers and route request points from a dedicated full-itinerary route-data query plus the trip places query, then asks TanStack Query for route geometry through `getMapRoute(points)`. The visible stop list may still be paginated, but map route rendering never uses a partial visible page as a complete route source. If the full route-data query is loading or unavailable, route rendering is hidden and the map shows an explicit route-data notice. The map receives provider-ready props and emits only viewport, context-change, marker select, marker hover, and map-click callbacks. Business logic stays outside map components.
+The trip editor derives map markers and adjacent stop-pair route requests from a dedicated full-itinerary route-data query plus the trip places query, then asks TanStack Query for route geometry through `getMapRoute({ points, travelMode })`. The visible stop list may still be paginated, but map route rendering never uses a partial visible page as a complete route source. If the full route-data query is loading or unavailable, route rendering is hidden and the map shows an explicit route-data notice. The map receives provider-ready props and emits only viewport, context-change, marker select, marker hover, and map-click callbacks. Business logic stays outside map components.
 
-The editor derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. Route visualization is generated dynamically from ordered marker coordinates through provider-neutral route queries; no route geometry is persisted or synchronized. The OSRM adapter scales requests by stop count: small routes request full geometry and steps, medium routes request simplified geometry, and large routes are chunked with simplified geometry. Very large routes return a visible too-many-stops error rather than freezing the browser.
+The editor derives markers from flat itinerary items plus the trip places query. It does not read marker coordinates from itinerary item payloads. Route visualization is generated dynamically from ordered marker coordinates through provider-neutral route queries; no route geometry is persisted or synchronized. The editor requests each adjacent stop pair separately, so each provider call has exactly two route points and its own travel mode.
 
 Stop list and map synchronization is ID-based. Stop cards write selected and hovered item IDs to `use-planner-store`; map providers receive only selected/hovered marker IDs and callbacks. Selecting a stop card moves the map viewport toward the item's normalized place, and selecting a marker selects the item and lets the stop list scroll the card into view. Providers do not know about notes, filters, reorder rules, or itinerary mutations.
 
@@ -381,10 +381,10 @@ Provider route results normalize to provider-independent route DTOs:
 
 - decoded route points for polyline rendering.
 - encoded polyline for rendering/provider diagnostics only, not backend persistence.
-- route legs for multi-stop expansion.
+- route legs for adjacent stop-pair expansion.
 - distance and duration totals for estimation.
 
-Travel mode is owned by each derived route leg in editor UI state, not by the trip or itinerary as a global setting. The editor groups adjacent legs with the same mode before calling the provider-neutral `getMapRoute(points)` boundary, then expands the provider result back into per-leg geometry, duration, and distance. These segment preferences remain non-persistent derived route state unless the backend later exposes a route-preference contract.
+Travel mode is persisted as lightweight route intent for a stop pair through the trip route-preferences API: `fromItemId`, `toItemId`, and `travelMode`. The editor derives the existing `leg:${fromItemId}:${toItemId}` route id from ordered stops, overlays persisted preferences on top of the default `driving` mode, then calls the provider-neutral routing boundary once per adjacent stop pair with `{ points: [from, to], travelMode }`. Provider output is expanded back into per-leg geometry, duration, and distance for rendering. Route geometry, duration, distance, polylines, and provider output remain derived and are not persisted.
 
 Place results normalize before reaching UI:
 

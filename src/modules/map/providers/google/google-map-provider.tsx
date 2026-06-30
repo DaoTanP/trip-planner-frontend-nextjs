@@ -1,13 +1,20 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { RouteSummary } from "@/modules/map/components/route-summary";
 import { mapConfig } from "@/modules/map/config/map.config";
 import type { MapMarker, MapRoutePoint, TripMapProps } from "@/modules/map/types/map.types";
-import { markerColors, markerRenderConfig, routeColors, routeRenderConfig } from "@/theme";
+import {
+  getCategoryMarkerHex,
+  getMarkerPalette,
+  markerRenderConfig,
+  routeColors,
+  routeRenderConfig
+} from "@/theme";
 
 import { loadGoogleMaps } from "./google-map-loader";
 import type {
@@ -23,10 +30,10 @@ import { fromGoogleLatLng, toGoogleLatLngLiteral } from "./google-map.types";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-function createMarkerLabel(marker: MapMarker): GoogleMarkerLabel {
+function createMarkerLabel(marker: MapMarker, color: string): GoogleMarkerLabel {
   return {
     text: String(marker.stopOrder),
-    color: markerColors.label.hex,
+    color,
     fontSize: markerRenderConfig.google.labelFontSize,
     fontWeight: markerRenderConfig.google.labelFontWeight
   };
@@ -34,19 +41,27 @@ function createMarkerLabel(marker: MapMarker): GoogleMarkerLabel {
 
 function createMarkerIcon(
   googleMaps: GoogleMapsApi,
+  marker: MapMarker,
+  colorMode: "light" | "dark",
+  markerPalette: ReturnType<typeof getMarkerPalette>,
   state: "default" | "emphasis" | "selected"
 ): GoogleMarkerIcon {
+  const fillColor =
+    state === "selected"
+      ? markerPalette.selected
+      : marker.status === "CANCELLED"
+        ? markerPalette.muted
+        : getCategoryMarkerHex(marker.categoryKey, colorMode);
+
   return {
     path: markerRenderConfig.google.path,
-    fillColor:
-      state === "selected"
-        ? markerColors.selected.hex
-        : state === "emphasis"
-          ? markerColors.hover.hex
-          : markerColors.default.hex,
+    fillColor,
     fillOpacity: 1,
-    strokeColor: markerColors.stroke.hex,
-    strokeWeight: markerRenderConfig.google.strokeWeight,
+    strokeColor: state === "selected" ? markerPalette.halo : markerPalette.stroke,
+    strokeWeight:
+      state === "selected"
+        ? markerRenderConfig.google.selectedStrokeWeight
+        : markerRenderConfig.google.strokeWeight,
     scale: markerRenderConfig.google.scale[state],
     anchor: new googleMaps.Point(
       markerRenderConfig.google.anchor.x,
@@ -91,6 +106,9 @@ export function GoogleMapProvider({
 }: TripMapProps) {
   const locale = useLocale();
   const t = useTranslations("trip.editor.map");
+  const { resolvedTheme } = useTheme();
+  const colorMode = resolvedTheme === "dark" ? "dark" : "light";
+  const markerPalette = getMarkerPalette(colorMode);
   const containerRef = useRef<HTMLDivElement>(null);
   const initialViewportRef = useRef(viewport);
   const googleMapsRef = useRef<GoogleMapsApi | null>(null);
@@ -268,8 +286,8 @@ export function GoogleMapProvider({
         lat: marker.latitude,
         lng: marker.longitude
       };
-      const icon = createMarkerIcon(googleMaps, markerState);
-      const label = createMarkerLabel(marker);
+      const icon = createMarkerIcon(googleMaps, marker, colorMode, markerPalette, markerState);
+      const label = createMarkerLabel(marker, markerPalette.label);
       const existingMarker = markersRef.current.get(marker.id);
 
       if (existingMarker) {
@@ -315,7 +333,15 @@ export function GoogleMapProvider({
       marker.setMap(null);
       markersRef.current.delete(markerId);
     });
-  }, [focusedMarkerIdSet, hoveredMarkerId, loadState, markers, selectedMarkerId]);
+  }, [
+    colorMode,
+    focusedMarkerIdSet,
+    hoveredMarkerId,
+    loadState,
+    markerPalette,
+    markers,
+    selectedMarkerId
+  ]);
 
   useEffect(() => {
     const googleMaps = googleMapsRef.current;
@@ -442,7 +468,7 @@ export function GoogleMapProvider({
 
   return (
     <section
-      className="relative h-[42dvh] min-h-72 max-h-[28rem] overflow-hidden rounded-md border bg-muted md:h-[calc(100dvh-8rem)] md:max-h-none"
+      className="relative h-[42dvh] min-h-72 max-h-[28rem] overflow-hidden rounded-md bg-muted md:h-dvh md:max-h-none md:rounded-none"
       aria-label={t("label")}
     >
       <div ref={containerRef} className="absolute inset-0" />
@@ -462,7 +488,7 @@ export function GoogleMapProvider({
       <RouteSummary route={routeResult} />
       <div
         className={cn(
-          "pointer-events-none absolute inset-0 rounded-md ring-1 ring-inset ring-border",
+          "pointer-events-none absolute inset-0 rounded-md ring-1 ring-inset ring-border md:rounded-none",
           displayLoadState === "ready" && "ring-transparent"
         )}
         aria-hidden="true"

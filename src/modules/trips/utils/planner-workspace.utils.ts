@@ -18,6 +18,7 @@ export type PlannerStats = {
   routeCount: number;
   totalRouteDistanceMeters: number;
   totalRouteDurationSeconds: number;
+  timingIssueCount: number;
   noteCount: number;
   expenseCount: number;
   totalExpenses: number;
@@ -27,6 +28,13 @@ export type PlannerStats = {
   budgetLimit: number | null;
   remainingBudget: number | null;
   budgetUsagePercentage: number | null;
+};
+
+export type ScheduleOverlapIssue = {
+  firstItem: ItineraryItem;
+  secondItem: ItineraryItem;
+  firstSequence: number;
+  secondSequence: number;
 };
 
 export type RouteSummaryByItem = Map<
@@ -98,6 +106,14 @@ export function filterStopSequence(
   });
 }
 
+export function getScheduleOverlapIssue(items: ItineraryItem[]): ScheduleOverlapIssue | null {
+  return getScheduleOverlapIssues(items)[0] ?? null;
+}
+
+export function countScheduleOverlapIssues(items: ItineraryItem[]) {
+  return getScheduleOverlapIssues(items).length;
+}
+
 export function buildPlannerStats({
   tripNoteCount,
   tripExpenseCount,
@@ -136,6 +152,7 @@ export function buildPlannerStats({
     routeCount: routeLegs.length,
     totalRouteDistanceMeters,
     totalRouteDurationSeconds,
+    timingIssueCount: countScheduleOverlapIssues(items),
     noteCount: tripNoteCount,
     expenseCount: tripExpenseCount ?? expenseItems.length,
     totalExpenses:
@@ -148,6 +165,40 @@ export function buildPlannerStats({
     remainingBudget: summary?.remainingAmount ?? null,
     budgetUsagePercentage: summary?.usagePercentage ?? null
   };
+}
+
+export function getScheduleOverlapIssues(items: ItineraryItem[]) {
+  const orderedItems = sortStopSequence(items);
+  const issues: ScheduleOverlapIssue[] = [];
+
+  for (let index = 0; index < orderedItems.length - 1; index += 1) {
+    const firstItem = orderedItems[index];
+    const secondItem = orderedItems[index + 1];
+
+    if (!firstItem || !secondItem || firstItem.durationMinutes === null) {
+      continue;
+    }
+
+    const firstStartTime = getScheduleTime(firstItem.startsAt);
+    const secondStartTime = getScheduleTime(secondItem.startsAt);
+
+    if (firstStartTime === null || secondStartTime === null) {
+      continue;
+    }
+
+    const firstEndTime = firstStartTime + Math.max(0, firstItem.durationMinutes) * 60_000;
+
+    if (firstEndTime > secondStartTime) {
+      issues.push({
+        firstItem,
+        secondItem,
+        firstSequence: index + 1,
+        secondSequence: index + 2
+      });
+    }
+  }
+
+  return issues;
 }
 
 export function buildRouteSummaryByItem(routeLegs: DerivedRouteLeg[]): RouteSummaryByItem {
@@ -237,4 +288,14 @@ function getItemDateBounds(item: ItineraryItem) {
   }
 
   return bounds;
+}
+
+function getScheduleTime(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const time = new Date(value).getTime();
+
+  return Number.isNaN(time) ? null : time;
 }

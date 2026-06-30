@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/services/api/request";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "@/services/api/request";
 import { apiEndpoints } from "@/services/api/endpoints";
 import type { ApiSuccessResponse } from "@/types/api";
 
@@ -8,9 +8,15 @@ import type {
   TripCollaborator,
   TripDetail,
   TripMutationEventsPage,
+  TripRoutePreference,
   TripsListMeta
 } from "../types/trip.types";
-import type { ListMutationEventsQueryDto, UpdateTripRequestDto } from "@/services/api/contracts";
+import type {
+  ListMutationEventsQueryDto,
+  UpdateTripRequestDto,
+  UpsertTripRoutePreferenceRequestDto,
+  UpsertTripRoutePreferenceResponseDto
+} from "@/services/api/contracts";
 
 function withMutationEventParams(url: string, params?: ListMutationEventsQueryDto) {
   const searchParams = new URLSearchParams();
@@ -81,6 +87,29 @@ export async function getTripMutationEvents(
     withMutationEventParams(apiEndpoints.trips.mutationEvents(tripId), params),
     signal
   );
+
+  return response.data;
+}
+
+export async function getTripRoutePreferences(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<{ routePreferences: TripRoutePreference[] }>>(
+    apiEndpoints.trips.routePreferences(tripId),
+    signal
+  );
+
+  return response.data.routePreferences;
+}
+
+export async function upsertTripRoutePreference(
+  tripId: string,
+  fromItemId: string,
+  toItemId: string,
+  payload: UpsertTripRoutePreferenceRequestDto
+) {
+  const response = await apiPut<
+    ApiSuccessResponse<UpsertTripRoutePreferenceResponseDto>,
+    UpsertTripRoutePreferenceRequestDto
+  >(apiEndpoints.trips.routePreference(tripId, fromItemId, toItemId), payload);
 
   return response.data;
 }

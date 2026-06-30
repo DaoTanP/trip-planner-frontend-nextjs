@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MapProviderError } from "@/modules/map/providers/shared/map-provider-error";
-import type { MapRoutePoint } from "@/modules/map/types/map.types";
+import type { MapRoutePoint, MapTravelMode } from "@/modules/map/types/map.types";
 
 import { osrmRoutingProvider } from "./osrm-routing.provider";
 
@@ -49,6 +49,22 @@ afterEach(() => {
 });
 
 describe("osrmRoutingProvider", () => {
+  it.each([
+    ["driving", "/routed-car/route/v1/driving/"],
+    ["walking", "/routed-foot/route/v1/foot/"],
+    ["bicycling", "/routed-bike/route/v1/bike/"]
+  ] satisfies Array<[MapTravelMode, string]>)(
+    "uses the OpenStreetMap %s backend and OSRM profile",
+    async (travelMode, expectedPath) => {
+      const fetchMock = installOsrmFetchMock();
+
+      await osrmRoutingProvider.getRoute({ points: makePoints(2), travelMode });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(new URL(String(fetchMock.mock.calls[0]?.[0])).pathname).toContain(expectedPath);
+    }
+  );
+
   it("uses full geometry with steps for small trips", async () => {
     const fetchMock = installOsrmFetchMock();
 

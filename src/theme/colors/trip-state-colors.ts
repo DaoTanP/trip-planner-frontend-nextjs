@@ -5,7 +5,7 @@ export const tripStateColors = {
   },
   selected: {
     css: "var(--trip-state-selected)",
-    hex: "#f97316"
+    hex: "#d4537e"
   },
   active: {
     css: "var(--trip-state-active)",
@@ -26,9 +26,9 @@ export const tripStateColors = {
 } as const;
 
 export const tripStateColorClassNames = {
-  selectedFrame: "border-trip-state-selected ring-2 ring-trip-state-selected/20",
+  selectedFrame: "border-accent bg-accent-subtle ring-2 ring-accent/20",
   hoverFrame: "border-trip-state-hover ring-1 ring-trip-state-hover/30",
   focusedSurface: "bg-trip-state-focused/10",
-  selectedResultFrame: "border-trip-state-selected ring-1 ring-trip-state-selected/30",
+  selectedResultFrame: "border-primary ring-1 ring-primary/30",
   insertionIndicator: "before:bg-trip-state-active"
 } as const;

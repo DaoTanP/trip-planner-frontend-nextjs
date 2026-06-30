@@ -9,7 +9,10 @@ import type {
   TripCollaboratorDto,
   TripDetailDto,
   TripExpensesDto,
-  TripSummaryDto
+  TripRoutePreferenceDto,
+  TripSummaryDto,
+  UpsertTripRoutePreferenceRequestDto,
+  UpsertTripRoutePreferenceResponseDto
 } from "@/services/api/contracts";
 
 export type Trip = TripSummaryDto;
@@ -19,6 +22,9 @@ export type TripExpense = ExpenseDto;
 export type TripExpenseCategory = ExpenseCategoryDto;
 export type TripExpenses = TripExpensesDto;
 export type TripMutationEvent = MutationEventDto;
+export type TripRoutePreference = TripRoutePreferenceDto;
+export type UpsertTripRoutePreferencePayload = UpsertTripRoutePreferenceRequestDto;
+export type UpsertTripRoutePreferenceResult = UpsertTripRoutePreferenceResponseDto;
 export type CreateTripPayload = CreateTripRequestDto;
 export type TripsListMeta = {
   pagination: PaginationMeta;

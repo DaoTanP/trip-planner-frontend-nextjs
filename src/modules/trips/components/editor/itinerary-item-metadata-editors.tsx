@@ -856,7 +856,7 @@ function MetadataPopover({
       ref={popoverRef}
       role="dialog"
       className={cn(
-        "fixed z-[100] overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground shadow-lg",
+        "fixed z-[100] overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground shadow-sm",
         "data-[side=bottom]:animate-in data-[side=bottom]:slide-in-from-top-1 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-1",
         position === null && "pointer-events-none opacity-0",
         className

@@ -4,7 +4,13 @@ import type {
   RevisionConflictDetailsDto
 } from "@/services/api/contracts";
 
-export type SyncEntityType = "TRIP" | "ITINERARY_ITEM" | "NOTE" | "EXPENSE" | "BUDGET";
+export type SyncEntityType =
+  | "TRIP"
+  | "ITINERARY_ITEM"
+  | "TRIP_ROUTE_PREFERENCE"
+  | "NOTE"
+  | "EXPENSE"
+  | "BUDGET";
 
 export type SyncOperation =
   | "ENTITY_CREATED"

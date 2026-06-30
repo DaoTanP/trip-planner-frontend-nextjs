@@ -12,6 +12,9 @@ export const apiEndpoints = {
     detail: (tripId: string) => `/trips/${tripId}`,
     itinerary: (tripId: string) => `/trips/${tripId}/itinerary`,
     reorderItinerary: (tripId: string) => `/trips/${tripId}/itinerary/reorder`,
+    routePreferences: (tripId: string) => `/trips/${tripId}/route-preferences`,
+    routePreference: (tripId: string, fromItemId: string, toItemId: string) =>
+      `/trips/${tripId}/route-preferences/${fromItemId}/${toItemId}`,
     places: (tripId: string) => `/trips/${tripId}/places`,
     collaborators: (tripId: string) => `/trips/${tripId}/collaborators`,
     expenses: (tripId: string) => `/trips/${tripId}/expenses`,

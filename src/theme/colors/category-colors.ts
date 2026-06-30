@@ -9,29 +9,102 @@ export type CategoryColorKey =
   | "culture"
   | "other";
 
+export type CategoryColorMode = "light" | "dark";
+
 export const categoryColors = {
   activity: {
-    badgeClassName: "bg-sky-500/10 text-sky-700 dark:text-sky-300"
+    badgeClassName: "bg-category-activity-bg text-category-activity-fg",
+    badgeHex: {
+      light: { background: "#e1f5ee", text: "#085041" },
+      dark: { background: "#085041", text: "#9fe1cb" }
+    },
+    markerClassName: "bg-category-activity-marker",
+    markerHex: {
+      light: "#085041",
+      dark: "#9fe1cb"
+    }
   },
   lodging: {
-    badgeClassName: "bg-violet-500/10 text-violet-700 dark:text-violet-300"
+    badgeClassName: "bg-category-lodging-bg text-category-lodging-fg",
+    badgeHex: {
+      light: { background: "#eeedfe", text: "#3c3489" },
+      dark: { background: "#3c3489", text: "#cecbf6" }
+    },
+    markerClassName: "bg-category-lodging-marker",
+    markerHex: {
+      light: "#3c3489",
+      dark: "#cecbf6"
+    }
   },
   food: {
-    badgeClassName: "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+    badgeClassName: "bg-category-food-bg text-category-food-fg",
+    badgeHex: {
+      light: { background: "#faece7", text: "#712b13" },
+      dark: { background: "#712b13", text: "#f5c4b3" }
+    },
+    markerClassName: "bg-category-food-marker",
+    markerHex: {
+      light: "#712b13",
+      dark: "#f5c4b3"
+    }
   },
   shopping: {
-    badgeClassName: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+    badgeClassName: "bg-category-shopping-bg text-category-shopping-fg",
+    badgeHex: {
+      light: { background: "#ecf7e8", text: "#2f5d1e" },
+      dark: { background: "#2f5d1e", text: "#bde5ad" }
+    },
+    markerClassName: "bg-category-shopping-marker",
+    markerHex: {
+      light: "#2f5d1e",
+      dark: "#bde5ad"
+    }
   },
   transportation: {
-    badgeClassName: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
+    badgeClassName: "bg-category-transportation-bg text-category-transportation-fg",
+    badgeHex: {
+      light: { background: "#e7f0ff", text: "#164a8b" },
+      dark: { background: "#164a8b", text: "#b9d5ff" }
+    },
+    markerClassName: "bg-category-transportation-marker",
+    markerHex: {
+      light: "#164a8b",
+      dark: "#b9d5ff"
+    }
   },
   culture: {
-    badgeClassName: "bg-violet-500/10 text-violet-700 dark:text-violet-300"
+    badgeClassName: "bg-category-culture-bg text-category-culture-fg",
+    badgeHex: {
+      light: { background: "#fff3d8", text: "#6b4b00" },
+      dark: { background: "#6b4b00", text: "#f7d78e" }
+    },
+    markerClassName: "bg-category-culture-marker",
+    markerHex: {
+      light: "#6b4b00",
+      dark: "#f7d78e"
+    }
   },
   other: {
-    badgeClassName: "bg-muted text-muted-foreground"
+    badgeClassName: "bg-category-other-bg text-category-other-fg",
+    badgeHex: {
+      light: { background: "#f1f5f9", text: "#334155" },
+      dark: { background: "#334155", text: "#e2e8f0" }
+    },
+    markerClassName: "bg-category-other-marker",
+    markerHex: {
+      light: "#64748b",
+      dark: "#94a3b8"
+    }
   }
-} satisfies Record<CategoryColorKey, { badgeClassName: string }>;
+} satisfies Record<
+  CategoryColorKey,
+  {
+    badgeClassName: string;
+    badgeHex: Record<CategoryColorMode, { background: string; text: string }>;
+    markerClassName: string;
+    markerHex: Record<CategoryColorMode, string>;
+  }
+>;
 
 export const ITINERARY_ITEM_TYPE_TO_CATEGORY_KEY = {
   ACTIVITY: "activity",
@@ -65,6 +138,10 @@ export const PLACE_CATEGORY_TO_CATEGORY_KEY: Record<string, CategoryColorKey> = 
 
 export function getCategoryColor(categoryKey: CategoryColorKey) {
   return categoryColors[categoryKey];
+}
+
+export function getCategoryMarkerHex(categoryKey: CategoryColorKey, mode: CategoryColorMode) {
+  return getCategoryColor(categoryKey).markerHex[mode];
 }
 
 export function getItineraryItemTypeCategoryKey(type: ItineraryItemTypeDto) {

@@ -30,7 +30,7 @@ export interface MapRoute {
 
 export interface MapRouteRequest {
   points: RoutePoint[];
-  travelMode?: MapTravelMode | undefined;
+  travelMode: MapTravelMode;
   optimizeWaypoints?: boolean | undefined;
   language?: string | undefined;
   region?: string | undefined;

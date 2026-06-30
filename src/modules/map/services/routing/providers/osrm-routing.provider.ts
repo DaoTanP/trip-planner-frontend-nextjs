@@ -58,7 +58,7 @@ export const osrmRoutingProvider: RoutingProvider = {
 
 async function getOsrmRoute(request: MapRouteRequest, signal?: AbortSignal): Promise<MapRoute> {
   const points = request.points.filter(isValidRoutePoint);
-  const travelMode = request.travelMode ?? "driving";
+  const travelMode = request.travelMode;
 
   if (points.length < 2) {
     return {
@@ -179,7 +179,7 @@ function buildOsrmRouteUrl(
   travelMode: Exclude<MapTravelMode, "transit">,
   strategy: OsrmRouteStrategy
 ) {
-  const baseUrl = mapConfig.osrmRouteUrl.replace(/\/+$/, "");
+  const baseUrl = buildOsrmRouteBaseUrl(travelMode);
   const coordinates = points
     .map((point) => `${point.longitude.toFixed(6)},${point.latitude.toFixed(6)}`)
     .join(";");
@@ -191,6 +191,19 @@ function buildOsrmRouteUrl(
   });
 
   return `${baseUrl}/${toOsrmProfile(travelMode)}/${coordinates}?${params.toString()}`;
+}
+
+function buildOsrmRouteBaseUrl(travelMode: Exclude<MapTravelMode, "transit">) {
+  const osrmProfile = toOsrmProfile(travelMode);
+  const backend = toOpenStreetMapRoutingBackend(travelMode);
+  const configuredBaseUrl = mapConfig.osrmRouteUrl
+    .replaceAll("{backend}", backend)
+    .replaceAll("{profile}", osrmProfile)
+    .replaceAll("{travelMode}", travelMode);
+
+  return configuredBaseUrl
+    .replace(/\/routed-(car|bike|foot)(?=\/|$)/, `/routed-${backend}`)
+    .replace(/\/+$/, "");
 }
 
 function getRouteStrategy(stopCount: number): OsrmRouteStrategy {
@@ -330,6 +343,17 @@ function toOsrmProfile(travelMode: Exclude<MapTravelMode, "transit">) {
   }
 
   return "driving";
+}
+
+function toOpenStreetMapRoutingBackend(travelMode: Exclude<MapTravelMode, "transit">) {
+  if (travelMode === "walking") {
+    return "foot";
+  }
+  if (travelMode === "bicycling") {
+    return "bike";
+  }
+
+  return "car";
 }
 
 function sumNullable(values: Array<number | null>) {

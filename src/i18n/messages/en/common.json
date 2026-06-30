@@ -57,7 +57,7 @@
     },
     "notFound": {
       "title": "Page not found",
-      "description": "The page may have moved or the address may be incorrect."
+      "description": "Refresh the page if you were just here, or return to the homepage and choose your next trip from there."
     },
     "page": {
       "title": "We could not load this page",

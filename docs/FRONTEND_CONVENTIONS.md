@@ -186,6 +186,7 @@ Do not place itinerary reorder logic inside map components. Do not place map pro
 
 Map provider variables belong in `.env.example`, `.env.docker`, and Docker compose:
 
+- `NEXT_PUBLIC_COLLABORATION_WS_URL`
 - `NEXT_PUBLIC_MAP_PROVIDER`
 - `NEXT_PUBLIC_MAP_STYLE_URL`
 - `NEXT_PUBLIC_MAP_DEFAULT_LAT`

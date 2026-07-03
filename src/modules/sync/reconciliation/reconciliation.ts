@@ -1,5 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
+import { recordActivityEvent } from "@/modules/collaboration/activity.store";
+
 import { getMutationEvents } from "../services/sync.service";
 import {
   applyEntityPatch,
@@ -12,6 +14,7 @@ import type { TripMutationEvent, TripMutationEventsPage } from "../types/sync.ty
 export function reconcileMutationEvent(queryClient: QueryClient, event: TripMutationEvent) {
   const patch = parseEntityPatchPayload(event);
 
+  recordActivityEvent(event);
   patchTripRevision(queryClient, event.tripId, event.revision);
 
   if (!patch) {

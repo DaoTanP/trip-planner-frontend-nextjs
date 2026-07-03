@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { PresenceIndicator } from "@/modules/collaboration/components/presence-indicator";
+import {
+  useEntityPresenceEntries,
+  usePresenceSource,
+  useUniquePresenceUsers
+} from "@/modules/collaboration/hooks/use-presence";
+import { useSession } from "@/modules/auth/hooks/use-session";
 import type { ItineraryItem } from "@/modules/itinerary/types/itinerary.types";
 import { NotePanel } from "@/modules/notes/components/note-panel";
 import { getPlaceMap } from "@/modules/trips/utils/trip-editor.utils";
@@ -43,6 +50,8 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
   const createExpense = useCreateExpenseMutation(tripId);
   const updateExpense = useUpdateExpenseMutation(tripId);
   const deleteExpense = useDeleteExpenseMutation(tripId);
+  const sessionQuery = useSession();
+  const currentUserId = sessionQuery.data?.user.id;
   const expensePages = expensesQuery.data?.pages;
   const expenses = useMemo(
     () => expensePages?.flatMap((page) => page.expenses) ?? [],
@@ -103,6 +112,29 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
       ? ""
       : String(summary.budgetLimit));
   const expenseCurrency = expenseCurrencyDraft ?? summary?.currency ?? "USD";
+  const budgetPresenceEntries = useEntityPresenceEntries({
+    tripId,
+    entityType: "BUDGET",
+    entityId: tripId,
+    excludeUserId: currentUserId
+  });
+  const activeBudgetPresence = useUniquePresenceUsers(budgetPresenceEntries);
+  usePresenceSource({
+    tripId,
+    entityType: "BUDGET",
+    entityId: tripId,
+    state: "EDITING",
+    priority: 3,
+    enabled: budgetCurrencyDraft !== null || budgetLimitDraft !== null
+  });
+  usePresenceSource({
+    tripId,
+    entityType: "EXPENSE",
+    entityId: editingExpenseId ?? "__no_expense__",
+    state: "EDITING",
+    priority: 3,
+    enabled: editingExpenseId !== null
+  });
 
   function handleSaveBudget() {
     const nextErrors: Record<string, string | undefined> = {};
@@ -332,6 +364,11 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
       ) : null}
 
       <div className="grid gap-2 rounded-md border bg-card p-3">
+        {activeBudgetPresence.length > 0 ? (
+          <div className="flex justify-end">
+            <PresenceIndicator entries={activeBudgetPresence} />
+          </div>
+        ) : null}
         <div className="grid gap-2 sm:grid-cols-4">
           <SummaryMetric
             label={t("spent")}
@@ -629,7 +666,14 @@ export function BudgetExpensePanel({ tripId, items, places }: BudgetExpensePanel
               ) : (
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
                   <div className="min-w-0">
-                    <h3 className="truncate text-sm font-medium">{expense.title}</h3>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h3 className="truncate text-sm font-medium">{expense.title}</h3>
+                      <ExpensePresenceIndicator
+                        tripId={tripId}
+                        expenseId={expense.id}
+                        currentUserId={currentUserId}
+                      />
+                    </div>
                     <p className="truncate text-xs text-muted-foreground">
                       {stopLabel} / {categoryLabel}
                     </p>
@@ -724,6 +768,26 @@ function SummaryMetric({ label, value }: { label: string; value: string }) {
       <p className="mt-1 truncate text-sm font-semibold">{value}</p>
     </div>
   );
+}
+
+function ExpensePresenceIndicator({
+  tripId,
+  expenseId,
+  currentUserId
+}: {
+  tripId: string;
+  expenseId: string;
+  currentUserId?: string | undefined;
+}) {
+  const presenceEntries = useEntityPresenceEntries({
+    tripId,
+    entityType: "EXPENSE",
+    entityId: expenseId,
+    excludeUserId: currentUserId
+  });
+  const activePresence = useUniquePresenceUsers(presenceEntries);
+
+  return activePresence.length > 0 ? <PresenceIndicator entries={activePresence} /> : null;
 }
 
 function formatMoney(amount: number, currency: string, locale: string) {

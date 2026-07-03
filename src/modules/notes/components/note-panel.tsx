@@ -183,6 +183,14 @@ function NoteItem({
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(note.updatedAt));
+  usePresenceSource({
+    tripId: filters.tripId ?? "__note_without_trip__",
+    entityType: "NOTE",
+    entityId: note.id,
+    state: "EDITING",
+    priority: 4,
+    enabled: filters.tripId !== undefined && isEditing
+  });
 
   useEffect(() => {
     if (!compact || !isEditing || !editTextareaRef.current) {

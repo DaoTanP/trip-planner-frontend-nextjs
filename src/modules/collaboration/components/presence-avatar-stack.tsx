@@ -27,13 +27,24 @@ export function PresenceAvatarStack({
         <span
           key={entry.userId}
           title={entry.userName}
+          aria-label={entry.userName}
           className={cn(
-            "flex size-7 items-center justify-center rounded-full border-2 border-card text-[0.65rem] font-semibold shadow-sm",
+            "flex size-7 items-center justify-center overflow-hidden rounded-full border-2 border-card text-[0.65rem] font-semibold shadow-sm",
             getCollaborationColor(entry.userId).avatarClassName,
             index > 0 && "-ml-2"
           )}
         >
-          {getInitials(entry.userName)}
+          {entry.userAvatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={entry.userAvatarUrl}
+              alt=""
+              className="size-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            getInitials(entry.userName)
+          )}
         </span>
       ))}
       {hiddenCount > 0 ? (

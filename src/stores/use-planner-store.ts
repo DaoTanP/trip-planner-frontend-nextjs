@@ -17,6 +17,7 @@ interface PlannerState {
   hoveredItemId: string | undefined;
   selectedRouteLegId: string | undefined;
   hoveredRouteLegId: string | undefined;
+  followedPresenceUserId: string | undefined;
   filters: PlannerFilters;
   isFilterBarOpen: boolean;
   setSelectedTripId: (tripId?: string) => void;
@@ -24,6 +25,7 @@ interface PlannerState {
   setHoveredItemId: (itemId?: string) => void;
   selectRouteLeg: (routeLegId?: string) => void;
   setHoveredRouteLegId: (routeLegId?: string) => void;
+  followPresenceUser: (userId?: string) => void;
   setFilters: (filters: Partial<PlannerFilters>) => void;
   clearFilters: () => void;
   setFilterBarOpen: (isOpen: boolean) => void;
@@ -45,6 +47,7 @@ export const usePlannerStore = create<PlannerState>()(
       hoveredItemId: undefined,
       selectedRouteLegId: undefined,
       hoveredRouteLegId: undefined,
+      followedPresenceUserId: undefined,
       filters: defaultFilters,
       isFilterBarOpen: false,
       setSelectedTripId: (selectedTripId) =>
@@ -58,7 +61,8 @@ export const usePlannerStore = create<PlannerState>()(
                 selectedItemFocusRequestId: 0,
                 hoveredItemId: undefined,
                 selectedRouteLegId: undefined,
-                hoveredRouteLegId: undefined
+                hoveredRouteLegId: undefined,
+                followedPresenceUserId: undefined
               }
         ),
       selectItem: (selectedItemId, selectedPlaceId) =>
@@ -70,6 +74,7 @@ export const usePlannerStore = create<PlannerState>()(
       setHoveredItemId: (hoveredItemId) => set({ hoveredItemId }),
       selectRouteLeg: (selectedRouteLegId) => set({ selectedRouteLegId }),
       setHoveredRouteLegId: (hoveredRouteLegId) => set({ hoveredRouteLegId }),
+      followPresenceUser: (followedPresenceUserId) => set({ followedPresenceUserId }),
       setFilters: (filters) => set((state) => ({ filters: { ...state.filters, ...filters } })),
       clearFilters: () => set({ filters: defaultFilters }),
       setFilterBarOpen: (isFilterBarOpen) => set({ isFilterBarOpen })

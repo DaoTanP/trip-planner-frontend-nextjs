@@ -76,6 +76,7 @@ and composes feature code from:
 - `src/modules/places` for place search.
 - `src/modules/map` for provider-shaped map rendering and map math.
 - `src/modules/sync` for mutation queue state, revision catch-up, entity patchers, and reconciliation utilities.
+- `src/modules/collaboration` for ephemeral presence, focus, editing indicators, realtime connection state, and conflict presentation.
 - `src/stores/use-planner-store.ts` for local UI interaction state.
 
 The editor workflow is inspired by Wanderlog-style trip planning:
@@ -111,6 +112,7 @@ Frontend Docker development reads:
 
 - `NEXT_PUBLIC_API_URL`
 - `API_INTERNAL_URL`
+- `NEXT_PUBLIC_COLLABORATION_WS_URL`
 - `NEXT_PUBLIC_MAP_PROVIDER`
 - `NEXT_PUBLIC_MAP_STYLE_URL`
 - `NEXT_PUBLIC_MAP_DEFAULT_LAT`
@@ -306,12 +308,17 @@ Trip revisions are server state. The latest revision comes from trip detail and 
 
 `src/modules/sync` is a runtime adapter over TanStack Query, not a new state store. It owns:
 
-- an in-memory mutation queue with `queued`, `sending`, `acknowledged`, `failed`, `retrying`, and `conflicted` states.
+- a localStorage-backed mutation queue with `queued`, `sending`, `acknowledged`, `failed`, `retrying`, and `conflicted` states.
 - entity patchers for trip, itinerary item, note, expense, and budget caches.
+- realtime cache updates from normalized `trip.updated` websocket events.
 - revision-gap reconciliation through `GET /trips/:tripId/mutation-events`.
 - development-only sync diagnostics.
 
 The sync runtime never stores server entities itself. It applies deterministic patches to existing query caches and leaves long-lived UI state in Zustand.
+
+`src/modules/collaboration` owns ephemeral human-awareness state. Presence entries, active focus, editing indicators, realtime connection status, activity feed state, and conflict dialog state stay in dedicated collaboration stores and are never persisted to PostgreSQL or copied into durable planner state. Optional follow mode is local UI intent in `use-planner-store.ts`; it mirrors another collaborator's focus only after the user opts in and never broadcasts selection changes back.
+
+When a collaboration WebSocket emits durable `trip.updated` events, the frontend routes them through `src/modules/sync/realtime` and `src/modules/sync/reconciliation` so websocket, polling, reconnect, and offline replay share the same cache patching path.
 
 ## Forms
 
@@ -442,7 +449,7 @@ Reorder hooks:
 
 Itinerary, notes, and expenses use `useInfiniteQuery` over cursor APIs when rendering growing editor lists. Note queries are keyed by normalized filters such as `tripId`, `targetEntityType`, `targetEntityId`, and `parentNoteId`, so trip notes, itinerary item notes, expense notes, place notes, and replies reuse the same cache shape. Services preserve `meta.pagination`, query options use `nextCursor`, and mutation hooks patch or invalidate loaded pages without introducing Zustand server caches. This is mobile/offline friendly because the client can hydrate partial resources, preserve scroll stability, and catch up later by revision.
 
-Optimistic mutation hooks enqueue the mutation intent in `src/modules/sync/queue`, apply the local cache patch, send the API request with the same `clientMutationId`, then acknowledge, fail, or mark the queue entry conflicted. The queue is intentionally lightweight and in-memory for now; it defines the lifecycle needed by a future persisted offline queue without replacing TanStack Query.
+Optimistic mutation hooks enqueue the mutation intent in `src/modules/sync/queue`, apply the local cache patch, send the API request with the same `clientMutationId`, then acknowledge, fail, retry, or mark the queue entry conflicted. The queue persists lightweight replay metadata in localStorage so refreshes preserve mutation state. Runtime replay keeps using the original mutation function in the current session; future service-worker/mobile clients can use the same queued identity and payload contract for full background replay without replacing TanStack Query.
 
 ## Responsive Layout
 
@@ -453,18 +460,43 @@ Desktop uses two columns:
 
 Tablet and mobile use a planner-first workflow with compact tab controls, a map surface immediately below the controls, and the active Stops/Budget/Notes content below the map. This keeps the map available even when secondary workflows are open. Fixed controls use stable sizes so drag handles, buttons, counters, and cards do not shift during interaction.
 
-## Future Realtime
+## Realtime Collaboration
 
-Realtime should not replace React Query. The current sync runtime already catches up through `GET /trips/:tripId/mutation-events?sinceRevision=...`, applies entity patches, and records mutation queue state. Add a collaboration transport later that feeds the same reconciliation functions instead of writing a second cache path.
+Realtime does not replace React Query. The collaboration transport feeds normalized `trip.updated` events into `src/modules/sync/realtime/realtime-cache-updater.ts`, which acknowledges echoed `clientMutationId`s, applies contiguous entity patches, records activity events, and falls back to mutation-event catch-up when revisions are missing or unpatchable.
 
-Recommended future boundaries:
+Implemented collaboration boundaries:
 
 - `src/modules/collaboration` for websocket/presence client code
 - mutation `clientMutationId` for echo suppression
 - trip `revision` plus `GET /trips/:tripId/mutation-events` for reconnect catch-up
-- `src/modules/sync/reconciliation` for websocket, reconnect, and offline replay patch application
+- `src/modules/sync/realtime` and `src/modules/sync/reconciliation` for websocket, reconnect, and offline replay patch application
 - Redis-backed presence on the backend
-- presence UI in the planner header, not inside map provider components
+- presence and activity UI in the planner header, not inside map provider components
+- shared selection, map marker focus, route focus, and optional follow mode as ephemeral UI state
+
+## Planning Intelligence UI
+
+Planning intelligence is backend-derived data. The frontend consumes `GET /trips/:tripId/insights` through TanStack Query and renders the result in the trip editor Insights tab. UI components may preview recommended route order, warnings, schedule suggestions, budget insights, map grouping, place recommendations, and collaboration summaries, but must not implement optimization or scoring logic locally.
+
+The Insights tab uses existing editor state only for presentation actions such as selecting a referenced stop. Applying a recommendation must go through the normal mutation hooks and optimistic concurrency path. The current implementation intentionally previews route optimization instead of mutating itinerary order.
+
+The frontend contract mirrors structured backend DTOs: issue codes, score dimensions, confidence, assumptions, entity IDs, and params. Visible copy is localized from stable codes instead of parsed backend prose.
+
+## Planning Engine UI
+
+The trip editor Planning tab consumes `GET /trips/:tripId/planning` through `tripPlanningQueryOptions`. This is the deterministic Planning Engine read model, separate from Trip DTOs and separate from the compatibility Insights endpoint.
+
+The Planning panel renders:
+
+- timeline health and schedule completeness
+- structured validation issues
+- preview-only suggestions
+- derived metrics
+- travel segment summaries and warnings
+- constraint results
+- budget read models
+
+The frontend may focus an affected stop to preview a suggestion, but it must not compute planning rules locally and must not apply suggestions without going through normal mutation hooks. Realtime `planning.invalidated` events invalidate `tripKeys.planning(tripId)` and legacy `tripKeys.planningInsights(tripId)` only; they do not refetch the whole editor.
 
 ## Example Module
 

@@ -25,7 +25,357 @@
       "map": "Map",
       "budget": "Budget",
       "notes": "Notes",
+      "planning": "Planning",
+      "insights": "Insights",
       "files": "Files"
+    },
+    "collaboration": {
+      "viewing": "{name} is viewing",
+      "editing": "{name} is editing",
+      "replying": "{name} is replying",
+      "more": "+{count, plural, =1 {# more} other {# more}}",
+      "activeUsersLabel": "{count, plural, =1 {# active collaborator} other {# active collaborators}}",
+      "activeUsersTitle": "Active collaborators",
+      "summary": "{names} viewing",
+      "summaryWithMore": "{names} +{count, plural, =1 {# more} other {# more}}",
+      "viewingOn": "Viewing {entity}",
+      "editingOn": "Editing {entity}",
+      "replyingOn": "Replying in {entity}",
+      "entityTypes": {
+        "TRIP": "trip overview",
+        "ITINERARY": "itinerary",
+        "ITINERARY_ITEM": "stop",
+        "PLACE": "place",
+        "EXPENSE": "expense",
+        "BUDGET": "budget",
+        "NOTE": "notes",
+        "MAP": "map"
+      },
+      "realtime": {
+        "connected": "Live",
+        "reconnecting": "Reconnecting...",
+        "local": "Local presence",
+        "idle": "Offline"
+      },
+      "follow": {
+        "follow": "Follow",
+        "following": "Following",
+        "start": "Follow {name}",
+        "stop": "Stop following {name}"
+      },
+      "activity": {
+        "label": "{count, plural, =0 {No activity} =1 {# activity item} other {# activity items}}",
+        "title": "Activity",
+        "empty": "No realtime activity yet.",
+        "timeUnknown": "Time unknown",
+        "revision": "Revision {value}",
+        "actors": {
+          "you": "You",
+          "someone": "Someone",
+          "system": "System"
+        },
+        "operations": {
+          "created": "{actor} added {entity}",
+          "updated": "{actor} updated {entity}",
+          "deleted": "{actor} deleted {entity}",
+          "reordered": "{actor} reordered {entity}"
+        },
+        "entityTypes": {
+          "TRIP": "trip",
+          "ITINERARY_ITEM": "stop",
+          "TRIP_ROUTE_PREFERENCE": "route",
+          "NOTE": "note",
+          "EXPENSE": "expense",
+          "BUDGET": "budget",
+          "COLLABORATOR": "collaborator",
+          "UNKNOWN": "item"
+        }
+      }
+    },
+    "conflict": {
+      "badge": "Revision conflict",
+      "title": "Conflict detected",
+      "description": "This item changed after you started editing. Your draft has not been overwritten.",
+      "currentRevision": "Your revision: {value}",
+      "latestRevision": "Latest revision: {value}",
+      "field": "Field",
+      "yours": "Your version",
+      "latest": "Latest",
+      "noFieldDiff": "The backend did not include field-level data for this conflict. Reload the latest version or keep editing and compare manually.",
+      "close": "Close conflict dialog",
+      "cancel": "Cancel",
+      "keepEditing": "Keep editing",
+      "mergeManually": "Merge manually",
+      "reloadLatest": "Reload latest",
+      "fieldUnknown": "{field}",
+      "fields": {
+        "amount": "Amount",
+        "attachments": "Attachments",
+        "body": "Body",
+        "category": "Category",
+        "currency": "Currency",
+        "duration": "Duration",
+        "linkedStop": "Linked stop",
+        "metadata": "Metadata",
+        "notes": "Notes",
+        "place": "Place",
+        "spentAt": "Spent at",
+        "startsAt": "Starts at",
+        "status": "Status",
+        "summary": "Summary",
+        "timezone": "Timezone",
+        "title": "Title",
+        "totalLimit": "Total limit",
+        "types": "Types"
+      }
+    },
+    "planning": {
+      "title": "Planning",
+      "errorTitle": "Planning data could not load",
+      "errorMessage": "Refresh the derived planning read model or try again after the trip sync completes.",
+      "retry": "Retry planning",
+      "generatedAt": "Updated {value}",
+      "unknownStop": "Unknown stop",
+      "tripScope": "Trip",
+      "duration": "{count, plural, =0 {0 min} =1 {# min} other {# min}}",
+      "health": {
+        "HEALTHY": "Healthy",
+        "NEEDS_ATTENTION": "Needs attention",
+        "AT_RISK": "At risk"
+      },
+      "summary": {
+        "critical": "Critical",
+        "warnings": "Warnings",
+        "scheduled": "Scheduled"
+      },
+      "severity": {
+        "INFO": "Info",
+        "WARNING": "Warning",
+        "CRITICAL": "Critical"
+      },
+      "issues": {
+        "title": "Planning issues",
+        "meta": "{count, plural, =1 {# issue} other {# issues}}",
+        "empty": "No planning issues.",
+        "codes": {
+          "EMPTY_TRIP": "Add at least one stop.",
+          "MISSING_SCHEDULE": "Some stops do not have a schedule.",
+          "DUPLICATE_VISIT": "This place appears more than once.",
+          "TIMEZONE_INCONSISTENCY": "Timezone should be reviewed.",
+          "LATE_NIGHT_ARRIVAL": "Arrival is late at night.",
+          "LARGE_IDLE_GAP": "There is a large idle gap.",
+          "OVERLAPPING_ACTIVITIES": "Activities overlap.",
+          "BACKWARD_TIMELINE": "Timeline order moves backward.",
+          "IMPOSSIBLE_TRAVEL": "Travel time does not fit the schedule.",
+          "MISSING_COORDINATES": "Some stops are missing coordinates.",
+          "EXCESSIVE_TRAVEL": "Travel distance is excessive.",
+          "LONG_TRANSFER": "Transfer is long.",
+          "WALKING_NOT_FEASIBLE": "Walking distance is too far.",
+          "BUDGET_OVERSPEND": "Budget is overspent.",
+          "EXPENSIVE_DESTINATION": "This stop has high expenses.",
+          "MAXIMUM_WALKING_DISTANCE": "Walking distance exceeds the constraint.",
+          "MAXIMUM_DAILY_DRIVING": "Daily driving exceeds the constraint.",
+          "MEAL_WINDOW": "A meal window is missing.",
+          "MISSING_ACCOMMODATION": "Accommodation is missing for an overnight trip.",
+          "TIMEZONE_TRANSITION": "Trip spans multiple timezones."
+        }
+      },
+      "suggestions": {
+        "title": "Suggestions",
+        "meta": "{count, plural, =1 {# suggestion} other {# suggestions}}",
+        "empty": "No suggestions.",
+        "preview": "Preview",
+        "reasons": {
+          "scheduleUnscheduledItems": "Add times to unscheduled stops.",
+          "resolveScheduleConflict": "Move a stop to resolve a conflict.",
+          "useIdleGap": "Use the idle gap for a break.",
+          "missingMealWindow": "Insert a lunch stop.",
+          "missingOvernightBase": "Insert a hotel or base.",
+          "mergeDuplicateVisit": "Merge duplicate visits.",
+          "avoidLateArrival": "Move this stop earlier.",
+          "reduceTravelBacktracking": "Reorder stops to reduce travel."
+        }
+      },
+      "metrics": {
+        "title": "Metrics",
+        "meta": "Derived read model",
+        "labels": {
+          "tripDurationDays": "Trip duration",
+          "scheduledRatio": "Scheduled",
+          "unscheduledRatio": "Unscheduled",
+          "travelRatio": "Travel ratio",
+          "activityRatio": "Activity ratio",
+          "walkingRatio": "Walking ratio",
+          "budgetUsage": "Budget usage",
+          "placeDiversity": "Place diversity",
+          "categoryDiversity": "Categories",
+          "totalTravelDistance": "Travel distance",
+          "totalTravelDuration": "Travel time",
+          "idleGapMinutes": "Idle gaps"
+        }
+      },
+      "travel": {
+        "title": "Travel",
+        "meta": "{distance} / {duration}",
+        "missing": "Missing",
+        "noDuration": "No duration",
+        "warning": "Warning",
+        "empty": "Add at least two mapped stops to estimate travel.",
+        "modes": {
+          "driving": "Driving",
+          "walking": "Walking",
+          "bicycling": "Bicycling",
+          "transit": "Transit",
+          "mixed": "Mixed"
+        }
+      },
+      "constraints": {
+        "title": "Constraints",
+        "meta": "Validation rules",
+        "codes": {
+          "MAXIMUM_WALKING_DISTANCE": "Maximum walking distance",
+          "MAXIMUM_DAILY_DRIVING": "Maximum daily driving",
+          "MEAL_WINDOW": "Meal windows",
+          "MISSING_ACCOMMODATION": "Accommodation",
+          "TIMEZONE_TRANSITION": "Timezone transition",
+          "OPENING_HOURS": "Opening hours"
+        },
+        "status": {
+          "PASS": "Pass",
+          "WARN": "Review",
+          "FAIL": "Needs action",
+          "NOT_APPLICABLE": "Not applicable"
+        }
+      },
+      "budget": {
+        "title": "Budget",
+        "spent": "Spent",
+        "remaining": "Remaining",
+        "noBudget": "No budget"
+      }
+    },
+    "insights": {
+      "title": "Planning insights",
+      "loading": "Loading planning insights",
+      "errorTitle": "Planning insights could not load",
+      "errorDescription": "Retry after the latest trip data finishes syncing.",
+      "retry": "Retry",
+      "generatedAt": "Generated {value}",
+      "view": "View",
+      "unknownStop": "Unknown stop",
+      "durationMinutes": "{count, plural, =1 {# min} other {# min}}",
+      "severity": {
+        "CRITICAL": "Critical",
+        "WARNING": "Warning",
+        "INFO": "Info"
+      },
+      "travelModes": {
+        "driving": "Driving",
+        "walking": "Walking",
+        "bicycling": "Cycling",
+        "transit": "Transit",
+        "mixed": "Mixed"
+      },
+      "score": {
+        "label": "Score",
+        "dimensions": {
+          "scheduleCompleteness": "Schedule completeness",
+          "travelEfficiency": "Travel efficiency",
+          "budgetHealth": "Budget health",
+          "collaborationCompleteness": "Collaboration",
+          "itineraryConsistency": "Consistency"
+        }
+      },
+      "issues": {
+        "title": "Warnings",
+        "meta": "{critical, plural, =0 {0 critical} =1 {# critical} other {# critical}} / {warning, plural, =0 {0 warnings} =1 {# warning} other {# warnings}}",
+        "empty": "No major planning warnings.",
+        "codes": {
+          "EMPTY_TRIP": "Add stops to start planning.",
+          "DUPLICATED_PLACE": "This place appears {count, plural, =1 {# time} other {# times}}.",
+          "MISSING_SCHEDULE": "{count, plural, =1 {# stop is missing a time} other {# stops are missing times}}.",
+          "LARGE_TRAVEL_GAP": "Travel gap is about {distanceKm} km.",
+          "EXCESSIVE_TRAVEL_DISTANCE": "This leg is very far: about {distanceKm} km.",
+          "OVERLAPPING_ACTIVITIES": "Activities overlap by about {minutes} min.",
+          "IMPOSSIBLE_SCHEDULE": "Schedule is short by about {minutes} min including travel.",
+          "INEFFICIENT_TRAVEL": "Reordering could reduce travel by about {distancePercentage}%.",
+          "ISOLATED_STOP": "This stop is about {distanceKm} km from nearby stops.",
+          "BUDGET_OVERSPEND": "Budget usage is about {percentage}%.",
+          "MISSING_COORDINATES": "{count, plural, =1 {# stop has no coordinates} other {# stops have no coordinates}}."
+        }
+      },
+      "optimization": {
+        "title": "Route optimization",
+        "meta": "{mode} / {confidence}% confidence",
+        "currentDistance": "Current distance",
+        "savingDistance": "Potential distance saving",
+        "savingTime": "Potential time saving",
+        "preview": "Preview order",
+        "hidePreview": "Hide preview"
+      },
+      "schedule": {
+        "title": "Schedule suggestions",
+        "meta": "{count, plural, =1 {# suggestion} other {# suggestions}}",
+        "empty": "No schedule suggestions.",
+        "duration": "{count, plural, =1 {# min} other {# min}}",
+        "types": {
+          "ARRIVAL_TIME": "Arrival time",
+          "DURATION": "Duration",
+          "LUNCH_WINDOW": "Lunch window",
+          "REST_PERIOD": "Rest period",
+          "HOTEL_CHECK_IN": "Hotel check-in",
+          "HOTEL_CHECK_OUT": "Hotel check-out"
+        },
+        "reasons": {
+          "startAtMorning": "Start the first stop in the morning.",
+          "sequenceAfterPreviousStop": "Place this after the previous stop with travel buffer.",
+          "defaultDurationByStopType": "Add a typical duration for this stop type.",
+          "lodgingCheckInBuffer": "Leave time for lodging check-in.",
+          "noFoodStopNearLunch": "Add a lunch window to keep the day realistic.",
+          "denseDayNeedsRest": "Add a short rest period in a dense itinerary."
+        }
+      },
+      "budget": {
+        "title": "Budget",
+        "spent": "Spent",
+        "remaining": "Remaining",
+        "notSet": "No budget set",
+        "recommendations": {
+          "SET_TRIP_BUDGET": "Set a trip budget to enable projections.",
+          "REVIEW_HIGH_SPEND": "Review spending; usage is around {percentage}%.",
+          "PROJECTED_OVERSPEND": "Projected overspend is about {amount}.",
+          "CATEGORIZE_EXPENSES": "Categorize {count, plural, =1 {# expense} other {# expenses}} for cleaner insights."
+        }
+      },
+      "map": {
+        "title": "Map intelligence",
+        "meta": "{clusters, plural, =1 {# cluster} other {# clusters}} / {isolated, plural, =1 {# isolated} other {# isolated}}",
+        "empty": "No dense clusters yet.",
+        "grouping": {
+          "nearbyStops": "Group {count, plural, =1 {# nearby stop} other {# nearby stops}} together in the timeline."
+        }
+      },
+      "places": {
+        "title": "Place recommendations",
+        "meta": "{count, plural, =1 {# suggestion} other {# suggestions}}",
+        "empty": "No place recommendations.",
+        "names": {
+          "missingFoodStop": "Food stop near planned route",
+          "missingLodgingStop": "Lodging near scheduled stops",
+          "extendDenseCluster": "Nearby attraction in a dense cluster"
+        },
+        "reasons": {
+          "missingFoodStop": "The itinerary has no food stop.",
+          "missingLodgingStop": "The itinerary has no lodging stop.",
+          "extendDenseCluster": "This can extend a dense activity cluster."
+        }
+      },
+      "collaboration": {
+        "title": "Collaboration",
+        "meta": "{active, plural, =1 {# active} other {# active}} / {edits, plural, =1 {# edit} other {# edits}}",
+        "activity": "{count, plural, =1 {# recent change} other {# recent changes}} in this trip.",
+        "contributor": "{name}: {count, plural, =1 {# change} other {# changes}}"
+      }
     },
     "header": {
       "search": "Search",

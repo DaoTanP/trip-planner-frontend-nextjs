@@ -139,10 +139,16 @@ Examples:
 - Keep viewport, filters, selected places, and temporary drag state in client stores.
 - Keep persisted trips, stops, and places in TanStack Query.
 - Keep place autocomplete, place details, backend reverse geocoding, route, and distance/duration requests in service/query layers.
-- WebSocket, polling, reconnect, and future offline replay should all flow through `src/modules/sync/reconciliation`.
+- WebSocket, polling, reconnect, and offline replay should all flow through `src/modules/sync/realtime` and `src/modules/sync/reconciliation`.
 - Mutation events should patch the smallest granular cache: itinerary, notes, expenses, budget, or trip metadata. Unknown future entity events should invalidate scoped trip resources.
 - Note events should patch matching `noteKeys.list(filters)` pages, not trip detail or entity-specific note caches.
 - Reconnect/offline flows should catch up through `GET /trips/:tripId/mutation-events` using the latest trip revision from TanStack Query.
+- Keep activity feed state in `src/modules/collaboration`, derived from `MutationEvent` records. Do not create a second durable activity store.
+- Keep follow mode optional and local. It may mirror another collaborator's focus into selected stop, tab, route, or viewport state, but it must never broadcast local selection changes as commands to other clients.
+- Keep planning intelligence as backend-derived data. Frontend code may render insights and preview recommendations, but must not compute route optimization, planning score, budget projections, or warning rules locally.
+- Keep Planning Engine UI as a renderer over `/trips/:tripId/planning`. Do not add chronology, travel, constraint, validation, metric, scoring, or suggestion rules to React components.
+- Realtime `planning.invalidated` should invalidate planning query keys only. Do not use it to refetch the entire trip editor or mutate local planner state.
+- Apply planning recommendations only through existing mutation hooks, optimistic concurrency, and sync runtime. Do not silently reorder, reschedule, add places, or change budgets from the Insights tab.
 - Keep provider-specific logic isolated inside `src/modules/map/providers`.
 - Do not couple itinerary rendering to specific map providers.
 - Synchronize marker selection and itinerary selection through shared interaction state only.
@@ -151,7 +157,7 @@ Examples:
 - Render MapLibre itinerary markers through GeoJSON sources/layers with clustering support; do not reintroduce one React marker per item for large itineraries.
 - Do not store MapLibre map instances, sources, layers, or style objects in Zustand.
 - Preserve client-only map loading through dynamic imports and provider script loaders.
-- Prepare architecture for future collaborative editing without implementing realtime prematurely.
+- Preserve realtime collaboration as awareness plus normalized cache synchronization. Do not add CRDT, operational transform, pessimistic locks, or entity locks.
 
 ## Drag-and-Drop Rules
 

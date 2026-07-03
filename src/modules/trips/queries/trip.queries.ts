@@ -4,6 +4,8 @@ import {
   getTrip,
   getTripCollaborators,
   getTripMutationEvents,
+  getTripPlanning,
+  getTripPlanningInsights,
   getTripRoutePreferences,
   getTrips
 } from "../services/trips.service";
@@ -14,6 +16,8 @@ export const tripKeys = {
   list: (filters?: Record<string, unknown>) => [...tripKeys.lists(), filters ?? {}] as const,
   detail: (tripId: string) => [...tripKeys.all, "detail", tripId] as const,
   collaborators: (tripId: string) => [...tripKeys.detail(tripId), "collaborators"] as const,
+  planning: (tripId: string) => [...tripKeys.detail(tripId), "planning"] as const,
+  planningInsights: (tripId: string) => [...tripKeys.detail(tripId), "planning-insights"] as const,
   routePreferences: (tripId: string) => [...tripKeys.detail(tripId), "route-preferences"] as const,
   mutationEvents: (tripId: string, sinceRevision?: string) =>
     [...tripKeys.detail(tripId), "mutation-events", sinceRevision ?? "0"] as const
@@ -46,6 +50,22 @@ export function tripRoutePreferencesQueryOptions(tripId: string) {
   return queryOptions({
     queryKey: tripKeys.routePreferences(tripId),
     queryFn: ({ signal }) => getTripRoutePreferences(tripId, signal),
+    staleTime: 30_000
+  });
+}
+
+export function tripPlanningInsightsQueryOptions(tripId: string) {
+  return queryOptions({
+    queryKey: tripKeys.planningInsights(tripId),
+    queryFn: ({ signal }) => getTripPlanningInsights(tripId, signal),
+    staleTime: 30_000
+  });
+}
+
+export function tripPlanningQueryOptions(tripId: string) {
+  return queryOptions({
+    queryKey: tripKeys.planning(tripId),
+    queryFn: ({ signal }) => getTripPlanning(tripId, signal),
     staleTime: 30_000
   });
 }

@@ -1,78 +1,70 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import type { AuthUser } from "@/modules/auth/types/auth.types";
+import { applyRealtimeTripUpdate } from "@/modules/sync/realtime/realtime-cache-updater";
+import { reconcileRevisionGap } from "@/modules/sync/reconciliation/reconciliation";
+import { tripKeys } from "@/modules/trips/queries/trip.queries";
+import type { TripDetail } from "@/modules/trips/types/trip.types";
 
 import {
-  getActiveLocalPresenceSource,
+  getActiveLocalPresenceSnapshot,
   getEntityPresenceEntries,
+  getPresenceConnectionStatus,
+  getPresenceTransport,
   getTripPresenceEntries,
-  pruneStalePresence,
+  getTripPresences,
+  presenceStateRank,
+  presenceStore,
   removeLocalPresenceSource,
-  removePresenceClient,
-  setLocalPresenceSource,
-  subscribeEntityPresence,
-  subscribeLocalPresence,
-  subscribeTripPresence,
-  upsertPresenceEntry
-} from "../runtime/presence-store";
+  setLocalPresenceSource
+} from "../presence.store";
+import {
+  buildTripPresence,
+  createPresenceId,
+  getNoteThreadPresenceId,
+  getPresenceClientId,
+  getPresenceDeviceId
+} from "../presence.service";
+import { CollaborationPresenceTransport } from "../presence.websocket";
 import type {
   LocalPresenceSource,
+  PresenceConnectionStatus,
   PresenceEntityType,
-  PresenceEntry,
-  PresenceState
+  PresenceEntry
 } from "../types/presence.types";
-
-type PresenceMessage =
-  | {
-      type: "presence:update";
-      entry: PresenceEntry;
-    }
-  | {
-      type: "presence:leave";
-      tripId: string;
-      clientId: string;
-    };
 
 type UsePresenceSourceOptions = LocalPresenceSource & {
   enabled?: boolean | undefined;
 };
 
-const heartbeatMs = 5_000;
-let presenceClientId: string | null = null;
+const subscribePresenceStore = (onStoreChange: () => void) =>
+  presenceStore.subscribe(onStoreChange);
 
-function getPresenceClientId() {
-  if (presenceClientId) {
-    return presenceClientId;
-  }
+function usePresenceSnapshot<T>(cacheKey: string, getSnapshotValue: () => T) {
+  const snapshotRef = useRef<{
+    cacheKey: string;
+    state: ReturnType<typeof presenceStore.getState>;
+    value: T;
+  } | null>(null);
 
-  presenceClientId =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `presence:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  const getSnapshot = useCallback(() => {
+    const state = presenceStore.getState();
+    const current = snapshotRef.current;
 
-  return presenceClientId;
-}
+    if (current && current.cacheKey === cacheKey && current.state === state) {
+      return current.value;
+    }
 
-function getSourceId() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `presence-source:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-}
+    const value = getSnapshotValue();
+    snapshotRef.current = { cacheKey, state, value };
 
-function isPresenceMessage(value: unknown): value is PresenceMessage {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
+    return value;
+  }, [cacheKey, getSnapshotValue]);
 
-  const candidate = value as { type?: unknown };
-
-  return candidate.type === "presence:update" || candidate.type === "presence:leave";
-}
-
-function getPresenceChannelName(tripId: string) {
-  return `trip-planner-presence:${tripId}`;
+  return useSyncExternalStore(subscribePresenceStore, getSnapshot, getSnapshot);
 }
 
 export function useTripPresenceConnection({
@@ -82,85 +74,76 @@ export function useTripPresenceConnection({
   tripId: string;
   user?: AuthUser | undefined;
 }) {
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     if (!user) {
       return;
     }
 
     const clientId = getPresenceClientId();
-    const channel =
-      typeof BroadcastChannel !== "undefined"
-        ? new BroadcastChannel(getPresenceChannelName(tripId))
-        : null;
-
-    const publishActivePresence = () => {
-      const activeSource = getActiveLocalPresenceSource(tripId);
-
-      if (!activeSource) {
-        return;
-      }
-
-      const entry: PresenceEntry = {
-        ...activeSource,
+    const deviceId = getPresenceDeviceId();
+    const buildPresence = () =>
+      buildTripPresence({
+        tripId,
+        user,
         clientId,
-        userId: user.id,
-        userName: user.name,
-        userAvatarUrl: user.avatarUrl,
-        timestamp: Date.now()
-      };
+        deviceId,
+        snapshot: getActiveLocalPresenceSnapshot(tripId)
+      });
+    const transport = new CollaborationPresenceTransport({
+      tripId,
+      clientId,
+      deviceId,
+      onConnected: () => {
+        const currentRevision = queryClient.getQueryData<TripDetail>(
+          tripKeys.detail(tripId)
+        )?.revision;
 
-      upsertPresenceEntry(entry);
-      channel?.postMessage({ type: "presence:update", entry } satisfies PresenceMessage);
-    };
-
-    const handleMessage = (event: MessageEvent<unknown>) => {
-      if (!isPresenceMessage(event.data)) {
-        return;
-      }
-
-      if (event.data.type === "presence:update") {
-        if (event.data.entry.tripId === tripId && event.data.entry.clientId !== clientId) {
-          upsertPresenceEntry(event.data.entry);
+        if (currentRevision) {
+          void reconcileRevisionGap(queryClient, tripId, currentRevision);
         }
-
-        return;
+      },
+      onTripUpdated: (event) => {
+        void applyRealtimeTripUpdate(queryClient, event);
+      },
+      onPlanningInvalidated: (event) => {
+        void queryClient.invalidateQueries({ queryKey: tripKeys.planning(event.tripId) });
+        void queryClient.invalidateQueries({ queryKey: tripKeys.planningInsights(event.tripId) });
       }
+    });
 
-      if (event.data.tripId === tripId && event.data.clientId !== clientId) {
-        removePresenceClient(event.data.clientId);
+    const publishPresenceChange = () => {
+      transport.publishPresence("presence.focus.changed");
+      const snapshot = getActiveLocalPresenceSnapshot(tripId);
+
+      if (snapshot.edit) {
+        transport.publishPresence("presence.edit.started");
+      } else {
+        transport.publishPresence("presence.edit.stopped");
       }
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        publishActivePresence();
-      }
+      publishPresenceChange();
     };
 
-    channel?.addEventListener("message", handleMessage);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    const unsubscribeLocalPresence = subscribeLocalPresence(publishActivePresence);
-    const heartbeat = window.setInterval(() => {
-      pruneStalePresence();
-      publishActivePresence();
-    }, heartbeatMs);
+    const unsubscribeLocalPresence = presenceStore.subscribe((state, previousState) => {
+      if (state.localSourcesById !== previousState.localSourcesById) {
+        publishPresenceChange();
+      }
+    });
 
-    publishActivePresence();
+    transport.start(() => buildPresence());
+    publishPresenceChange();
 
     return () => {
-      window.clearInterval(heartbeat);
       unsubscribeLocalPresence();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      channel?.postMessage({
-        type: "presence:leave",
-        tripId,
-        clientId
-      } satisfies PresenceMessage);
-      channel?.removeEventListener("message", handleMessage);
-      channel?.close();
-      removePresenceClient(clientId);
+      transport.stop();
     };
-  }, [tripId, user]);
+  }, [queryClient, tripId, user]);
 }
 
 export function usePresenceSource({
@@ -174,7 +157,7 @@ export function usePresenceSource({
   const sourceIdRef = useRef<string | null>(null);
 
   if (sourceIdRef.current === null) {
-    sourceIdRef.current = getSourceId();
+    sourceIdRef.current = createPresenceId("presence-source");
   }
 
   useEffect(() => {
@@ -201,19 +184,82 @@ export function usePresenceSource({
 }
 
 export function useTripPresenceEntries(tripId: string, excludeUserId?: string | undefined) {
-  const [entries, setEntries] = useState<PresenceEntry[]>(() =>
-    getTripPresenceEntries(tripId, excludeUserId)
+  const cacheKey = `trip-entries:${tripId}:${excludeUserId ?? ""}`;
+  const getSnapshotValue = useCallback(
+    () => getTripPresenceEntries(tripId, excludeUserId),
+    [excludeUserId, tripId]
   );
 
-  useEffect(() => {
-    const updateEntries = () => setEntries(getTripPresenceEntries(tripId, excludeUserId));
+  return usePresenceSnapshot(cacheKey, getSnapshotValue);
+}
 
-    updateEntries();
+export function useTripPresences(tripId: string, excludeUserId?: string | undefined) {
+  const cacheKey = `trip-presences:${tripId}:${excludeUserId ?? ""}`;
+  const getSnapshotValue = useCallback(
+    () => getTripPresences(tripId, excludeUserId),
+    [excludeUserId, tripId]
+  );
 
-    return subscribeTripPresence(tripId, updateEntries);
-  }, [excludeUserId, tripId]);
+  return usePresenceSnapshot(cacheKey, getSnapshotValue);
+}
 
-  return entries;
+export function usePresenceConnectionStatus(tripId: string): {
+  status: PresenceConnectionStatus;
+  transport: "websocket" | "local";
+} {
+  const getSnapshotValue = useCallback(
+    () => ({
+      status: getPresenceConnectionStatus(tripId),
+      transport: getPresenceTransport(tripId)
+    }),
+    [tripId]
+  );
+
+  return usePresenceSnapshot(`connection:${tripId}`, getSnapshotValue);
+}
+
+export function useMarkerPresenceEntries({
+  tripId,
+  markerIdsByItemId,
+  excludeUserId
+}: {
+  tripId: string;
+  markerIdsByItemId: Map<string, string>;
+  excludeUserId?: string | undefined;
+}) {
+  const markerCacheKey = useMemo(
+    () =>
+      Array.from(markerIdsByItemId.entries())
+        .sort(([firstItemId], [secondItemId]) => firstItemId.localeCompare(secondItemId))
+        .map(([itemId, markerId]) => `${itemId}:${markerId}`)
+        .join("|"),
+    [markerIdsByItemId]
+  );
+  const getSnapshotValue = useCallback(() => {
+    const entriesByMarkerId = new Map<string, PresenceEntry[]>();
+    const entries = getTripPresenceEntries(tripId, excludeUserId);
+
+    entries.forEach((entry) => {
+      if (entry.entityType !== "ITINERARY_ITEM") {
+        return;
+      }
+
+      const markerId = markerIdsByItemId.get(entry.entityId);
+
+      if (!markerId) {
+        return;
+      }
+
+      entriesByMarkerId.set(markerId, [...(entriesByMarkerId.get(markerId) ?? []), entry]);
+    });
+
+    return entriesByMarkerId;
+  }, [excludeUserId, markerIdsByItemId, tripId]);
+
+  return usePresenceSnapshot(
+    `marker-entries:${tripId}:${excludeUserId ?? ""}:${markerCacheKey}`,
+    getSnapshotValue
+  );
 }
 
 export function useEntityPresenceEntries({
@@ -227,20 +273,13 @@ export function useEntityPresenceEntries({
   entityId: string;
   excludeUserId?: string | undefined;
 }) {
-  const [entries, setEntries] = useState<PresenceEntry[]>(() =>
-    getEntityPresenceEntries(tripId, entityType, entityId, excludeUserId)
+  const cacheKey = `entity-entries:${tripId}:${entityType}:${entityId}:${excludeUserId ?? ""}`;
+  const getSnapshotValue = useCallback(
+    () => getEntityPresenceEntries(tripId, entityType, entityId, excludeUserId),
+    [entityId, entityType, excludeUserId, tripId]
   );
 
-  useEffect(() => {
-    const updateEntries = () =>
-      setEntries(getEntityPresenceEntries(tripId, entityType, entityId, excludeUserId));
-
-    updateEntries();
-
-    return subscribeEntityPresence(tripId, entityType, entityId, updateEntries);
-  }, [entityId, entityType, excludeUserId, tripId]);
-
-  return entries;
+  return usePresenceSnapshot(cacheKey, getSnapshotValue);
 }
 
 export function useUniquePresenceUsers(entries: PresenceEntry[]) {
@@ -248,11 +287,6 @@ export function useUniquePresenceUsers(entries: PresenceEntry[]) {
 }
 
 export function getUniquePresenceUsers(entries: PresenceEntry[]) {
-  const stateRank: Record<PresenceState, number> = {
-    VIEWING: 1,
-    EDITING: 2,
-    REPLYING: 3
-  };
   const byUser = new Map<string, PresenceEntry>();
 
   for (const entry of entries) {
@@ -260,30 +294,21 @@ export function getUniquePresenceUsers(entries: PresenceEntry[]) {
 
     if (
       !current ||
-      stateRank[entry.state] > stateRank[current.state] ||
-      (stateRank[entry.state] === stateRank[current.state] && entry.timestamp > current.timestamp)
+      presenceStateRank(entry.state) > presenceStateRank(current.state) ||
+      (presenceStateRank(entry.state) === presenceStateRank(current.state) &&
+        entry.timestamp > current.timestamp)
     ) {
       byUser.set(entry.userId, entry);
     }
   }
 
   return Array.from(byUser.values()).sort((first, second) => {
-    if (stateRank[first.state] !== stateRank[second.state]) {
-      return stateRank[second.state] - stateRank[first.state];
+    if (presenceStateRank(first.state) !== presenceStateRank(second.state)) {
+      return presenceStateRank(second.state) - presenceStateRank(first.state);
     }
 
     return second.timestamp - first.timestamp;
   });
 }
 
-export function getNoteThreadPresenceId({
-  targetEntityType,
-  targetEntityId,
-  parentNoteId
-}: {
-  targetEntityType: string;
-  targetEntityId: string;
-  parentNoteId?: string | undefined;
-}) {
-  return parentNoteId ? `reply:${parentNoteId}` : `root:${targetEntityType}:${targetEntityId}`;
-}
+export { getNoteThreadPresenceId };

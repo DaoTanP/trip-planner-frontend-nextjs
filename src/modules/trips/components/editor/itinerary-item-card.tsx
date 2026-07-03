@@ -22,12 +22,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PresenceIndicator } from "@/modules/collaboration/components/presence-indicator";
 import {
   useEntityPresenceEntries,
   usePresenceSource,
   useUniquePresenceUsers
 } from "@/modules/collaboration/hooks/use-presence";
-import type { PresenceEntry } from "@/modules/collaboration/types/presence.types";
 import {
   useDeleteItineraryItemMutation,
   useUpdateItineraryItemMutation
@@ -41,7 +41,6 @@ import type { CollaborativeNote } from "@/modules/notes/types/note.types";
 import type { PlaceDto } from "@/services/api/contracts";
 import { usePlannerStore } from "@/stores/use-planner-store";
 import {
-  collaborationColorClassNames,
   getTravelModeConfig,
   getItineraryItemTypeCategoryColor,
   statusColorClassNames,
@@ -316,7 +315,7 @@ export function ItineraryItemCard({
               {t(`sync.${syncState}`)}
             </span>
           ) : null}
-          {activePresence.length > 0 ? <StopPresenceIndicator entries={activePresence} /> : null}
+          {activePresence.length > 0 ? <PresenceIndicator entries={activePresence} /> : null}
         </div>
 
         <div className="flex items-center gap-1">
@@ -639,40 +638,6 @@ function StopNotesPreview({
       </ul>
       {hasMoreNotes ? <MoreNotesButton hiddenCount={hiddenCount} onExpand={onExpand} /> : null}
     </div>
-  );
-}
-
-function StopPresenceIndicator({ entries }: { entries: PresenceEntry[] }) {
-  const t = useTranslations("trip.editor.item");
-  const primaryEntry = entries[0];
-
-  if (!primaryEntry) {
-    return null;
-  }
-
-  const remainingCount = Math.max(0, entries.length - 1);
-  const primaryLabel =
-    primaryEntry.state === "EDITING"
-      ? t("presence.editing", { name: primaryEntry.userName })
-      : t("presence.viewing", { name: primaryEntry.userName });
-
-  return (
-    <span
-      className={cn(
-        "inline-flex min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5",
-        collaborationColorClassNames.presencePill
-      )}
-    >
-      <span
-        className={cn("size-1.5 shrink-0 rounded-full", collaborationColorClassNames.presenceDot)}
-        aria-hidden="true"
-      />
-      <span className="truncate">
-        {remainingCount > 0
-          ? `${primaryLabel} / ${t("presence.more", { count: remainingCount })}`
-          : primaryLabel}
-      </span>
-    </span>
   );
 }
 

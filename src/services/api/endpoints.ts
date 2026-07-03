@@ -19,7 +19,17 @@ export const apiEndpoints = {
     collaborators: (tripId: string) => `/trips/${tripId}/collaborators`,
     expenses: (tripId: string) => `/trips/${tripId}/expenses`,
     budget: (tripId: string) => `/trips/${tripId}/budget`,
-    mutationEvents: (tripId: string) => `/trips/${tripId}/mutation-events`
+    mutationEvents: (tripId: string) => `/trips/${tripId}/mutation-events`,
+    analysis: (tripId: string) => `/trips/${tripId}/analysis`,
+    recommendations: (tripId: string) => `/trips/${tripId}/recommendations`,
+    optimization: (tripId: string) => `/trips/${tripId}/optimization`,
+    insights: (tripId: string) => `/trips/${tripId}/insights`,
+    planning: (tripId: string) => `/trips/${tripId}/planning`,
+    planningIssues: (tripId: string) => `/trips/${tripId}/planning/issues`,
+    planningMetrics: (tripId: string) => `/trips/${tripId}/planning/metrics`,
+    planningSuggestions: (tripId: string) => `/trips/${tripId}/planning/suggestions`,
+    planningTimeline: (tripId: string) => `/trips/${tripId}/planning/timeline`,
+    optimize: (tripId: string) => `/trips/${tripId}/optimize`
   },
   itinerary: {
     item: (itemId: string) => `/itinerary-items/${itemId}`

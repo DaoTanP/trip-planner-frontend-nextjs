@@ -16,7 +16,7 @@ type UseTripDeltaSyncOptions = {
 
 export function useTripDeltaSync(
   tripId: string,
-  { enabled = true, intervalMs = 15_000 }: UseTripDeltaSyncOptions = {}
+  { enabled = true, intervalMs = 60_000 }: UseTripDeltaSyncOptions = {}
 ) {
   const queryClient = useQueryClient();
   const latestRevisionRef = useRef<string | null>(null);

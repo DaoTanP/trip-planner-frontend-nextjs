@@ -31,10 +31,12 @@ import { cn } from "@/lib/utils";
 import { BudgetExpensePanel } from "@/modules/expenses/components/budget-expense-panel";
 import { useSession } from "@/modules/auth/hooks/use-session";
 import {
+  useMarkerPresenceEntries,
   usePresenceSource,
   useTripPresenceConnection,
   useTripPresenceEntries
 } from "@/modules/collaboration/hooks/use-presence";
+import { ConflictDialog } from "@/modules/collaboration/components/conflict-dialog";
 import { tripBudgetQueryOptions } from "@/modules/expenses/queries/expense.queries";
 import { useCreateItineraryItemMutation } from "@/modules/itinerary/mutations/use-itinerary-mutations";
 import { mapConfig } from "@/modules/map/config/map.config";
@@ -89,6 +91,7 @@ import {
 } from "../../utils/planner-workspace.utils";
 import { TripEditorHeader } from "./trip-editor-header";
 import { TripEditorSkeleton } from "./trip-editor-skeleton";
+import { PlanningPanel } from "./planning-panel";
 import { TripItineraryPanel } from "./trip-itinerary-panel";
 
 const LazyTripMap = dynamic(
@@ -124,7 +127,7 @@ type RouteLegRequest = {
   request: MapRouteRequest;
 };
 
-type EditorTab = "stops" | "map" | "budget" | "notes" | "files";
+type EditorTab = "stops" | "map" | "budget" | "notes" | "planning" | "files";
 
 const defaultMapViewport: MapViewport = {
   latitude: mapConfig.defaultViewport.latitude,
@@ -158,10 +161,12 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const selectedItemFocusRequestId = usePlannerStore((state) => state.selectedItemFocusRequestId);
   const hoveredItemId = usePlannerStore((state) => state.hoveredItemId);
   const selectedRouteLegId = usePlannerStore((state) => state.selectedRouteLegId);
+  const followedPresenceUserId = usePlannerStore((state) => state.followedPresenceUserId);
   const selectItem = usePlannerStore((state) => state.selectItem);
   const selectRouteLeg = usePlannerStore((state) => state.selectRouteLeg);
   const setHoveredItemId = usePlannerStore((state) => state.setHoveredItemId);
   const setSelectedTripId = usePlannerStore((state) => state.setSelectedTripId);
+  const followPresenceUser = usePlannerStore((state) => state.followPresenceUser);
   const [mapStopCandidate, setMapStopCandidate] = useState<MapStopCandidate | null>(null);
   const [reverseGeocodingTripId, setReverseGeocodingTripId] = useState<string | undefined>();
   const [isAddingMapStop, setIsAddingMapStop] = useState(false);
@@ -239,7 +244,22 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     priority: 1,
     enabled: currentUser !== undefined && selectedItemId !== undefined
   });
+  usePresenceSource({
+    tripId,
+    entityType: "ITINERARY_ITEM",
+    entityId: hoveredItemId ?? "__no_hovered_stop__",
+    state: "VIEWING",
+    priority: 2,
+    enabled: currentUser !== undefined && hoveredItemId !== undefined
+  });
   const presenceEntries = useTripPresenceEntries(tripId, currentUser?.id);
+  const followedPresenceEntry = useMemo(
+    () =>
+      followedPresenceUserId
+        ? presenceEntries.find((entry) => entry.userId === followedPresenceUserId)
+        : undefined,
+    [followedPresenceUserId, presenceEntries]
+  );
 
   const items = useMemo(
     () => itineraryQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -261,6 +281,32 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   const markers = useMemo(
     () => getItineraryMapMarkers(routeSourceItems, places),
     [places, routeSourceItems]
+  );
+  const markerIdsByItemId = useMemo(
+    () =>
+      new Map(
+        markers
+          .filter((marker) => marker.itemId)
+          .map((marker) => [marker.itemId as string, marker.id])
+      ),
+    [markers]
+  );
+  const markerPresenceEntriesByMarkerId = useMarkerPresenceEntries({
+    tripId,
+    markerIdsByItemId,
+    excludeUserId: currentUser?.id
+  });
+  const markerPresence = useMemo(
+    () =>
+      Array.from(markerPresenceEntriesByMarkerId.entries()).map(([markerId, entries]) => ({
+        markerId,
+        entries
+      })),
+    [markerPresenceEntriesByMarkerId]
+  );
+  const remoteFocusedMarkerIds = useMemo(
+    () => Array.from(markerPresenceEntriesByMarkerId.keys()),
+    [markerPresenceEntriesByMarkerId]
   );
   const providerRouteRequestPoints = useMemo(
     () => getProviderRouteRequestPoints(markers),
@@ -319,6 +365,14 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
       ? popoverRouteLegState.routeLegId
       : undefined;
   const mapFocusedRouteLegId = popoverRouteLegId ?? expandedRouteLegId;
+  usePresenceSource({
+    tripId,
+    entityType: "MAP",
+    entityId: mapFocusedRouteLegId ? `route:${mapFocusedRouteLegId}` : "__no_active_route__",
+    state: "VIEWING",
+    priority: 2,
+    enabled: currentUser !== undefined && mapFocusedRouteLegId !== undefined
+  });
   const renderedRoute = useMemo(
     () =>
       areRouteLegRoutesResolved
@@ -352,8 +406,13 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
     [mapFocusedRouteLegId, routeLegs]
   );
   const focusedMarkerIds = useMemo(
-    () => focusedRouteItemIds.map((itemId) => `item:${itemId}`),
-    [focusedRouteItemIds]
+    () => [
+      ...new Set([
+        ...focusedRouteItemIds.map((itemId) => `item:${itemId}`),
+        ...remoteFocusedMarkerIds
+      ])
+    ],
+    [focusedRouteItemIds, remoteFocusedMarkerIds]
   );
   const activeRouteLegIds = useMemo(
     () => (mapFocusedRouteLegId ? [mapFocusedRouteLegId] : []),
@@ -409,6 +468,147 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
   );
   const visibleActiveTab = mapLayout === "desktop" && activeTab === "map" ? "stops" : activeTab;
   const isMobileMapOpen = visibleActiveTab === "map" && mapLayout === "mobile";
+  usePresenceSource({
+    tripId,
+    entityType: "MAP",
+    entityId: tripId,
+    state: "VIEWING",
+    priority: 1,
+    enabled: currentUser !== undefined && isMobileMapOpen
+  });
+  usePresenceSource({
+    tripId,
+    entityType: "BUDGET",
+    entityId: tripId,
+    state: "VIEWING",
+    priority: 1,
+    enabled: currentUser !== undefined && visibleActiveTab === "budget"
+  });
+
+  useEffect(() => {
+    if (!followedPresenceUserId) {
+      return;
+    }
+
+    let followUpdateTimer: number | undefined;
+    const scheduleFollowUpdate = (update: () => void) => {
+      followUpdateTimer = window.setTimeout(update, 0);
+    };
+
+    if (!followedPresenceEntry) {
+      followPresenceUser(undefined);
+      return;
+    }
+
+    if (followedPresenceEntry.entityType === "ITINERARY_ITEM") {
+      const followedItem =
+        items.find((item) => item.id === followedPresenceEntry.entityId) ??
+        routeSourceItems.find((item) => item.id === followedPresenceEntry.entityId);
+
+      if (followedItem && selectedItemId !== followedItem.id) {
+        scheduleFollowUpdate(() => {
+          setActiveTab("stops");
+          selectItem(followedItem.id, followedItem.placeId);
+        });
+      }
+
+      return () => {
+        if (followUpdateTimer !== undefined) {
+          window.clearTimeout(followUpdateTimer);
+        }
+      };
+    }
+
+    if (
+      followedPresenceEntry.entityType === "BUDGET" ||
+      followedPresenceEntry.entityType === "EXPENSE"
+    ) {
+      scheduleFollowUpdate(() => setActiveTab("budget"));
+
+      return () => {
+        if (followUpdateTimer !== undefined) {
+          window.clearTimeout(followUpdateTimer);
+        }
+      };
+    }
+
+    if (followedPresenceEntry.entityType === "NOTE") {
+      scheduleFollowUpdate(() => setActiveTab("notes"));
+
+      return () => {
+        if (followUpdateTimer !== undefined) {
+          window.clearTimeout(followUpdateTimer);
+        }
+      };
+    }
+
+    if (followedPresenceEntry.entityType === "MAP") {
+      if (mapLayout === "mobile") {
+        scheduleFollowUpdate(() => setActiveTab("map"));
+      }
+
+      if (!followedPresenceEntry.entityId.startsWith("route:")) {
+        return () => {
+          if (followUpdateTimer !== undefined) {
+            window.clearTimeout(followUpdateTimer);
+          }
+        };
+      }
+
+      const routeLegId = followedPresenceEntry.entityId.slice("route:".length);
+
+      if (!routeLegs.some((routeLeg) => routeLeg.id === routeLegId)) {
+        return () => {
+          if (followUpdateTimer !== undefined) {
+            window.clearTimeout(followUpdateTimer);
+          }
+        };
+      }
+
+      if (selectedRouteLegId !== routeLegId) {
+        scheduleFollowUpdate(() => {
+          selectRouteLeg(routeLegId);
+
+          const routePoints = getRouteLegPoints([routeLegId], routeLegs, markers);
+          const nextViewport = getViewportForPoints(routePoints);
+
+          if (nextViewport) {
+            setViewport(nextViewport);
+          }
+        });
+      }
+
+      return () => {
+        if (followUpdateTimer !== undefined) {
+          window.clearTimeout(followUpdateTimer);
+        }
+      };
+    }
+
+    if (followedPresenceEntry.entityType === "TRIP") {
+      scheduleFollowUpdate(() => setActiveTab("stops"));
+    }
+
+    return () => {
+      if (followUpdateTimer !== undefined) {
+        window.clearTimeout(followUpdateTimer);
+      }
+    };
+  }, [
+    followedPresenceEntry,
+    followedPresenceUserId,
+    followPresenceUser,
+    items,
+    mapLayout,
+    markers,
+    routeLegs,
+    routeSourceItems,
+    selectItem,
+    selectRouteLeg,
+    selectedItemId,
+    selectedRouteLegId,
+    setViewport
+  ]);
 
   useEffect(() => {
     setSelectedTripId(tripId);
@@ -814,6 +1014,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
         selectedMarkerId={selectedMarkerId}
         hoveredMarkerId={hoveredMarkerId}
         focusedMarkerIds={focusedMarkerIds}
+        markerPresence={markerPresence}
         autoFitMarkerBoundsKey={autoFitMarkerBoundsKey}
         onViewportChange={setViewport}
         onMarkerSelect={handleMarkerSelect}
@@ -974,6 +1175,9 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
               trip={trip}
               stats={stats}
               presenceEntries={presenceEntries}
+              currentUserId={currentUser?.id}
+              followedPresenceUserId={followedPresenceUserId}
+              onFollowPresenceUser={followPresenceUser}
               onIssueSummaryClick={firstTimingIssue ? handleIssueSummaryClick : undefined}
             />
           </div>
@@ -1002,7 +1206,7 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
             role="tablist"
             aria-label={t("tabs.label")}
           >
-            {(["stops", "map", "budget", "notes", "files"] as const).map((tab) => (
+            {(["stops", "map", "budget", "notes", "planning", "files"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -1052,6 +1256,17 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
                 targetEntityType="TRIP"
                 targetEntityId={trip.id}
                 title={t("notes.tripTitle")}
+              />
+            ) : null}
+            {visibleActiveTab === "planning" ? (
+              <PlanningPanel
+                tripId={trip.id}
+                items={completeRouteItems ?? items}
+                places={places}
+                onSelectItem={(itemId, placeId) => {
+                  setActiveTab("stops");
+                  selectItem(itemId, placeId);
+                }}
               />
             ) : null}
             {visibleActiveTab === "files" ? (
@@ -1123,6 +1338,8 @@ export function TripEditorShell({ tripId }: TripEditorShellProps) {
           </aside>
         ) : null}
       </div>
+
+      <ConflictDialog tripId={trip.id} />
 
       {mapLayout === "mobile" && visibleActiveTab !== "map" ? (
         <button

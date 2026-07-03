@@ -45,6 +45,7 @@ export type SyncMutationQueueEntry = {
   state: SyncMutationState;
   payload?: Record<string, unknown> | undefined;
   attemptCount: number;
+  nextRetryAt?: number | undefined;
   createdAt: number;
   updatedAt: number;
   lastError?: string | undefined;

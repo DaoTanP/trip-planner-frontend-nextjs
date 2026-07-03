@@ -13,6 +13,12 @@ import type {
 } from "../types/trip.types";
 import type {
   ListMutationEventsQueryDto,
+  OptimizeTripRequestDto,
+  PlanningAnalysisResponseDto,
+  PlanningEngineResponseDto,
+  PlanningInsightsResponseDto,
+  PlanningOptimizationResponseDto,
+  PlanningRecommendationsResponseDto,
   UpdateTripRequestDto,
   UpsertTripRoutePreferenceRequestDto,
   UpsertTripRoutePreferenceResponseDto
@@ -98,6 +104,60 @@ export async function getTripRoutePreferences(tripId: string, signal?: AbortSign
   );
 
   return response.data.routePreferences;
+}
+
+export async function getTripPlanningAnalysis(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<PlanningAnalysisResponseDto>>(
+    apiEndpoints.trips.analysis(tripId),
+    signal
+  );
+
+  return response.data.analysis;
+}
+
+export async function getTripPlanningRecommendations(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<PlanningRecommendationsResponseDto>>(
+    apiEndpoints.trips.recommendations(tripId),
+    signal
+  );
+
+  return response.data.recommendations;
+}
+
+export async function getTripRouteOptimization(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<PlanningOptimizationResponseDto>>(
+    apiEndpoints.trips.optimization(tripId),
+    signal
+  );
+
+  return response.data.optimization;
+}
+
+export async function getTripPlanningInsights(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<PlanningInsightsResponseDto>>(
+    apiEndpoints.trips.insights(tripId),
+    signal
+  );
+
+  return response.data.insights;
+}
+
+export async function getTripPlanning(tripId: string, signal?: AbortSignal) {
+  const response = await apiGet<ApiSuccessResponse<PlanningEngineResponseDto>>(
+    apiEndpoints.trips.planning(tripId),
+    signal
+  );
+
+  return response.data.planning;
+}
+
+export async function optimizeTripPreview(tripId: string, payload: OptimizeTripRequestDto) {
+  const response = await apiPost<
+    ApiSuccessResponse<PlanningOptimizationResponseDto>,
+    OptimizeTripRequestDto
+  >(apiEndpoints.trips.optimize(tripId), payload);
+
+  return response.data.optimization;
 }
 
 export async function upsertTripRoutePreference(

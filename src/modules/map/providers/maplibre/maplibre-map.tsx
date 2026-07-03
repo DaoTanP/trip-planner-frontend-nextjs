@@ -39,6 +39,7 @@ export function MapLibreMap({
   selectedMarkerId,
   hoveredMarkerId,
   focusedMarkerIds,
+  markerPresence,
   autoFitMarkerBoundsKey,
   onViewportChange,
   onMarkerSelect,
@@ -253,10 +254,8 @@ export function MapLibreMap({
       return;
     }
 
-    map.easeTo({
+    map.jumpTo({
       center: [normalizedViewport.longitude, normalizedViewport.latitude],
-      duration: 240,
-      essential: true,
       zoom: normalizedViewport.zoom
     });
   }, [mapRef, normalizedViewport]);
@@ -326,6 +325,7 @@ export function MapLibreMap({
           hoveredMarkerId={hoveredMarkerId}
           focusedMarkerIds={focusedMarkerIds}
           selectedMarkerId={selectedMarkerId}
+          markerPresence={markerPresence}
         />
         <MapLibreRouteLayer route={route} activeRoute={activeRoute} />
       </ReactMap>

@@ -46,6 +46,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { usePresenceSource } from "@/modules/collaboration/hooks/use-presence";
 import {
   useCreateItineraryItemMutation,
   useReorderItineraryItemsMutation
@@ -179,6 +180,14 @@ export function TripItineraryPanel({
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+  usePresenceSource({
+    tripId,
+    entityType: "ITINERARY",
+    entityId: tripId,
+    state: "EDITING",
+    priority: 5,
+    enabled: activeId !== null
+  });
   const orderedItems = useMemo(() => sortStopSequence(items), [items]);
   const visibleItems = useMemo(
     () => filterStopSequence(items, places, filters),

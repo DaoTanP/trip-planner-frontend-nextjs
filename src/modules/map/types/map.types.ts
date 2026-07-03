@@ -32,6 +32,7 @@ export interface TripMapProps {
   selectedMarkerId?: string | undefined;
   hoveredMarkerId?: string | undefined;
   focusedMarkerIds?: string[] | undefined;
+  markerPresence?: MapMarkerPresence[] | undefined;
   autoFitMarkerBoundsKey?: string | undefined;
   onViewportChange: (viewport: MapViewport) => void;
   onMarkerSelect: (marker: MapMarker) => void;
@@ -39,6 +40,16 @@ export interface TripMapProps {
   onMapContextChange?: (() => void) | undefined;
   onMapClick?: ((point: MapRoutePoint) => void) | undefined;
 }
+
+export type MapMarkerPresence = {
+  markerId: string;
+  entries: MapMarkerPresenceEntry[];
+};
+
+export type MapMarkerPresenceEntry = {
+  userName: string;
+  state: "VIEWING" | "EDITING" | "REPLYING";
+};
 
 export type DerivedRouteLeg = {
   id: string;

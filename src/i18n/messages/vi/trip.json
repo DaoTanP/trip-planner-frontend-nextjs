@@ -25,7 +25,357 @@
       "map": "Ban do",
       "budget": "Ngan sach",
       "notes": "Ghi chu",
+      "planning": "Lap ke hoach",
+      "insights": "Thong tin goi y",
       "files": "Tep"
+    },
+    "collaboration": {
+      "viewing": "{name} dang xem",
+      "editing": "{name} dang sua",
+      "replying": "{name} dang phan hoi",
+      "more": "+{count, plural, other {# nguoi khac}}",
+      "activeUsersLabel": "{count, plural, other {# nguoi dang hoat dong}}",
+      "activeUsersTitle": "Nguoi dang hoat dong",
+      "summary": "{names} dang xem",
+      "summaryWithMore": "{names} +{count, plural, other {# nguoi khac}}",
+      "viewingOn": "Dang xem {entity}",
+      "editingOn": "Dang sua {entity}",
+      "replyingOn": "Dang phan hoi trong {entity}",
+      "entityTypes": {
+        "TRIP": "tong quan chuyen di",
+        "ITINERARY": "lich trinh",
+        "ITINERARY_ITEM": "diem dung",
+        "PLACE": "dia diem",
+        "EXPENSE": "chi phi",
+        "BUDGET": "ngan sach",
+        "NOTE": "ghi chu",
+        "MAP": "ban do"
+      },
+      "realtime": {
+        "connected": "Truc tiep",
+        "reconnecting": "Dang ket noi lai...",
+        "local": "Hien dien cuc bo",
+        "idle": "Ngoai tuyen"
+      },
+      "follow": {
+        "follow": "Theo doi",
+        "following": "Dang theo doi",
+        "start": "Theo doi {name}",
+        "stop": "Dung theo doi {name}"
+      },
+      "activity": {
+        "label": "{count, plural, =0 {Chua co hoat dong} other {# hoat dong}}",
+        "title": "Hoat dong",
+        "empty": "Chua co hoat dong truc tiep.",
+        "timeUnknown": "Khong ro thoi gian",
+        "revision": "Revision {value}",
+        "actors": {
+          "you": "Ban",
+          "someone": "Ai do",
+          "system": "He thong"
+        },
+        "operations": {
+          "created": "{actor} da them {entity}",
+          "updated": "{actor} da cap nhat {entity}",
+          "deleted": "{actor} da xoa {entity}",
+          "reordered": "{actor} da sap xep lai {entity}"
+        },
+        "entityTypes": {
+          "TRIP": "chuyen di",
+          "ITINERARY_ITEM": "diem dung",
+          "TRIP_ROUTE_PREFERENCE": "tuyen",
+          "NOTE": "ghi chu",
+          "EXPENSE": "chi phi",
+          "BUDGET": "ngan sach",
+          "COLLABORATOR": "cong tac vien",
+          "UNKNOWN": "muc"
+        }
+      }
+    },
+    "conflict": {
+      "badge": "Xung dot revision",
+      "title": "Phat hien xung dot",
+      "description": "Muc nay da thay doi sau khi ban bat dau sua. Ban nhap cua ban chua bi ghi de.",
+      "currentRevision": "Revision cua ban: {value}",
+      "latestRevision": "Revision moi nhat: {value}",
+      "field": "Truong",
+      "yours": "Ban cua ban",
+      "latest": "Moi nhat",
+      "noFieldDiff": "Backend khong gui du lieu khac biet theo truong cho xung dot nay. Tai ban moi nhat hoac tiep tuc sua va so sanh thu cong.",
+      "close": "Dong hop thoai xung dot",
+      "cancel": "Huy",
+      "keepEditing": "Tiep tuc sua",
+      "mergeManually": "Gop thu cong",
+      "reloadLatest": "Tai ban moi nhat",
+      "fieldUnknown": "{field}",
+      "fields": {
+        "amount": "So tien",
+        "attachments": "Dinh kem",
+        "body": "Noi dung",
+        "category": "Danh muc",
+        "currency": "Tien te",
+        "duration": "Thoi luong",
+        "linkedStop": "Diem dung lien ket",
+        "metadata": "Metadata",
+        "notes": "Ghi chu",
+        "place": "Dia diem",
+        "spentAt": "Thoi diem chi",
+        "startsAt": "Bat dau luc",
+        "status": "Trang thai",
+        "summary": "Tom tat",
+        "timezone": "Mui gio",
+        "title": "Tieu de",
+        "totalLimit": "Tong gioi han",
+        "types": "Loai"
+      }
+    },
+    "planning": {
+      "title": "Lap ke hoach",
+      "errorTitle": "Khong tai duoc du lieu lap ke hoach",
+      "errorMessage": "Lam moi mo hinh du lieu suy ra hoac thu lai sau khi dong bo xong.",
+      "retry": "Thu lai",
+      "generatedAt": "Cap nhat {value}",
+      "unknownStop": "Diem dung khong ro",
+      "tripScope": "Chuyen di",
+      "duration": "{count, plural, =0 {0 phut} other {# phut}}",
+      "health": {
+        "HEALTHY": "Tot",
+        "NEEDS_ATTENTION": "Can xem",
+        "AT_RISK": "Rui ro"
+      },
+      "summary": {
+        "critical": "Nghiem trong",
+        "warnings": "Can xem",
+        "scheduled": "Da dat gio"
+      },
+      "severity": {
+        "INFO": "Thong tin",
+        "WARNING": "Can xem",
+        "CRITICAL": "Nghiem trong"
+      },
+      "issues": {
+        "title": "Van de lap ke hoach",
+        "meta": "{count, plural, other {# van de}}",
+        "empty": "Khong co van de lap ke hoach.",
+        "codes": {
+          "EMPTY_TRIP": "Them it nhat mot diem dung.",
+          "MISSING_SCHEDULE": "Mot so diem chua co lich.",
+          "DUPLICATE_VISIT": "Dia diem nay xuat hien hon mot lan.",
+          "TIMEZONE_INCONSISTENCY": "Can xem lai mui gio.",
+          "LATE_NIGHT_ARRIVAL": "Thoi diem den qua khuya.",
+          "LARGE_IDLE_GAP": "Co khoang trong lon.",
+          "OVERLAPPING_ACTIVITIES": "Cac hoat dong bi trung gio.",
+          "BACKWARD_TIMELINE": "Thu tu thoi gian bi nguoc.",
+          "IMPOSSIBLE_TRAVEL": "Thoi gian di chuyen khong du.",
+          "MISSING_COORDINATES": "Mot so diem thieu toa do.",
+          "EXCESSIVE_TRAVEL": "Quang duong di chuyen qua dai.",
+          "LONG_TRANSFER": "Chang di chuyen dai.",
+          "WALKING_NOT_FEASIBLE": "Khoang cach di bo qua xa.",
+          "BUDGET_OVERSPEND": "Da vuot ngan sach.",
+          "EXPENSIVE_DESTINATION": "Diem nay co chi phi cao.",
+          "MAXIMUM_WALKING_DISTANCE": "Vuot gioi han di bo.",
+          "MAXIMUM_DAILY_DRIVING": "Vuot gioi han lai xe moi ngay.",
+          "MEAL_WINDOW": "Thieu khoang an uong.",
+          "MISSING_ACCOMMODATION": "Thieu cho luu tru cho chuyen qua dem.",
+          "TIMEZONE_TRANSITION": "Chuyen di qua nhieu mui gio."
+        }
+      },
+      "suggestions": {
+        "title": "Goi y",
+        "meta": "{count, plural, other {# goi y}}",
+        "empty": "Khong co goi y.",
+        "preview": "Xem truoc",
+        "reasons": {
+          "scheduleUnscheduledItems": "Them gio cho cac diem chua dat lich.",
+          "resolveScheduleConflict": "Doi gio mot diem de het xung dot.",
+          "useIdleGap": "Dung khoang trong lam thoi gian nghi.",
+          "missingMealWindow": "Them diem an trua.",
+          "missingOvernightBase": "Them khach san hoac diem nghi.",
+          "mergeDuplicateVisit": "Gop cac lan ghe trung lap.",
+          "avoidLateArrival": "Doi diem nay som hon.",
+          "reduceTravelBacktracking": "Sap xep lai diem dung de giam di chuyen."
+        }
+      },
+      "metrics": {
+        "title": "Chi so",
+        "meta": "Du lieu suy ra",
+        "labels": {
+          "tripDurationDays": "Do dai chuyen di",
+          "scheduledRatio": "Da dat gio",
+          "unscheduledRatio": "Chua dat gio",
+          "travelRatio": "Ty le di chuyen",
+          "activityRatio": "Ty le hoat dong",
+          "walkingRatio": "Ty le di bo",
+          "budgetUsage": "Dung ngan sach",
+          "placeDiversity": "Do da dang dia diem",
+          "categoryDiversity": "Nhom",
+          "totalTravelDistance": "Quang duong",
+          "totalTravelDuration": "Thoi gian di chuyen",
+          "idleGapMinutes": "Khoang trong"
+        }
+      },
+      "travel": {
+        "title": "Di chuyen",
+        "meta": "{distance} / {duration}",
+        "missing": "Thieu",
+        "noDuration": "Chua co thoi gian",
+        "warning": "Can xem",
+        "empty": "Them it nhat hai diem co toa do de uoc tinh di chuyen.",
+        "modes": {
+          "driving": "Lai xe",
+          "walking": "Di bo",
+          "bicycling": "Xe dap",
+          "transit": "Cong cong",
+          "mixed": "Hon hop"
+        }
+      },
+      "constraints": {
+        "title": "Rang buoc",
+        "meta": "Quy tac kiem tra",
+        "codes": {
+          "MAXIMUM_WALKING_DISTANCE": "Gioi han di bo",
+          "MAXIMUM_DAILY_DRIVING": "Gioi han lai xe moi ngay",
+          "MEAL_WINDOW": "Khoang an uong",
+          "MISSING_ACCOMMODATION": "Cho luu tru",
+          "TIMEZONE_TRANSITION": "Chuyen mui gio",
+          "OPENING_HOURS": "Gio mo cua"
+        },
+        "status": {
+          "PASS": "Dat",
+          "WARN": "Can xem",
+          "FAIL": "Can xu ly",
+          "NOT_APPLICABLE": "Khong ap dung"
+        }
+      },
+      "budget": {
+        "title": "Ngan sach",
+        "spent": "Da chi",
+        "remaining": "Con lai",
+        "noBudget": "Chua co ngan sach"
+      }
+    },
+    "insights": {
+      "title": "Thong tin goi y lap ke hoach",
+      "loading": "Dang tai thong tin goi y",
+      "errorTitle": "Khong tai duoc thong tin goi y",
+      "errorDescription": "Thu lai sau khi du lieu chuyen di dong bo xong.",
+      "retry": "Thu lai",
+      "generatedAt": "Tao luc {value}",
+      "view": "Xem",
+      "unknownStop": "Diem dung khong ro",
+      "durationMinutes": "{count, plural, other {# phut}}",
+      "severity": {
+        "CRITICAL": "Nghiem trong",
+        "WARNING": "Can xem",
+        "INFO": "Thong tin"
+      },
+      "travelModes": {
+        "driving": "Lai xe",
+        "walking": "Di bo",
+        "bicycling": "Dap xe",
+        "transit": "Cong cong",
+        "mixed": "Hon hop"
+      },
+      "score": {
+        "label": "Diem",
+        "dimensions": {
+          "scheduleCompleteness": "Do day du lich",
+          "travelEfficiency": "Hieu qua di chuyen",
+          "budgetHealth": "Suc khoe ngan sach",
+          "collaborationCompleteness": "Cong tac",
+          "itineraryConsistency": "Tinh nhat quan"
+        }
+      },
+      "issues": {
+        "title": "Can luu y",
+        "meta": "{critical, plural, other {# nghiem trong}} / {warning, plural, other {# can xem}}",
+        "empty": "Khong co canh bao lon.",
+        "codes": {
+          "EMPTY_TRIP": "Them diem dung de bat dau lap ke hoach.",
+          "DUPLICATED_PLACE": "Dia diem nay xuat hien {count, plural, other {# lan}}.",
+          "MISSING_SCHEDULE": "{count, plural, other {# diem dung chua co gio}}.",
+          "LARGE_TRAVEL_GAP": "Khoang cach di chuyen khoang {distanceKm} km.",
+          "EXCESSIVE_TRAVEL_DISTANCE": "Chang nay rat xa: khoang {distanceKm} km.",
+          "OVERLAPPING_ACTIVITIES": "Hoat dong chong len nhau khoang {minutes} phut.",
+          "IMPOSSIBLE_SCHEDULE": "Lich thieu khoang {minutes} phut tinh ca di chuyen.",
+          "INEFFICIENT_TRAVEL": "Sap xep lai co the giam di chuyen khoang {distancePercentage}%.",
+          "ISOLATED_STOP": "Diem nay cach cac diem gan nhat khoang {distanceKm} km.",
+          "BUDGET_OVERSPEND": "Muc dung ngan sach khoang {percentage}%.",
+          "MISSING_COORDINATES": "{count, plural, other {# diem dung chua co toa do}}."
+        }
+      },
+      "optimization": {
+        "title": "Toi uu tuyen",
+        "meta": "{mode} / do tin cay {confidence}%",
+        "currentDistance": "Khoang cach hien tai",
+        "savingDistance": "Co the giam khoang cach",
+        "savingTime": "Co the tiet kiem thoi gian",
+        "preview": "Xem thu thu tu",
+        "hidePreview": "An thu tu"
+      },
+      "schedule": {
+        "title": "Goi y lich",
+        "meta": "{count, plural, other {# goi y}}",
+        "empty": "Khong co goi y lich.",
+        "duration": "{count, plural, other {# phut}}",
+        "types": {
+          "ARRIVAL_TIME": "Gio den",
+          "DURATION": "Thoi luong",
+          "LUNCH_WINDOW": "Khung gio an trua",
+          "REST_PERIOD": "Thoi gian nghi",
+          "HOTEL_CHECK_IN": "Nhan phong",
+          "HOTEL_CHECK_OUT": "Tra phong"
+        },
+        "reasons": {
+          "startAtMorning": "Bat dau diem dau tien vao buoi sang.",
+          "sequenceAfterPreviousStop": "Dat sau diem truoc va chua thoi gian di chuyen.",
+          "defaultDurationByStopType": "Them thoi luong thuong gap cho loai diem nay.",
+          "lodgingCheckInBuffer": "Chua thoi gian nhan phong.",
+          "noFoodStopNearLunch": "Them khung gio an trua de lich thuc te hon.",
+          "denseDayNeedsRest": "Them mot khoang nghi ngan cho lich day."
+        }
+      },
+      "budget": {
+        "title": "Ngan sach",
+        "spent": "Da chi",
+        "remaining": "Con lai",
+        "notSet": "Chua dat ngan sach",
+        "recommendations": {
+          "SET_TRIP_BUDGET": "Dat ngan sach chuyen di de bat du doan.",
+          "REVIEW_HIGH_SPEND": "Xem lai chi tieu; muc dung khoang {percentage}%.",
+          "PROJECTED_OVERSPEND": "Du kien vuot ngan sach khoang {amount}.",
+          "CATEGORIZE_EXPENSES": "Phan loai {count, plural, other {# chi phi}} de thong tin ro hon."
+        }
+      },
+      "map": {
+        "title": "Thong tin ban do",
+        "meta": "{clusters, plural, other {# cum}} / {isolated, plural, other {# tach biet}}",
+        "empty": "Chua co cum dia diem day dac.",
+        "grouping": {
+          "nearbyStops": "Gom {count, plural, other {# diem gan nhau}} trong dong thoi gian."
+        }
+      },
+      "places": {
+        "title": "Goi y dia diem",
+        "meta": "{count, plural, other {# goi y}}",
+        "empty": "Khong co goi y dia diem.",
+        "names": {
+          "missingFoodStop": "Diem an uong gan tuyen du kien",
+          "missingLodgingStop": "Cho luu tru gan cac diem da hen gio",
+          "extendDenseCluster": "Diem tham quan gan cum hoat dong"
+        },
+        "reasons": {
+          "missingFoodStop": "Lich trinh chua co diem an uong.",
+          "missingLodgingStop": "Lich trinh chua co diem luu tru.",
+          "extendDenseCluster": "Co the mo rong cum hoat dong hien co."
+        }
+      },
+      "collaboration": {
+        "title": "Cong tac",
+        "meta": "{active, plural, other {# dang hoat dong}} / {edits, plural, other {# dang sua}}",
+        "activity": "{count, plural, other {# thay doi gan day}} trong chuyen di.",
+        "contributor": "{name}: {count, plural, other {# thay doi}}"
+      }
     },
     "header": {
       "search": "Tim",

@@ -19,8 +19,10 @@ import { Button } from "@/components/ui/button";
 import { routes } from "@/constants/routes";
 import { Link } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
-import { PresenceAvatarStack } from "@/modules/collaboration/components/presence-avatar-stack";
-import { useUniquePresenceUsers } from "@/modules/collaboration/hooks/use-presence";
+import { ActiveUsersPopover } from "@/modules/collaboration/components/active-users-popover";
+import { ActivityFeedPopover } from "@/modules/collaboration/components/activity-feed-popover";
+import { RealtimeStatus } from "@/modules/collaboration/components/realtime-status";
+import { usePresenceSource } from "@/modules/collaboration/hooks/use-presence";
 import type { PresenceEntry } from "@/modules/collaboration/types/presence.types";
 import { semanticColorClassNames, statusColorClassNames } from "@/theme";
 
@@ -32,6 +34,9 @@ interface TripEditorHeaderProps {
   trip: TripDetail;
   stats: PlannerStats;
   presenceEntries?: PresenceEntry[] | undefined;
+  currentUserId?: string | undefined;
+  followedPresenceUserId?: string | undefined;
+  onFollowPresenceUser?: ((userId?: string) => void) | undefined;
   onIssueSummaryClick?: (() => void) | undefined;
 }
 
@@ -39,6 +44,9 @@ export function TripEditorHeader({
   trip,
   stats,
   presenceEntries = [],
+  currentUserId,
+  followedPresenceUserId,
+  onFollowPresenceUser,
   onIssueSummaryClick
 }: TripEditorHeaderProps) {
   const locale = useLocale();
@@ -53,7 +61,6 @@ export function TripEditorHeader({
   }));
   const [isOverflowMenuOpen, setIsOverflowMenuOpen] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
-  const activePresence = useUniquePresenceUsers(presenceEntries);
   const title = draft.version === trip.version ? draft.title : trip.title;
   const isDirty = title !== trip.title;
   const derivedDateRange = useMemo(
@@ -79,6 +86,14 @@ export function TripEditorHeader({
     : isDirty
       ? t("header.unsaved")
       : t("header.saved");
+  usePresenceSource({
+    tripId: trip.id,
+    entityType: "TRIP",
+    entityId: trip.id,
+    state: "EDITING",
+    priority: 2,
+    enabled: isTitleFocused
+  });
 
   useEffect(() => {
     if (!isOverflowMenuOpen) {
@@ -204,12 +219,17 @@ export function TripEditorHeader({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:justify-end lg:self-center">
-          {activePresence.length > 0 ? (
-            <div className="flex min-w-0 items-center gap-2 px-1 py-1 text-xs text-muted-foreground">
-              <PresenceAvatarStack entries={activePresence} />
-              <span className="max-w-48 truncate">{formatHeaderPresence(activePresence, t)}</span>
-            </div>
-          ) : null}
+          <ActiveUsersPopover
+            entries={presenceEntries}
+            followedUserId={followedPresenceUserId}
+            onFollowUser={onFollowPresenceUser}
+          />
+          <ActivityFeedPopover
+            tripId={trip.id}
+            currentUserId={currentUserId}
+            presenceEntries={presenceEntries}
+          />
+          <RealtimeStatus tripId={trip.id} />
           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <CheckCircle2 className="size-3.5" aria-hidden="true" />
             {saveState}
@@ -298,18 +318,6 @@ export function TripEditorHeader({
       </div>
     </section>
   );
-}
-
-function formatHeaderPresence(entries: PresenceEntry[], t: ReturnType<typeof useTranslations>) {
-  const visibleNames = entries
-    .slice(0, 2)
-    .map((entry) => entry.userName)
-    .join(" / ");
-  const hiddenCount = Math.max(0, entries.length - 2);
-
-  return hiddenCount > 0
-    ? t("header.presence.withMore", { names: visibleNames, count: hiddenCount })
-    : t("header.presence.names", { names: visibleNames });
 }
 
 function formatDerivedDateRange(stats: PlannerStats, locale: string) {
